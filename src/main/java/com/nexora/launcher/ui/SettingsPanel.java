@@ -36,7 +36,7 @@ public class SettingsPanel extends JPanel {
         // RAM Slider
         int ram = cfg.getMaxMemory();
         JLabel ramValue = new JLabel(ram + " MB");
-        ramValue.setForeground(DesignConstants.BLUE_ACCENT);
+        ramValue.setForeground(DesignConstants.purple_ACCENT);
         ramValue.setFont(DesignConstants.FONT_HEADER);
         ramValue.setAlignmentX(Component.LEFT_ALIGNMENT);
 

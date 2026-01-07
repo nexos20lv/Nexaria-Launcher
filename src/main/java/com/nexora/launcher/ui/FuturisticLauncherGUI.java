@@ -21,6 +21,7 @@ public class FuturisticLauncherGUI extends JFrame {
     private FuturisticMainPanel mainPanel;
     private CardLayout cardLayout;
     private JPanel contentPanel;
+    private User currentUser;
 
     public FuturisticLauncherGUI() {
         setTitle("NEXORA LAUNCHER");
@@ -97,6 +98,7 @@ public class FuturisticLauncherGUI extends JFrame {
 
     private void handleLogin(User user) {
         loginPanel.clearPassword();
+        this.currentUser = user;
         mainPanel.setUserProfile(user);
         mainPanel.setVersion(
                 LauncherConfig.getInstance().getMinecraftVersion(),
@@ -171,11 +173,19 @@ public class FuturisticLauncherGUI extends JFrame {
         } catch (Exception e) {
             logger.error("Logout Error", e);
         }
+        this.currentUser = null;
         mainPanel.reset();
         cardLayout.show(contentPanel, "LOGIN");
     }
 
     private void navigate(String route) {
+        // Vérifier si l'utilisateur est connecté avant d'accéder à ACCUEIL
+        if (("ACCUEIL".equals(route) || "HOME".equals(route)) && currentUser == null) {
+            logger.warn("Tentative d'accès à ACCUEIL sans connexion");
+            cardLayout.show(contentPanel, "LOGIN");
+            return;
+        }
+
         String dest = "ACCUEIL";
         if ("ACCUEIL".equals(route) || "HOME".equals(route))
             dest = "ACCUEIL";
