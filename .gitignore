@@ -1,0 +1,43 @@
+# Maven (racine)
+/target/
+/.classpath
+/.project
+/.settings/
+/bin/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Java
+*.class
+*.jar
+*.war
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# Launcher specific
+config.yml
+!config.example.yml
+/data/mods/*.jar
+/data/configs/*
+!.gitkeep
+
+# User folders (auto-generated)
+~/.nexora/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
