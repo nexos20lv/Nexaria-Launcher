@@ -133,6 +133,12 @@ public class LauncherConfig {
         return minMemory;
     }
 
+    // Getters complémentaires pour compatibilité UI
+    public String getAzuriomUrl() { return azuriomUrl; }
+    public String getMinecraftVersion() { return minecraftVersion; }
+    public String getLoader() { return loader; }
+    public String getLoaderVersion() { return loaderVersion; }
+
     public static String getModsDir() {
         return getInstance().modsDir;
     }
