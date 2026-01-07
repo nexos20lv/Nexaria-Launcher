@@ -14,7 +14,7 @@ public class DesignConstants {
     // Accents
     public static final Color PURPLE_ACCENT = new Color(170, 80, 255); // Vibrant Purple
     public static final Color PURPLE_ACCENT_DARK = new Color(120, 40, 200);
-    public static final Color BLUE_ACCENT = new Color(80, 140, 255);
+    public static final Color purple_ACCENT = new Color(80, 140, 255);
     public static final Color CYAN_ACCENT = new Color(50, 220, 255);
 
     // Text

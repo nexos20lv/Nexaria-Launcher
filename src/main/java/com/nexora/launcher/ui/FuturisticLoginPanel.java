@@ -28,25 +28,26 @@ public class FuturisticLoginPanel extends JPanel {
         setOpaque(false); // Transparent to show parent gradient
         setLayout(new GridBagLayout());
 
-        // Glass Card for the Login Form
+        // Glass Card for the Login Form (élargi et plus haut)
         GlassPanel glassCard = new GlassPanel(DesignConstants.ROUNDING);
         glassCard.setLayout(new BoxLayout(glassCard, BoxLayout.Y_AXIS));
-        glassCard.setBorder(BorderFactory.createEmptyBorder(40, 50, 40, 50));
+        glassCard.setBorder(BorderFactory.createEmptyBorder(60, 70, 60, 70));
+        glassCard.setPreferredSize(new Dimension(500, 550));
 
-        // Title
+        // Title (plus grand)
         JLabel titleLabel = new JLabel("NEXORA");
-        titleLabel.setFont(DesignConstants.FONT_TITLE.deriveFont(32f));
-        titleLabel.setForeground(DesignConstants.BLUE_ACCENT);
+        titleLabel.setFont(DesignConstants.FONT_TITLE.deriveFont(48f));
+        titleLabel.setForeground(DesignConstants.PURPLE_ACCENT);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel subtitleLabel = new JLabel("LAUNCHER");
-        subtitleLabel.setFont(DesignConstants.FONT_HEADER); // Smaller than title
+        subtitleLabel.setFont(DesignConstants.FONT_HEADER.deriveFont(20f)); // Plus grand
         subtitleLabel.setForeground(DesignConstants.TEXT_SECONDARY);
         subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         glassCard.add(titleLabel);
         glassCard.add(subtitleLabel);
-        glassCard.add(Box.createVerticalStrut(30));
+        glassCard.add(Box.createVerticalStrut(40));
 
         // Username
         JLabel userLabel = new JLabel("Username / Email");
@@ -55,12 +56,12 @@ public class FuturisticLoginPanel extends JPanel {
         userLabel.setAlignmentX(Component.CENTER_ALIGNMENT); // Center alignment looks good on cards
 
         usernameField = createStyledTextField();
-        usernameField.setMaximumSize(new Dimension(280, 40));
+        usernameField.setMaximumSize(new Dimension(360, 50));
 
         glassCard.add(userLabel);
-        glassCard.add(Box.createVerticalStrut(5));
+        glassCard.add(Box.createVerticalStrut(8));
         glassCard.add(usernameField);
-        glassCard.add(Box.createVerticalStrut(15));
+        glassCard.add(Box.createVerticalStrut(20));
 
         // Password
         JLabel passLabel = new JLabel("Password");
@@ -69,17 +70,18 @@ public class FuturisticLoginPanel extends JPanel {
         passLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         passwordField = createStyledPasswordField();
-        passwordField.setMaximumSize(new Dimension(280, 40));
+        passwordField.setMaximumSize(new Dimension(360, 50));
 
         glassCard.add(passLabel);
-        glassCard.add(Box.createVerticalStrut(5));
+        glassCard.add(Box.createVerticalStrut(8));
         glassCard.add(passwordField);
-        glassCard.add(Box.createVerticalStrut(30));
+        glassCard.add(Box.createVerticalStrut(40));
 
-        // Submit Button
+        // Submit Button (plus grand)
         loginButton = new ModernButton("LOGIN", DesignConstants.PURPLE_ACCENT, DesignConstants.PURPLE_ACCENT_DARK,
                 true); // Gradient button
-        loginButton.setMaximumSize(new Dimension(280, 45));
+        loginButton.setMaximumSize(new Dimension(360, 55));
+        loginButton.setFont(DesignConstants.FONT_HEADER.deriveFont(18f));
         loginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         loginButton.addActionListener(e -> performLogin());
 
@@ -102,7 +104,7 @@ public class FuturisticLoginPanel extends JPanel {
         field.setOpaque(true);
         field.setBackground(new Color(255, 255, 255, 20)); // Semi-transparent
         field.setForeground(DesignConstants.TEXT_PRIMARY);
-        field.setCaretColor(DesignConstants.BLUE_ACCENT);
+        field.setCaretColor(DesignConstants.purple_ACCENT);
         field.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10)); // No line border, just padding
         field.setFont(DesignConstants.FONT_REGULAR);
         return field;
@@ -113,7 +115,7 @@ public class FuturisticLoginPanel extends JPanel {
         field.setOpaque(true);
         field.setBackground(new Color(255, 255, 255, 20));
         field.setForeground(DesignConstants.TEXT_PRIMARY);
-        field.setCaretColor(DesignConstants.BLUE_ACCENT);
+        field.setCaretColor(DesignConstants.purple_ACCENT);
         field.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         field.setFont(DesignConstants.FONT_REGULAR);
         return field;

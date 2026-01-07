@@ -84,7 +84,7 @@ public class FuturisticMainPanel extends JPanel {
 
         progressBar = new JProgressBar(0, 100);
         progressBar.setStringPainted(true);
-        progressBar.setForeground(DesignConstants.BLUE_ACCENT);
+        progressBar.setForeground(DesignConstants.purple_ACCENT);
         progressBar.setBackground(new Color(255, 255, 255, 20));
         progressBar.setBorderPainted(false);
         progressBar.setMaximumSize(new Dimension(500, 6));
