@@ -9,15 +9,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
 import java.io.File;
 
 public class FuturisticLauncherGUI extends JFrame {
     private static final Logger logger = LoggerFactory.getLogger(FuturisticLauncherGUI.class);
-    private static final Color DARK_BG = new Color(15, 23, 42);
-    private static final Color ACCENT_BLUE = new Color(59, 130, 246);
-    private static final Color ACCENT_PURPLE = new Color(139, 92, 246);
-    private static final Color TEXT_PRIMARY = new Color(241, 245, 249);
-    private static final Color TEXT_SECONDARY = new Color(148, 163, 184);
 
     private AzAuthManager authManager;
     private GitHubModManager modManager;
@@ -25,32 +21,66 @@ public class FuturisticLauncherGUI extends JFrame {
     private FuturisticMainPanel mainPanel;
     private CardLayout cardLayout;
     private JPanel contentPanel;
-    private JLabel logoLabel;
 
     public FuturisticLauncherGUI() {
         setTitle("NEXORA LAUNCHER");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1000, 700);
+        setSize(1100, 750);
         setLocationRelativeTo(null);
         setResizable(false);
         setUndecorated(true);
 
+        // Window Rounding
+        setShape(new RoundRectangle2D.Double(0, 0, 1100, 750, 40, 40));
+
+        try {
+            java.net.URL iconUrl = getClass().getResource("/icon.png");
+            if (iconUrl != null) {
+                setIconImage(Toolkit.getDefaultToolkit().getImage(iconUrl));
+            }
+        } catch (Exception e) {
+            /* Ignore */ }
+
         LauncherConfig config = LauncherConfig.getInstance();
         this.authManager = new AzAuthManager(config.getAzuriomUrl());
         this.modManager = new GitHubModManager(null);
-        getContentPane().setLayout(new BorderLayout());
 
-        // Title bar & sidebar
-        getContentPane().add(new TitleBar(this), BorderLayout.NORTH);
+        // Layered Pane for Background + Particles + UI
+        JLayeredPane layeredPane = new JLayeredPane();
+        layeredPane.setPreferredSize(new Dimension(1100, 750));
+        setContentPane(layeredPane);
+
+        // 1. Background Layer (Gradient)
+        GradientPanel backgroundInfo = new GradientPanel(
+                DesignConstants.GRADIENT_MAIN_START,
+                DesignConstants.GRADIENT_MAIN_END,
+                GradientPanel.DIAGONAL);
+        backgroundInfo.setBounds(0, 0, 1100, 750);
+        layeredPane.add(backgroundInfo, Integer.valueOf(0)); // Bottom
+
+        // 2. Particle Layer
+        ParticlePanel particles = new ParticlePanel();
+        particles.setBounds(0, 0, 1100, 750);
+        layeredPane.add(particles, Integer.valueOf(1));
+
+        // 3. UI Content Layer
+        JPanel uiRoot = new JPanel(new BorderLayout());
+        uiRoot.setOpaque(false);
+        uiRoot.setBounds(0, 0, 1100, 750);
+        layeredPane.add(uiRoot, Integer.valueOf(2));
+
+        // -- Construct UI within root --
+        uiRoot.add(new TitleBar(this), BorderLayout.NORTH);
+
         Sidebar sidebar = new Sidebar(this::navigate);
-        getContentPane().add(sidebar, BorderLayout.WEST);
+        uiRoot.add(sidebar, BorderLayout.WEST);
 
-        // Card area
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout);
-        contentPanel.setBackground(DARK_BG);
+        contentPanel.setOpaque(false);
+        // Standard Balanced Padding
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 10, 20, 20));
 
-        // Créer les panneaux
         loginPanel = new FuturisticLoginPanel(this::handleLogin);
         mainPanel = new FuturisticMainPanel(this::handleLaunch, this::handleLogout);
         JPanel settingsPanel = new SettingsPanel();
@@ -59,65 +89,56 @@ public class FuturisticLauncherGUI extends JFrame {
         contentPanel.add(mainPanel, "ACCUEIL");
         contentPanel.add(settingsPanel, "PARAMÈTRES");
 
-        getContentPane().add(contentPanel, BorderLayout.CENTER);
+        uiRoot.add(contentPanel, BorderLayout.CENTER);
 
-        // Afficher le panneau de connexion par défaut
+        // Default View
         cardLayout.show(contentPanel, "LOGIN");
     }
 
-    /**
-     * Gérer la connexion
-     */
     private void handleLogin(User user) {
         loginPanel.clearPassword();
         mainPanel.setUserProfile(user);
         mainPanel.setVersion(
-            LauncherConfig.getInstance().getMinecraftVersion(),
-            LauncherConfig.getInstance().getLoader(),
-            LauncherConfig.getInstance().getLoaderVersion()
-        );
+                LauncherConfig.getInstance().getMinecraftVersion(),
+                LauncherConfig.getInstance().getLoader(),
+                LauncherConfig.getInstance().getLoaderVersion());
         cardLayout.show(contentPanel, "ACCUEIL");
     }
 
-    /**
-     * Gérer le lancement du jeu
-     */
     private void handleLaunch() {
         SwingWorker<Void, Integer> worker = new SwingWorker<Void, Integer>() {
             @Override
             protected Void doInBackground() throws Exception {
                 try {
-                    mainPanel.setStatus("Synchronisation des mods locaux...");
+                    mainPanel.setStatus("Syncing mods...");
                     modManager.syncLocalMods();
 
-                    mainPanel.setStatus("Synchronisation des configs locales...");
+                    mainPanel.setStatus("Syncing configs...");
                     modManager.syncLocalConfigs();
 
-                    mainPanel.setStatus("Lancement du jeu...");
+                    mainPanel.setStatus("Launching Game...");
                     launchGame();
 
                     return null;
                 } catch (Exception e) {
-                    logger.error("Erreur lors du téléchargement", e);
+                    logger.error("Launch Error", e);
                     throw e;
                 }
             }
 
             @Override
-            protected void process(java.util.List<Integer> chunks) { }
+            protected void process(java.util.List<Integer> chunks) {
+            }
 
             @Override
             protected void done() {
                 try {
                     get();
                     mainPanel.setButtonsEnabled(true);
-                    JOptionPane.showMessageDialog(FuturisticLauncherGUI.this,
-                            "Jeu lancé avec succès!",
-                            "Succès",
-                            JOptionPane.INFORMATION_MESSAGE);
+                    mainPanel.setStatus("Game Launched!");
                 } catch (Exception e) {
                     mainPanel.setButtonsEnabled(true);
-                    mainPanel.setStatus("Erreur: " + e.getMessage());
+                    mainPanel.setStatus("Error: " + e.getMessage());
                 }
             }
         };
@@ -127,44 +148,40 @@ public class FuturisticLauncherGUI extends JFrame {
         worker.execute();
     }
 
-    /**
-     * Lancer le jeu Minecraft
-     */
     private void launchGame() throws Exception {
         LauncherConfig config = LauncherConfig.getInstance();
         String gameDirectory = System.getProperty("user.home") + "/.nexora/game";
 
         ProcessBuilder pb = new ProcessBuilder(
-            "java",
-            "-Xmx" + config.getMaxMemory() + "M",
-            "-Xms" + config.getMinMemory() + "M",
-            "-Djava.library.path=" + gameDirectory + "/natives",
-            "-cp", gameDirectory + "/mods/*:" + gameDirectory + "/libs/*",
-            "net.minecraft.client.main.Main"
-        );
+                "java",
+                "-Xmx" + config.getMaxMemory() + "M",
+                "-Xms" + config.getMinMemory() + "M",
+                "-Djava.library.path=" + gameDirectory + "/natives",
+                "-cp", gameDirectory + "/mods/*:" + gameDirectory + "/libs/*",
+                "net.minecraft.client.main.Main");
 
         pb.directory(new File(gameDirectory));
         pb.start();
-
-        logger.info("Jeu lancé avec succès");
+        logger.info("Game Process Started");
     }
 
-    /**
-     * Gérer la déconnexion
-     */
     private void handleLogout() {
         try {
             authManager.logout();
         } catch (Exception e) {
-            logger.error("Erreur lors de la déconnexion", e);
+            logger.error("Logout Error", e);
         }
         mainPanel.reset();
         cardLayout.show(contentPanel, "LOGIN");
     }
 
     private void navigate(String route) {
-        if ("ACCUEIL".equals(route)) cardLayout.show(contentPanel, "ACCUEIL");
-        else if ("PARAMÈTRES".equals(route)) cardLayout.show(contentPanel, "PARAMÈTRES");
-        else cardLayout.show(contentPanel, "ACCUEIL");
+        String dest = "ACCUEIL";
+        if ("ACCUEIL".equals(route) || "HOME".equals(route))
+            dest = "ACCUEIL";
+        else if ("PARAMÈTRES".equals(route) || "SETTINGS".equals(route))
+            dest = "PARAMÈTRES";
+
+        cardLayout.show(contentPanel, dest);
     }
 }
