@@ -2,38 +2,84 @@ package com.nexora.launcher.ui;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.RoundRectangle2D;
-import java.awt.image.BufferedImage;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class ModernButton extends JButton {
     private boolean isHovered = false;
     private Color normalColor;
     private Color hoverColor;
-    private int cornerRadius = 10;
+    private Color startGradient; // Optional gradient
+    private Color endGradient; // Optional gradient
+
+    // Pulse Effect
+    private float pulseAlpha = 0f;
+    private Timer pulseTimer;
+    private boolean pulseGrowing = true;
+
+    public ModernButton(String text) {
+        this(text, DesignConstants.PURPLE_ACCENT, DesignConstants.PURPLE_ACCENT_DARK);
+    }
 
     public ModernButton(String text, Color normalColor, Color hoverColor) {
         super(text);
         this.normalColor = normalColor;
         this.hoverColor = hoverColor;
-        
+        init();
+    }
+
+    // Gradient Constructor
+    public ModernButton(String text, Color startGradient, Color endGradient, boolean gradient) {
+        super(text);
+        this.startGradient = startGradient;
+        this.endGradient = endGradient;
+        this.normalColor = startGradient;
+        this.hoverColor = endGradient;
+        init();
+    }
+
+    private void init() {
         setOpaque(false);
         setContentAreaFilled(false);
         setBorderPainted(false);
         setFocusPainted(false);
-        setFont(new Font("Segoe UI", Font.BOLD, 13));
-        setForeground(Color.WHITE);
+        setFont(DesignConstants.FONT_REGULAR);
+        setForeground(DesignConstants.TEXT_PRIMARY);
         setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        addMouseListener(new java.awt.event.MouseAdapter() {
+
+        pulseTimer = new Timer(50, e -> {
+            if (isHovered) {
+                if (pulseGrowing) {
+                    pulseAlpha += 0.05f;
+                    if (pulseAlpha >= 0.4f)
+                        pulseGrowing = false;
+                } else {
+                    pulseAlpha -= 0.05f;
+                    if (pulseAlpha <= 0f)
+                        pulseGrowing = true;
+                }
+                repaint();
+            } else {
+                pulseAlpha = 0f;
+                pulseTimer.stop();
+                repaint();
+            }
+        });
+
+        addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
+            public void mouseEntered(MouseEvent e) {
                 isHovered = true;
+                pulseGrowing = true;
+                pulseAlpha = 0f;
+                pulseTimer.start();
                 repaint();
             }
 
             @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
+            public void mouseExited(MouseEvent e) {
                 isHovered = false;
+                pulseTimer.stop();
                 repaint();
             }
         });
@@ -44,14 +90,29 @@ public class ModernButton extends JButton {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        Color color = isHovered ? hoverColor : normalColor;
-        g2d.setColor(color);
-        g2d.fillRoundRect(0, 0, getWidth(), getHeight(), cornerRadius, cornerRadius);
+        // Pill Shape: Radius = Height
+        int r = getHeight();
 
+        // Background
+        if (startGradient != null && endGradient != null) {
+            GradientPaint gp = new GradientPaint(0, 0, startGradient, getWidth(), 0, endGradient);
+            g2d.setPaint(gp);
+        } else {
+            g2d.setColor(isHovered ? hoverColor : normalColor);
+        }
+        g2d.fillRoundRect(0, 0, getWidth(), getHeight(), r, r);
+
+        // Pulse / Glow Overlay
+        if (isHovered && pulseAlpha > 0) {
+            g2d.setColor(new Color(1f, 1f, 1f, pulseAlpha));
+            g2d.fillRoundRect(0, 0, getWidth(), getHeight(), r, r);
+        }
+
+        // Border Glow
         if (isHovered) {
-            g2d.setStroke(new BasicStroke(2f));
             g2d.setColor(new Color(255, 255, 255, 100));
-            g2d.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, cornerRadius, cornerRadius);
+            g2d.setStroke(new BasicStroke(1.5f));
+            g2d.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, r, r);
         }
 
         super.paintComponent(g);
