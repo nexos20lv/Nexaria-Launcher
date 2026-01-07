@@ -1,16 +1,14 @@
 package com.nexora.launcher.ui;
 
 import com.nexora.launcher.auth.AzAuthManager;
-import com.nexora.launcher.downloader.ModManager;
-import com.nexora.launcher.downloader.FileDownloader;
+import com.nexora.launcher.downloader.GitHubModManager;
 import com.nexora.launcher.config.LauncherConfig;
-import com.azuriom.auth.User;
+import com.nexora.launcher.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.Ellipse2D;
 import java.io.File;
 
 public class FuturisticLauncherGUI extends JFrame {
@@ -22,7 +20,7 @@ public class FuturisticLauncherGUI extends JFrame {
     private static final Color TEXT_SECONDARY = new Color(148, 163, 184);
 
     private AzAuthManager authManager;
-    private ModManager modManager;
+    private GitHubModManager modManager;
     private FuturisticLoginPanel loginPanel;
     private FuturisticMainPanel mainPanel;
     private CardLayout cardLayout;
@@ -37,15 +35,17 @@ public class FuturisticLauncherGUI extends JFrame {
         setResizable(false);
         setUndecorated(true);
 
-        // Rounded corners
-        setShape(new java.awt.geom.RoundRectangle2D.Double(0, 0, 1000, 700, 20, 20));
-
         LauncherConfig config = LauncherConfig.getInstance();
         this.authManager = new AzAuthManager(config.getAzuriomUrl());
-        String gameDirectory = System.getProperty("user.home") + "/.nexora/game";
-        this.modManager = new ModManager(gameDirectory, config.getServerUrl() + "/api/manifest");
+        this.modManager = new GitHubModManager(null);
+        getContentPane().setLayout(new BorderLayout());
 
-        // Layout avec CardLayout
+        // Title bar & sidebar
+        getContentPane().add(new TitleBar(this), BorderLayout.NORTH);
+        Sidebar sidebar = new Sidebar(this::navigate);
+        getContentPane().add(sidebar, BorderLayout.WEST);
+
+        // Card area
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout);
         contentPanel.setBackground(DARK_BG);
@@ -53,11 +53,13 @@ public class FuturisticLauncherGUI extends JFrame {
         // Créer les panneaux
         loginPanel = new FuturisticLoginPanel(this::handleLogin);
         mainPanel = new FuturisticMainPanel(this::handleLaunch, this::handleLogout);
+        JPanel settingsPanel = new SettingsPanel();
 
         contentPanel.add(loginPanel, "LOGIN");
-        contentPanel.add(mainPanel, "MAIN");
+        contentPanel.add(mainPanel, "ACCUEIL");
+        contentPanel.add(settingsPanel, "PARAMÈTRES");
 
-        add(contentPanel);
+        getContentPane().add(contentPanel, BorderLayout.CENTER);
 
         // Afficher le panneau de connexion par défaut
         cardLayout.show(contentPanel, "LOGIN");
@@ -74,7 +76,7 @@ public class FuturisticLauncherGUI extends JFrame {
             LauncherConfig.getInstance().getLoader(),
             LauncherConfig.getInstance().getLoaderVersion()
         );
-        cardLayout.show(contentPanel, "MAIN");
+        cardLayout.show(contentPanel, "ACCUEIL");
     }
 
     /**
@@ -85,16 +87,11 @@ public class FuturisticLauncherGUI extends JFrame {
             @Override
             protected Void doInBackground() throws Exception {
                 try {
-                    FileDownloader.DownloadProgressListener progressListener = (downloaded, total) -> {
-                        int progress = (int) ((downloaded * 100) / total);
-                        publish(progress);
-                    };
+                    mainPanel.setStatus("Synchronisation des mods locaux...");
+                    modManager.syncLocalMods();
 
-                    mainPanel.setStatus("Téléchargement des fichiers...");
-                    modManager.downloadAndInstallMods(progressListener);
-
-                    mainPanel.setStatus("Nettoyage des fichiers obsolètes...");
-                    modManager.cleanupOldFiles();
+                    mainPanel.setStatus("Synchronisation des configs locales...");
+                    modManager.syncLocalConfigs();
 
                     mainPanel.setStatus("Lancement du jeu...");
                     launchGame();
@@ -107,11 +104,7 @@ public class FuturisticLauncherGUI extends JFrame {
             }
 
             @Override
-            protected void process(java.util.List<Integer> chunks) {
-                for (Integer progress : chunks) {
-                    mainPanel.setProgress(progress);
-                }
-            }
+            protected void process(java.util.List<Integer> chunks) { }
 
             @Override
             protected void done() {
@@ -167,5 +160,11 @@ public class FuturisticLauncherGUI extends JFrame {
         }
         mainPanel.reset();
         cardLayout.show(contentPanel, "LOGIN");
+    }
+
+    private void navigate(String route) {
+        if ("ACCUEIL".equals(route)) cardLayout.show(contentPanel, "ACCUEIL");
+        else if ("PARAMÈTRES".equals(route)) cardLayout.show(contentPanel, "PARAMÈTRES");
+        else cardLayout.show(contentPanel, "ACCUEIL");
     }
 }
