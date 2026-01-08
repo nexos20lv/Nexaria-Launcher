@@ -144,7 +144,8 @@ public class UpdateSplashScreen extends JWindow {
             @Override
             public void onCheckStart() {
                 SwingUtilities.invokeLater(() -> {
-                    statusLabel.setText("🔍 Vérification des mises à jour...");
+                    statusLabel.setText("Vérification des mises à jour...");
+                    statusLabel.setIcon(IconUtil.getSearchIcon(PRIMARY_COLOR));
                     subStatusLabel.setText("Connexion à GitHub API...");
                     progressBar.setValue(10);
                 });
@@ -154,7 +155,8 @@ public class UpdateSplashScreen extends JWindow {
             public void onCheckComplete(boolean hasUpdate, GitHubUpdater.GitHubRelease release, String error) {
                 SwingUtilities.invokeLater(() -> {
                     if (error != null) {
-                        statusLabel.setText("⚠️ Erreur lors de la vérification");
+                        statusLabel.setText("Erreur lors de la vérification");
+                        statusLabel.setIcon(IconUtil.getErrorIcon(ERROR_COLOR));
                         subStatusLabel.setText(error);
                         progressBar.setValue(100);
                         progressBar.setForeground(ERROR_COLOR);
@@ -166,12 +168,14 @@ public class UpdateSplashScreen extends JWindow {
                     } else if (hasUpdate) {
                         updateFound = true;
                         latestRelease = release;
-                        statusLabel.setText("✅ Mise à jour disponible: " + release.tagName);
+                        statusLabel.setText("Mise à jour disponible: " + release.tagName);
+                        statusLabel.setIcon(IconUtil.getDownloadIcon(SUCCESS_COLOR));
                         subStatusLabel.setText("Téléchargement en cours...");
                         progressBar.setValue(30);
                         progressBar.setForeground(SUCCESS_COLOR);
                     } else {
-                        statusLabel.setText("✅ Launcher à jour");
+                        statusLabel.setText("Launcher à jour");
+                        statusLabel.setIcon(IconUtil.getCheckIcon(SUCCESS_COLOR));
                         subStatusLabel.setText("Vous disposez déjà de la dernière version");
                         progressBar.setValue(100);
                         progressBar.setForeground(SUCCESS_COLOR);
@@ -187,7 +191,8 @@ public class UpdateSplashScreen extends JWindow {
             @Override
             public void onDownloadStart(String version) {
                 SwingUtilities.invokeLater(() -> {
-                    statusLabel.setText("⬇️ Téléchargement de " + version);
+                    statusLabel.setText("Téléchargement de " + version);
+                    statusLabel.setIcon(IconUtil.getDownloadIcon(PRIMARY_COLOR));
                     subStatusLabel.setText("Récupération depuis GitHub...");
                     progressBar.setValue(40);
                     progressBar.setForeground(PRIMARY_COLOR);
@@ -211,7 +216,8 @@ public class UpdateSplashScreen extends JWindow {
             @Override
             public void onDownloadComplete() {
                 SwingUtilities.invokeLater(() -> {
-                    statusLabel.setText("📦 Installation en cours...");
+                    statusLabel.setText("Installation en cours...");
+                    statusLabel.setIcon(IconUtil.getCheckIcon(PRIMARY_COLOR));
                     subStatusLabel.setText("Préparation du redémarrage...");
                     progressBar.setValue(95);
                 });
@@ -220,7 +226,8 @@ public class UpdateSplashScreen extends JWindow {
             @Override
             public void onError(String message) {
                 SwingUtilities.invokeLater(() -> {
-                    statusLabel.setText("❌ Erreur");
+                    statusLabel.setText("Erreur");
+                    statusLabel.setIcon(IconUtil.getErrorIcon(ERROR_COLOR));
                     subStatusLabel.setText(message);
                     progressBar.setValue(100);
                     progressBar.setForeground(new Color(200, 100, 100));
