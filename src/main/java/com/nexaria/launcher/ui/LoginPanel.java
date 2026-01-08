@@ -34,22 +34,23 @@ public class LoginPanel extends JPanel {
 
         GlassPanel glassCard = new GlassPanel(DesignConstants.ROUNDING);
         glassCard.setLayout(new BoxLayout(glassCard, BoxLayout.Y_AXIS));
-        glassCard.setBorder(BorderFactory.createEmptyBorder(60, 70, 60, 70));
+        glassCard.setBorder(BorderFactory.createEmptyBorder(40, 70, 60, 70));
         glassCard.setPreferredSize(new Dimension(500, 550));
 
-        JLabel titleLabel = new JLabel("NEXARIA");
-        titleLabel.setFont(DesignConstants.FONT_TITLE.deriveFont(48f));
-        titleLabel.setForeground(DesignConstants.PURPLE_ACCENT);
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel subtitleLabel = new JLabel("LANCEUR");
-        subtitleLabel.setFont(DesignConstants.FONT_HEADER.deriveFont(20f));
-        subtitleLabel.setForeground(DesignConstants.TEXT_SECONDARY);
-        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        glassCard.add(titleLabel);
-        glassCard.add(subtitleLabel);
-        glassCard.add(Box.createVerticalStrut(40));
+        // Logo centré en haut
+        JLabel logoLabel;
+        try {
+            ImageIcon rawIcon = new ImageIcon(getClass().getResource("/logo.png"));
+            Image scaled = rawIcon.getImage().getScaledInstance(180, -1, Image.SCALE_SMOOTH);
+            logoLabel = new JLabel(new ImageIcon(scaled));
+        } catch (Exception e) {
+            logoLabel = new JLabel("Nexaria Launcher");
+            logoLabel.setForeground(DesignConstants.PURPLE_ACCENT);
+            logoLabel.setFont(DesignConstants.FONT_TITLE.deriveFont(36f));
+        }
+        logoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        glassCard.add(logoLabel);
+        glassCard.add(Box.createVerticalStrut(30));
 
         JLabel userLabel = new JLabel("Nom d'utilisateur / Email");
         userLabel.setIcon(FontIcon.of(FontAwesomeSolid.USER, 16, DesignConstants.TEXT_PRIMARY));

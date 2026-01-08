@@ -3,6 +3,7 @@ package com.nexaria.launcher.ui;
 import com.nexaria.launcher.config.LauncherConfig;
 
 import javax.swing.*;
+import javax.swing.plaf.basic.BasicTabbedPaneUI;
 import java.awt.*;
 import java.io.File;
 import java.io.FileInputStream;
@@ -43,12 +44,21 @@ public class SettingsPanel extends JPanel {
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Page unique avec sections repliables (menus déroulants)
-        JPanel content = new JPanel();
-        content.setOpaque(false);
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        // Navigation par onglets en haut, stylée comme le reste de l'app
+        JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
+        tabs.setOpaque(false);
+        tabs.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
+        tabs.setFont(DesignConstants.FONT_REGULAR.deriveFont(13f));
+        tabs.setForeground(DesignConstants.TEXT_PRIMARY);
+        tabs.setBackground(new Color(0, 0, 0, 0));
+        tabs.setFocusable(false);
+        tabs.setUI(new BasicTabbedPaneUI() {
+            @Override protected void paintFocusIndicator(Graphics g, int tp, Rectangle[] rects, int ti, Rectangle iconRect, Rectangle textRect, boolean isSelected) {}
+            @Override protected void paintTabBorder(Graphics g, int tp, int ti, int tx, int ty, int tw, int th, boolean isSelected) {}
+            @Override protected void paintContentBorder(Graphics g, int tp, int si) {}
+        });
 
-        // Section Général
+        // Onglet Général (basics)
         JPanel general = createTabBase("Paramètres généraux");
         general.add(Box.createVerticalStrut(10));
         JCheckBox minimizeOnLaunch = new JCheckBox("Minimiser le launcher lorsque le jeu démarre");
@@ -65,52 +75,66 @@ public class SettingsPanel extends JPanel {
         general.add(minimizeOnLaunch);
         general.add(Box.createVerticalGlue());
 
-        content.add(createAccordionSection("Paramètres généraux", general));
-        content.add(Box.createVerticalStrut(12));
-        content.add(createAccordionSection("Compte", createAccountTab()));
-        content.add(Box.createVerticalStrut(12));
-        content.add(createAccordionSection("Mémoire", createMemoryTab()));
-        content.add(Box.createVerticalStrut(12));
-        content.add(createAccordionSection("Réseau", createNetworkTab()));
-        content.add(Box.createVerticalStrut(12));
-        content.add(createAccordionSection("Dossiers", createFoldersTab()));
-        content.add(Box.createVerticalStrut(12));
-        content.add(createAccordionSection("Diagnostics", createDiagnosticsTab()));
+        tabs.addTab("Général", wrapInScroll(general));
+        tabs.addTab("Compte", wrapInScroll(createAccountTab()));
+        tabs.addTab("Mémoire", wrapInScroll(createMemoryTab()));
+        tabs.addTab("Réseau", wrapInScroll(createNetworkTab()));
+        tabs.addTab("Dossiers", wrapInScroll(createFoldersTab()));
+        tabs.addTab("Diagnostics", wrapInScroll(createDiagnosticsTab()));
 
-        JScrollPane scroll = new JScrollPane(content);
+        Icon[] tabIcons = new Icon[]{
+                FontIcon.of(FontAwesomeSolid.COG, 14, DesignConstants.TEXT_SECONDARY),
+                FontIcon.of(FontAwesomeSolid.USER, 14, DesignConstants.TEXT_SECONDARY),
+                FontIcon.of(FontAwesomeSolid.MEMORY, 14, DesignConstants.TEXT_SECONDARY),
+                FontIcon.of(FontAwesomeSolid.WIFI, 14, DesignConstants.TEXT_SECONDARY),
+                FontIcon.of(FontAwesomeSolid.FOLDER_OPEN, 14, DesignConstants.TEXT_SECONDARY),
+                FontIcon.of(FontAwesomeSolid.STETHOSCOPE, 14, DesignConstants.TEXT_SECONDARY)
+        };
+
+        // Tab components custom pour coller au design
+        for (int i = 0; i < tabs.getTabCount(); i++) {
+            tabs.setTabComponentAt(i, createTabHeader(tabs, tabs.getTitleAt(i), tabIcons[i]));
+        }
+        tabs.addChangeListener(e -> updateTabHeaderStyles(tabs));
+        updateTabHeaderStyles(tabs);
+
+        add(tabs, BorderLayout.CENTER);
+    }
+
+    private Component createTabHeader(JTabbedPane tabs, String title, Icon icon) {
+        JLabel lbl = new JLabel(title.toUpperCase(), icon, JLabel.LEADING);
+        lbl.setFont(DesignConstants.FONT_HEADER.deriveFont(13f));
+        lbl.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
+        lbl.setOpaque(true);
+        lbl.setBackground(new Color(0, 0, 0, 0));
+        lbl.setForeground(DesignConstants.TEXT_SECONDARY);
+        lbl.setIconTextGap(8);
+        lbl.putClientProperty("isTabLabel", true);
+        return lbl;
+    }
+
+    private void updateTabHeaderStyles(JTabbedPane tabs) {
+        for (int i = 0; i < tabs.getTabCount(); i++) {
+            Component c = tabs.getTabComponentAt(i);
+            if (c instanceof JLabel) {
+                JLabel lbl = (JLabel) c;
+                boolean selected = tabs.getSelectedIndex() == i;
+                lbl.setBackground(selected ? new Color(60, 40, 90, 200) : new Color(0, 0, 0, 0));
+                lbl.setForeground(selected ? DesignConstants.PURPLE_ACCENT : DesignConstants.TEXT_SECONDARY);
+                lbl.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, selected ? 2 : 1, 0, selected ? DesignConstants.PURPLE_ACCENT : new Color(255, 255, 255, 30)),
+                        BorderFactory.createEmptyBorder(8, 14, 8, 14)));
+                lbl.setOpaque(true);
+            }
+        }
+    }
+
+    private JScrollPane wrapInScroll(JPanel panel) {
+        JScrollPane scroll = new JScrollPane(panel);
         scroll.setBorder(null);
         scroll.getViewport().setOpaque(false);
         scroll.setOpaque(false);
-        add(scroll, BorderLayout.CENTER);
-    }
-
-    private JPanel createAccordionSection(String title, JPanel body) {
-        JPanel section = new JPanel();
-        section.setOpaque(false);
-        section.setLayout(new BorderLayout());
-        JToggleButton header = new JToggleButton();
-        header.setSelected(false);
-        header.setFocusPainted(false);
-        header.setContentAreaFilled(false);
-        header.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-        header.setFont(DesignConstants.FONT_TITLE.deriveFont(14f));
-        header.setForeground(DesignConstants.PURPLE_ACCENT);
-        header.setIcon(FontIcon.of(FontAwesomeSolid.CHEVRON_RIGHT, 12, DesignConstants.PURPLE_ACCENT));
-        header.setText(title);
-        body.setVisible(false);
-        header.addActionListener(e -> {
-            boolean open = header.isSelected();
-            header.setIcon(FontIcon.of(
-                open ? FontAwesomeSolid.CHEVRON_DOWN : FontAwesomeSolid.CHEVRON_RIGHT, 
-                12, 
-                DesignConstants.PURPLE_ACCENT
-            ));
-            body.setVisible(open);
-            section.revalidate();
-        });
-        section.add(header, BorderLayout.NORTH);
-        section.add(body, BorderLayout.CENTER);
-        return section;
+        return scroll;
     }
 
     private JPanel createAccountTab() {
