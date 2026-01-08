@@ -4,14 +4,15 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import com.nexaria.launcher.config.LauncherConfig;
 import com.nexaria.launcher.downloader.GitHubModManager;
 import com.nexaria.launcher.ui.LauncherWindow;
-import com.nexaria.launcher.updater.GitHubUpdater;
+import com.nexaria.launcher.ui.UpdateSplashScreen;
+import com.nexaria.launcher.updater.UpdateManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javax.swing.*;
 
 public class NexariaLauncher {
     private static final Logger logger = LoggerFactory.getLogger(NexariaLauncher.class);
-    private static final String LAUNCHER_VERSION = "1.0.0";
+    private static final String LAUNCHER_VERSION = "1.0.5";
 
     public static void main(String[] args) {
         // Initialiser FlatLaf L&F pour un style moderne
@@ -40,20 +41,21 @@ public class NexariaLauncher {
             logger.info("Configuration chargée");
             LauncherConfig config = LauncherConfig.getInstance();
 
-            // Vérifier les mises à jour du launcher via GitHub
-            if (config.isAutoUpdate()) {
+            // Afficher le splash screen de mise à jour si activé
+            if (config.isAutoUpdate() && config.githubRepo != null && !config.githubRepo.isEmpty()) {
                 try {
-                    GitHubUpdater updater = new GitHubUpdater(config.githubRepo, LAUNCHER_VERSION);
-                    if (updater.hasUpdate()) {
-                        logger.info("Mise à jour du launcher disponible");
-                        GitHubUpdater.GitHubRelease release = updater.getLatestRelease();
-                        String updatePath = LauncherConfig.getCacheDir() + "/nexaria-launcher-update.jar";
-                        updater.downloadUpdate(release, updatePath);
-                        GitHubUpdater.installUpdate(updatePath);
-                        return;
+                    UpdateSplashScreen splash = new UpdateSplashScreen();
+                    UpdateManager updateManager = new UpdateManager(config.githubRepo, LAUNCHER_VERSION);
+                    splash.startUpdateCheck(updateManager);
+                    
+                    // Attendre que le splash se ferme (max 10 secondes)
+                    Thread.sleep(10000);
+                    
+                    if (splash.isVisible()) {
+                        splash.closeScreen();
                     }
                 } catch (Exception e) {
-                    logger.warn("Erreur lors de la vérification des mises à jour", e);
+                    logger.warn("Erreur lors de l'affichage du splash screen de mise à jour", e);
                 }
             }
 
