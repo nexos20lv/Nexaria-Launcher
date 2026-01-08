@@ -80,7 +80,7 @@ public class LauncherConfig {
             instance.downloadRateLimitKBps = 0;
             instance.downloadMirrorBase = "";
             instance.rememberMeDefault = true;
-            instance.launcherVersion = "1.0.6";
+            instance.launcherVersion = "1.0.7";
             instance.serverHost = "eclozionmc.ovh";
             instance.serverPort = 25565;
             instance.serverName = "EclozionMC";
