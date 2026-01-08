@@ -18,22 +18,14 @@
 
 # Java
 *.class
-*.jar
 *.war
 *.nar
 *.zip
 *.tar.gz
 *.rar
 
-# Launcher specific
-config.yml
-!config.example.yml
-/data/mods/*.jar
-/data/configs/*
-!.gitkeep
-
 # User folders (auto-generated)
-~/.nexora/
+~/.nexaria/
 
 # Logs
 *.log

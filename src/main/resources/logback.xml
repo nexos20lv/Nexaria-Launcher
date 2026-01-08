@@ -7,12 +7,12 @@
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${user.home}/.nexora/launcher.log</file>
+        <file>${user.home}/.nexaria/launcher.log</file>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${user.home}/.nexora/launcher.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${user.home}/.nexaria/launcher.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
@@ -23,5 +23,5 @@
         <appender-ref ref="FILE" />
     </root>
 
-    <logger name="com.nexora" level="DEBUG" />
+    <logger name="com.nexaria" level="DEBUG"/>
 </configuration>

@@ -1,0 +1,38 @@
+######################################################
+# NEXARIA Launcher - Configuration
+######################################################
+
+azuriomUrl: https://eclozionmc.ovh
+githubRepo: nexos20lv/nexaria-launcher
+githubBranch: main
+
+minecraftVersion: 1.20.1
+loader: forge
+loaderVersion: 47.2.0
+
+minMemory: 1024
+maxMemory: 4096
+jvmArgs: -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+
+launcherVersion: 1.0.0
+autoUpdate: true
+debugMode: false
+language: fr
+
+dataFolder: .nexaria
+modsSubfolder: mods
+configsSubfolder: configs
+launcherSubfolder: launcher
+cacheSubfolder: cache
+versionsSubfolder: versions
+gameSubfolder: game
+
+verifyIntegrity: true
+cleanupOldMods: true
+autoLaunchGame: false
+downloadTimeout: 30
+
+# Statut serveur Minecraft (affiché en haut à droite)
+serverHost: eclozionmc.ovh
+serverPort: 25565
+serverName: EclozionMC
