@@ -5,6 +5,7 @@ import javax.swing.*;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,21 +51,39 @@ public class Sidebar extends JPanel {
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (currentUser == null) return;
                 JPopupMenu menu = new JPopupMenu();
-                JMenuItem info = new JMenuItem("Utilisateur : " + currentUser.getUsername());
+                
+                // Nom d'utilisateur avec rôle
+                String title = currentUser.getUsername();
+                if (currentUser.getRoleName() != null && !currentUser.getRoleName().isEmpty()) {
+                    title += " (" + currentUser.getRoleName() + ")";
+                }
+                JMenuItem info = new JMenuItem(title);
                 info.setEnabled(false);
                 info.setIcon(FontIcon.of(FontAwesomeSolid.USER, 14, DesignConstants.TEXT_SECONDARY));
+                menu.add(info);
+                
+                // ID
                 JMenuItem idItem = new JMenuItem("ID : " + currentUser.getId());
                 idItem.setEnabled(false);
                 idItem.setIcon(FontIcon.of(FontAwesomeSolid.ID_CARD, 14, DesignConstants.TEXT_SECONDARY));
+                menu.add(idItem);
+                
+                // Argent
+                JMenuItem moneyItem = new JMenuItem(String.format("Argent : %.2f", currentUser.getMoney()));
+                moneyItem.setEnabled(false);
+                moneyItem.setIcon(FontIcon.of(FontAwesomeSolid.COINS, 14, new Color(255, 215, 0)));
+                menu.add(moneyItem);
+                
+                menu.addSeparator();
+                
+                // Déconnexion
                 JMenuItem logout = new JMenuItem("Se déconnecter");
                 logout.setIcon(FontIcon.of(FontAwesomeSolid.SIGN_OUT_ALT, 14, DesignConstants.PURPLE_ACCENT));
                 logout.addActionListener(ev -> {
                     if (logoutCallback != null) logoutCallback.run();
                 });
-                menu.add(info);
-                menu.add(idItem);
-                menu.addSeparator();
                 menu.add(logout);
+                
                 menu.show(avatarLabel, e.getX(), e.getY());
             }
         });
@@ -107,14 +126,35 @@ public class Sidebar extends JPanel {
         String url = buildAvatarUrl(azuriomUrl, user);
         try {
             ImageIcon raw = new ImageIcon(URI.create(url).toURL());
-            Image scaled = raw.getImage().getScaledInstance(48, 48, Image.SCALE_SMOOTH);
-            avatarLabel.setIcon(new ImageIcon(scaled));
+            BufferedImage rounded = createRoundedAvatar(raw.getImage(), 48);
+            avatarLabel.setIcon(new ImageIcon(rounded));
             avatarLabel.setText("");
         } catch (Exception ex) {
             avatarLabel.setIcon(null);
             avatarLabel.setText(user.getUsername());
             avatarLabel.setToolTipText("Avatar indisponible");
         }
+    }
+
+    private BufferedImage createRoundedAvatar(Image img, int size) {
+        // Créer une image carrée avec canal alpha
+        BufferedImage output = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = output.createGraphics();
+        
+        // Anti-aliasing pour des bords lisses
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        
+        // Dessiner un cercle blanc comme masque
+        g2.setColor(Color.WHITE);
+        g2.fillOval(0, 0, size, size);
+        
+        // Utiliser le masque pour ne garder que la partie circulaire de l'image
+        g2.setComposite(AlphaComposite.SrcIn);
+        g2.drawImage(img, 0, 0, size, size, null);
+        
+        g2.dispose();
+        return output;
     }
 
     public void clearUserProfile() {

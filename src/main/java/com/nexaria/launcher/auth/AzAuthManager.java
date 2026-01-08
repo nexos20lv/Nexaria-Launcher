@@ -66,11 +66,34 @@ public class AzAuthManager {
 
             if (status == 200) {
                 JsonObject json = JsonParser.parseString(sb.toString()).getAsJsonObject();
+                logger.debug("Réponse API Azuriom: {}", json.toString());
+                
                 int id = json.has("id") ? json.get("id").getAsInt() : -1;
                 String siteUsername = json.has("username") ? json.get("username").getAsString() : usernameOrEmail;
                 this.accessToken = json.has("access_token") ? json.get("access_token").getAsString() : UUID.randomUUID().toString();
                 String uid = (id >= 0) ? String.valueOf(id) : UUID.randomUUID().toString();
-                this.currentUser = new User(uid, siteUsername, accessToken);
+                
+                // Extraire les données supplémentaires de l'API Azuriom
+                String uuid = json.has("uuid") ? json.get("uuid").getAsString() : null;
+                boolean emailVerified = json.has("email_verified") && json.get("email_verified").getAsBoolean();
+                double money = json.has("money") ? json.get("money").getAsDouble() : 0.0;
+                
+                String roleName = null;
+                String roleColor = null;
+                if (json.has("role") && json.get("role").isJsonObject()) {
+                    JsonObject role = json.getAsJsonObject("role");
+                    roleName = role.has("name") ? role.get("name").getAsString() : null;
+                    roleColor = role.has("color") ? role.get("color").getAsString() : null;
+                }
+                
+                boolean banned = json.has("banned") && json.get("banned").getAsBoolean();
+                String createdAt = json.has("created_at") ? json.get("created_at").getAsString() : null;
+                
+                logger.info("Données utilisateur - UUID: {}, Role: {}, Money: {}, EmailVerified: {}", 
+                           uuid, roleName, money, emailVerified);
+                
+                this.currentUser = new User(uid, siteUsername, accessToken, uuid, emailVerified, 
+                                           money, roleName, roleColor, banned, createdAt);
                 logger.info("Utilisateur authentifié: {}", currentUser.getUsername());
                 return currentUser;
             } else {
