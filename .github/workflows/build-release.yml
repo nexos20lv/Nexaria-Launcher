@@ -27,12 +27,36 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Extract project version
+      - name: Extract and increment version
         id: version
         run: |
-          VER=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
-          echo "VERSION=$VER" >> $GITHUB_ENV
-          echo "version=$VER" >> $GITHUB_OUTPUT
+          # Extract current version
+          CURRENT_VER=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
+          echo "Current version: $CURRENT_VER"
+          
+          # Parse version components (assuming semantic versioning: MAJOR.MINOR.PATCH)
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VER"
+          MAJOR="${VERSION_PARTS[0]}"
+          MINOR="${VERSION_PARTS[1]}"
+          PATCH="${VERSION_PARTS[2]}"
+          
+          # Increment patch version
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VER="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          echo "New version: $NEW_VER"
+          echo "VERSION=$NEW_VER" >> $GITHUB_ENV
+          echo "version=$NEW_VER" >> $GITHUB_OUTPUT
+          
+          # Update pom.xml with new version
+          mvn versions:set -DnewVersion=$NEW_VER -DgenerateBackupPoms=false
+          
+          # Commit version update
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add pom.xml
+          git commit -m "chore: bump version to $NEW_VER [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Sync launcherVersion in config.yml
         run: |
