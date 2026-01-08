@@ -56,13 +56,13 @@ jobs:
           git commit -m "chore: bump version to $NEW_VER [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
 
-      - name: Sync launcherVersion in config.yml
+      - name: Sync launcherVersion in LauncherConfig.java
         run: |
-          sed -i -E "s/^launcherVersion:.*/launcherVersion: $VERSION/" config.yml || true
-          if git status --porcelain | grep -q 'config.yml'; then
+          sed -i -E "s/(instance\.launcherVersion = \")[0-9]+\.[0-9]+\.[0-9]+/\1$VERSION/" src/main/java/com/nexaria/launcher/config/LauncherConfig.java
+          if git status --porcelain | grep -q 'LauncherConfig.java'; then
             git config user.name "github-actions"
             git config user.email "github-actions@github.com"
-            git add config.yml
+            git add src/main/java/com/nexaria/launcher/config/LauncherConfig.java
             git commit -m "chore: sync launcherVersion to $VERSION [skip ci]"
             git push origin HEAD:${{ github.ref_name }}
           fi

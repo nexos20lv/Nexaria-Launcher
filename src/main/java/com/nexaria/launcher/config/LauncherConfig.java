@@ -4,19 +4,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 /**
  * Configuration globale du launcher basée sur config.yml
  */
 public class LauncherConfig {
     private static final Logger logger = LoggerFactory.getLogger(LauncherConfig.class);
-    private static final String CONFIG_FILE = "config.yml";
-    private static final String WORKSPACE_DATA_DIR = "data";
 
     private static LauncherConfig instance;
-    private ConfigLoader configLoader;
 
     // Propriétés publiques
     public String azuriomUrl;
@@ -58,57 +53,46 @@ public class LauncherConfig {
     }
 
     /**
-     * Charger la configuration depuis config.yml
+     * Charger la configuration (valeurs en dur)
      */
     public static void loadConfig() throws Exception {
         try {
             instance = new LauncherConfig();
-            instance.configLoader = new ConfigLoader();
 
-            // Essayer d'abord le fichier config.yml dans le dossier courant
-            if (Files.exists(Paths.get(CONFIG_FILE))) {
-                instance.configLoader.loadFromFile(CONFIG_FILE);
-            } else {
-                logger.warn("config.yml non trouvé, utilisation des valeurs par défaut");
-            }
+            // Configuration en dur - Nexaria Launcher
+            instance.azuriomUrl = "https://eclozionmc.ovh";
+            instance.githubRepo = "nexos20lv/Nexaria-Launcher";
+            instance.githubBranch = "main";
+            instance.minecraftVersion = "1.20.1";
+            instance.loader = "forge";
+            instance.loaderVersion = "47.2.0";
+            instance.maxMemory = 4096;
+            instance.minMemory = 1024;
+            instance.jvmArgs = "-XX:+UseG1GC -XX:MaxGCPauseMillis=200";
+            instance.autoUpdate = true;
+            instance.debugMode = false;
+            instance.language = "fr";
+            instance.verifyIntegrity = true;
+            instance.cleanupOldMods = true;
+            instance.autoLaunchGame = false;
+            instance.minimizeOnLaunch = true;
+            instance.downloadTimeout = 30;
+            instance.downloadRateLimitKBps = 0;
+            instance.downloadMirrorBase = "";
+            instance.rememberMeDefault = true;
+            instance.launcherVersion = "1.0.1";
+            instance.serverHost = "eclozionmc.ovh";
+            instance.serverPort = 25565;
+            instance.serverName = "EclozionMC";
 
-            // Charger les propriétés
-            instance.azuriomUrl = instance.configLoader.getString("azuriomUrl", "https://your-azuriom.com");
-            instance.githubRepo = instance.configLoader.getString("githubRepo", "username/nexaria");
-            instance.githubBranch = instance.configLoader.getString("githubBranch", "main");
-            instance.minecraftVersion = instance.configLoader.getString("minecraftVersion", "1.20.1");
-            instance.loader = instance.configLoader.getString("loader", "forge");
-            instance.loaderVersion = instance.configLoader.getString("loaderVersion", "47.2.0");
-            instance.maxMemory = instance.configLoader.getInt("maxMemory", 2048);
-            instance.minMemory = instance.configLoader.getInt("minMemory", 512);
-            instance.jvmArgs = instance.configLoader.getString("jvmArgs", "-XX:+UseG1GC");
-            instance.autoUpdate = instance.configLoader.getBoolean("autoUpdate", true);
-            instance.debugMode = instance.configLoader.getBoolean("debugMode", false);
-            instance.language = instance.configLoader.getString("language", "fr");
-            instance.verifyIntegrity = instance.configLoader.getBoolean("verifyIntegrity", true);
-            instance.cleanupOldMods = instance.configLoader.getBoolean("cleanupOldMods", true);
-            instance.autoLaunchGame = instance.configLoader.getBoolean("autoLaunchGame", false);
-            instance.minimizeOnLaunch = instance.configLoader.getBoolean("minimizeOnLaunch", true);
-                instance.downloadTimeout = instance.configLoader.getInt("downloadTimeout", 30);
-                instance.downloadRateLimitKBps = instance.configLoader.getInt("downloadRateLimitKBps", 0);
-                instance.downloadMirrorBase = instance.configLoader.getString("downloadMirrorBase", "");
-                instance.rememberMeDefault = instance.configLoader.getBoolean("rememberMeDefault", true);
-            instance.launcherVersion = instance.configLoader.getString("launcherVersion", "1.0.0");
-            instance.serverHost = instance.configLoader.getString("serverHost", "127.0.0.1");
-            instance.serverPort = instance.configLoader.getInt("serverPort", 25565);
-            instance.serverName = instance.configLoader.getString("serverName", "Serveur");
-
-                // Initialiser le dossier de données runtime (AppData selon OS)
-                instance.dataFolder = computeAppDataDir();
-                // Mods et configs doivent être sous le dossier du jeu pour que Forge les charge
-                // gameDir est défini plus bas; recalculer après définition
-            instance.launcherDir = instance.dataFolder + File.separator
-                    + instance.configLoader.getString("launcherSubfolder", "launcher");
-            instance.cacheDir = instance.dataFolder + File.separator + instance.configLoader.getString("cacheSubfolder", "cache");
-                instance.versionsDir = instance.dataFolder + File.separator + instance.configLoader.getString("versionsSubfolder", "versions");
-                instance.gameDir = instance.configLoader.getString("gameDir", instance.dataFolder + File.separator + instance.configLoader.getString("gameSubfolder", "game"));
-                instance.modsDir = instance.gameDir + File.separator + instance.configLoader.getString("modsSubfolder", "mods");
-                instance.configsDir = instance.gameDir + File.separator + instance.configLoader.getString("configsSubfolder", "configs");
+            // Initialiser le dossier de données runtime (AppData selon OS)
+            instance.dataFolder = computeAppDataDir();
+            instance.launcherDir = instance.dataFolder + File.separator + "launcher";
+            instance.cacheDir = instance.dataFolder + File.separator + "cache";
+            instance.versionsDir = instance.dataFolder + File.separator + "versions";
+            instance.gameDir = instance.dataFolder + File.separator + "game";
+            instance.modsDir = instance.gameDir + File.separator + "mods";
+            instance.configsDir = instance.gameDir + File.separator + "configs";
 
             // Créer les répertoires
             new File(instance.modsDir).mkdirs();
