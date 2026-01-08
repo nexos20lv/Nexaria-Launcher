@@ -102,13 +102,13 @@ public class LauncherConfig {
                 instance.dataFolder = computeAppDataDir();
                 // Mods et configs doivent être sous le dossier du jeu pour que Forge les charge
                 // gameDir est défini plus bas; recalculer après définition
-            instance.launcherDir = instance.dataFolder + "/"
+            instance.launcherDir = instance.dataFolder + File.separator
                     + instance.configLoader.getString("launcherSubfolder", "launcher");
-            instance.cacheDir = instance.dataFolder + "/" + instance.configLoader.getString("cacheSubfolder", "cache");
-                instance.versionsDir = instance.dataFolder + "/" + instance.configLoader.getString("versionsSubfolder", "versions");
-                instance.gameDir = instance.configLoader.getString("gameDir", instance.dataFolder + "/" + instance.configLoader.getString("gameSubfolder", "game"));
-                instance.modsDir = instance.gameDir + "/" + instance.configLoader.getString("modsSubfolder", "mods");
-                instance.configsDir = instance.gameDir + "/" + instance.configLoader.getString("configsSubfolder", "configs");
+            instance.cacheDir = instance.dataFolder + File.separator + instance.configLoader.getString("cacheSubfolder", "cache");
+                instance.versionsDir = instance.dataFolder + File.separator + instance.configLoader.getString("versionsSubfolder", "versions");
+                instance.gameDir = instance.configLoader.getString("gameDir", instance.dataFolder + File.separator + instance.configLoader.getString("gameSubfolder", "game"));
+                instance.modsDir = instance.gameDir + File.separator + instance.configLoader.getString("modsSubfolder", "mods");
+                instance.configsDir = instance.gameDir + File.separator + instance.configLoader.getString("configsSubfolder", "configs");
 
             // Créer les répertoires
             new File(instance.modsDir).mkdirs();
@@ -253,8 +253,8 @@ public class LauncherConfig {
     public void setGameDir(String path) {
         if (path == null || path.isBlank()) return;
         this.gameDir = path;
-        this.modsDir = this.gameDir + "/mods";
-        this.configsDir = this.gameDir + "/configs";
+        this.modsDir = this.gameDir + File.separator + "mods";
+        this.configsDir = this.gameDir + File.separator + "configs";
         new File(this.gameDir).mkdirs();
         new File(this.modsDir).mkdirs();
         new File(this.configsDir).mkdirs();

@@ -6,6 +6,7 @@
   <name>Nexaria Launcher</name>
   <version>1.0.0</version>
   <build>
+    <finalName>nexaria-launcher</finalName>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>

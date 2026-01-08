@@ -123,7 +123,7 @@ public class GitHubUpdater {
     }
 
     /**
-     * Installe la mise à jour
+     * Installe la mise à jour (compatible Windows, macOS, Linux)
      */
     public static void installUpdate(String newJarPath) throws Exception {
         logger.info("Installation de la mise à jour");
@@ -131,20 +131,51 @@ public class GitHubUpdater {
         String currentJar = new File(GitHubUpdater.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI()).getAbsolutePath();
         
-        // Créer un script d'update
-        String scriptPath = LauncherConfig.getLauncherDir() + "/update.bat";
+        String os = System.getProperty("os.name").toLowerCase();
         
-        StringBuilder script = new StringBuilder();
-        script.append("@echo off\n");
-        script.append("timeout /t 2 /nobreak\n");
-        script.append("del \"").append(currentJar).append("\"\n");
-        script.append("ren \"").append(newJarPath).append("\" \"").append(new File(currentJar).getName()).append("\"\n");
-        script.append("start \"\" \"").append(currentJar).append("\"\n");
+        if (os.contains("win")) {
+            // Windows : Script BAT
+            String scriptPath = LauncherConfig.getLauncherDir() + "/update.bat";
+            
+            StringBuilder script = new StringBuilder();
+            script.append("@echo off\n");
+            script.append("timeout /t 2 /nobreak > nul\n");
+            script.append("del /f \"").append(currentJar).append("\"\n");
+            script.append("move /y \"").append(newJarPath).append("\" \"").append(currentJar).append("\"\n");
+            script.append("start \"\" javaw -jar \"").append(currentJar).append("\"\n");
+            script.append("del \"%~f0\"\n"); // Supprime le script lui-même
+            
+            Files.write(Paths.get(scriptPath), script.toString().getBytes());
+            Runtime.getRuntime().exec(new String[]{"cmd.exe", "/c", scriptPath});
+        } else {
+            // macOS / Linux : Script Shell
+            String scriptPath = LauncherConfig.getLauncherDir() + "/update.sh";
+            
+            StringBuilder script = new StringBuilder();
+            script.append("#!/bin/bash\n");
+            script.append("sleep 2\n");
+            script.append("rm -f \"").append(currentJar).append("\"\n");
+            script.append("mv -f \"").append(newJarPath).append("\" \"").append(currentJar).append("\"\n");
+            
+            // Détecter le chemin Java
+            if (os.contains("mac")) {
+                script.append("# macOS\n");
+                script.append("java -jar \"").append(currentJar).append("\" &\n");
+            } else {
+                script.append("# Linux\n");
+                script.append("java -jar \"").append(currentJar).append("\" &\n");
+            }
+            
+            script.append("rm -f \"$0\"\n"); // Supprime le script lui-même
+            
+            File scriptFile = new File(scriptPath);
+            Files.write(scriptFile.toPath(), script.toString().getBytes());
+            scriptFile.setExecutable(true);
+            
+            Runtime.getRuntime().exec(new String[]{"/bin/sh", scriptPath});
+        }
         
-        Files.write(Paths.get(scriptPath), script.toString().getBytes());
-        
-        // Exécuter le script
-        Runtime.getRuntime().exec(new String[]{"cmd.exe", "/c", scriptPath});
+        logger.info("Mise à jour lancée, redémarrage...");
         System.exit(0);
     }
 

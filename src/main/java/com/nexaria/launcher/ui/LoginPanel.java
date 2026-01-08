@@ -156,6 +156,20 @@ public class LoginPanel extends JPanel {
                 try {
                     User user = get();
                     passwordField.setText("");
+                    
+                    // Vérifier que l'email est vérifié
+                    if (!user.isEmailVerified()) {
+                        setStatusMessage("Erreur : Vous devez vérifier votre email pour vous connecter");
+                        setButtonsEnabled(true);
+                        JOptionPane.showMessageDialog(
+                            LoginPanel.this,
+                            "Veuillez vérifier votre adresse email avant de vous connecter au launcher.\nConsultez vos emails et cliquez sur le lien de vérification.",
+                            "Email non vérifié",
+                            JOptionPane.WARNING_MESSAGE
+                        );
+                        return;
+                    }
+                    
                     if (rememberCheck.isSelected()) com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(), user.getAccessToken());
                     else com.nexaria.launcher.config.RememberStore.clear();
                     loginCallback.accept(user);
@@ -180,6 +194,21 @@ public class LoginPanel extends JPanel {
                 username,
                 password,
                 user -> {
+                    // Vérifier que l'email est vérifié
+                    if (!user.isEmailVerified()) {
+                        CardLayout cl = (CardLayout) twoFaContainer.getLayout();
+                        cl.show(twoFaContainer, "LOGIN");
+                        setStatusMessage("Erreur : Vous devez vérifier votre email pour vous connecter");
+                        setButtonsEnabled(true);
+                        JOptionPane.showMessageDialog(
+                            LoginPanel.this,
+                            "Veuillez vérifier votre adresse email avant de vous connecter au launcher.\nConsultez vos emails et cliquez sur le lien de vérification.",
+                            "Email non vérifié",
+                            JOptionPane.WARNING_MESSAGE
+                        );
+                        return;
+                    }
+                    
                     CardLayout cl = (CardLayout) twoFaContainer.getLayout();
                     cl.show(twoFaContainer, "LOGIN");
                     passwordField.setText("");
