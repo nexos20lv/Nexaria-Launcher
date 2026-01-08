@@ -40,36 +40,33 @@ Ce guide vous aidera à installer et lancer le **Nexaria Launcher** sur votre sy
 
 ### **Étape 2 : Télécharger le Launcher**
 
-1. Allez sur la page [Releases GitHub](https://github.com/nexos20lv/nexaria-launcher/releases/latest)
-2. Téléchargez **`nexaria-launcher-X.X.X.jar`**
-3. Placez le fichier dans un dossier dédié :
-   ```
-   C:\Users\VotreNom\NexariaLauncher\
-   ```
+1. Allez sur la page [Releases GitHub](https://github.com/nexos20lv/Nexaria-Launcher/releases/latest)
+2. Téléchargez **`nexaria-launcher.jar`**
+3. Placez le fichier où vous voulez (par exemple sur votre Bureau)
+
+> ✅ **Aucun fichier de configuration nécessaire !** Tout est déjà configuré dans le launcher.
 
 ### **Étape 3 : Lancer le Launcher**
 
 #### **Option A : Double-clic (Recommandé)**
-- Double-cliquez sur `nexaria-launcher-X.X.X.jar`
+- Double-cliquez sur `nexaria-launcher.jar`
 - Windows devrait automatiquement le lancer avec Java
 
 #### **Option B : Invite de commandes**
 ```cmd
-cd C:\Users\VotreNom\NexariaLauncher
 java -jar nexaria-launcher.jar
 ```
 
 ### **Étape 4 : Créer un raccourci (Optionnel)**
 
-1. Créez un fichier `Nexaria Launcher.bat` :
+1. Créez un fichier `Lancer Nexaria.bat` dans le même dossier que le JAR :
    ```batch
    @echo off
-   cd /d "%~dp0"
-   start javaw -jar nexaria-launcher.jar
+   start javaw -jar "%~dp0nexaria-launcher.jar"
    ```
 
-2. Créez un raccourci vers ce `.bat`
-3. Changez l'icône (clic droit > Propriétés > Changer l'icône)
+2. Double-cliquez sur le `.bat` pour lancer le launcher
+3. Vous pouvez créer un raccourci de ce `.bat` sur votre Bureau
 
 ---
 
@@ -103,11 +100,10 @@ java -version
 ### **Étape 2 : Télécharger le Launcher**
 
 1. Téléchargez **`nexaria-launcher-X.X.X.jar`** depuis [GitHub Releases](https://github.com/nexos20lv/nexaria-launcher/releases/latest)
-2. Placez-le dans **Applications** ou un dossier dédié :
-   ```bash
-   mkdir -p ~/Applications/NexariaLauncher
-   mv ~/Downloads/nexaria-launcher-*.jar ~/Applications/NexariaLauncher/
-   ```
+2. Placez-le dans **Applications**.jar`** depuis [GitHub Releases](https://github.com/nexos20lv/Nexaria-Launcher/releases/latest)
+2. Placez-le où vous voulez (Bureau, Applications, etc.)
+
+> ✅ **Aucun fichier de configuration nécessaire !** Tout est déjà configuré dans le launcher.
 
 ### **Étape 3 : Lancer le Launcher**
 
@@ -117,8 +113,6 @@ java -version
 
 #### **Option B : Terminal**
 ```bash
-cd ~/Applications/NexariaLauncher
-java -jar nexaria-launcher.jar
 ```
 
 ### **Étape 4 : Créer une app macOS (Optionnel)**
@@ -129,17 +123,14 @@ java -jar nexaria-launcher.jar
 4. Collez ce script :
    ```bash
    #!/bin/bash
-   cd ~/Applications/NexariaLauncher
-   /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java \
-     -Xdock:name="Nexaria Launcher" \
-     -Xdock:icon=$HOME/Applications/NexariaLauncher/logo.png \
-     -jar nexaria-launcher.jar
+   cd ~/Applications(adaptez le chemin vers votre JAR) :
+   ```bash
+   #!/bin/bash
+   java -Xdock:name="Nexaria Launcher" \
+     -jar ~/Desktop/nexaria-launcher.jar
    ```
 5. Enregistrez comme **Nexaria Launcher.app**
-6. Placez-la dans **Applications**
-
----
-
+6. Placez-la où vous voulez
 ## 🐧 Linux
 
 ### **Étape 1 : Installer Java 21**
@@ -174,7 +165,11 @@ cd ~/Applications/NexariaLauncher
 
 # Télécharger depuis GitHub
 wget https://github.com/nexos20lv/nexaria-launcher/releases/latest/download/nexaria-launcher.jar
+``Télécharger depuis GitHub (ou téléchargez manuellement)
+wget https://github.com/nexos20lv/Nexaria-Launcher/releases/latest/download/nexaria-launcher.jar
 ```
+
+> ✅ **Aucun fichier de configuration nécessaire !** Tout est déjà configuré dans le launcher.
 
 ### **Étape 3 : Lancer le Launcher**
 
@@ -191,9 +186,8 @@ Créez `~/.local/share/applications/nexaria-launcher.desktop` :
 Version=1.0
 Type=Application
 Name=Nexaria Launcher
-Comment=Launcher Minecraft pour Nexaria
-Exec=java -jar /home/VOTRE_NOM/Applications/NexariaLauncher/nexaria-launcher.jar
-Icon=/home/VOTRE_NOM/Applications/NexariaLauncher/logo.png
+Comment=Launcher Minecraft pour zionMCEclo
+Exec=java -jar /home/VOTRE_NOM/nexaria-launcher.jar
 Terminal=false
 Categories=Game;
 ```
@@ -203,11 +197,7 @@ Rendez-le exécutable :
 chmod +x ~/.local/share/applications/nexaria-launcher.desktop
 ```
 
----
-
-## 🔧 Problèmes courants
-
-### ❌ "Java n'est pas reconnu"
+> 💡 **Astuce** : Remplacez `/home/VOTRE_NOM/` par le chemin complet vers votre fichier JAR ❌ "Java n'est pas reconnu"
 
 **Cause** : Java n'est pas dans le PATH
 
@@ -259,23 +249,33 @@ ftype jarfile="C:\Program Files\Eclipse Adoptium\jdk-21.0.x-hotspot\bin\javaw.ex
 
 **Solution** : Lancez toujours le launcher depuis le dossier où il se trouve :
 ```bash
-cd /chemin/vers/NexariaLauncher
-java -jar nexaria-launcher.jar
-```
+cd /ch"Impossible de se connecter au serveur"
 
----
+**Cause** : Connexion internet ou serveur temporairement indisponible
 
-## 🚀 Première utilisation
+**Solution** :
+- Vérifiez votre connexion internet
+- Le launcher téléchargera automatiquement les fichiers nécessaires au premier lancement
+- Les fichiers de jeu sont stockés dans :
+  - Windows : `%APPDATA%\NexariaLauncher`
+  - macOS : `~/Library/Application Support/NexariaLauncher`
+  - Linux : `~/.local/share/NexariaLauncher 🚀 Première utilisation
 
-1. **Lancez le launcher**
-2. **Connectez-vous** avec vos identifiants Azuriom
+1. **Lancez le launcher** (double-clic sur le JAR)
+2. **Connectez-vous** avec vos identifiants EclozionMC (site Azuriom)
 3. Le launcher va automatiquement :
-   - Télécharger Minecraft 1.20.1
-   - Installer Forge 47.2.0
-   - Synchroniser les mods depuis GitHub
-4. **Cliquez sur JOUER** 🎮
+   - ✅ Télécharger Minecraft 1.20.1
+   - ✅ Installer Forge 47.2.0
+   - ✅ Télécharger tous les mods du serveur
+   - ✅ Configurer le jeu
+4. **Cliquez sur JOUER** et amusez-vous ! 🎮
 
----
+> 📁 **Où sont stockés mes fichiers ?**
+> - Windows : `%APPDATA%\NexariaLauncher`
+> - macOS : `~/Library/Application Support/NexariaLauncher`
+> - Linux : `~/.local/share/NexariaLauncher`
+ EclozionMC](https://discord.gg/eclozionmc)
+- 🐛 **Signaler un bug** : [GitHub Issues](https://github.com/nexos20lv/Nexaria-L
 
 ## 📞 Besoin d'aide ?
 
