@@ -206,7 +206,7 @@ public class LauncherConfig {
                 base = System.getProperty("user.home") + "/.local/share/" + appName;
             }
         } catch (Exception e) {
-            base = WORKSPACE_DATA_DIR; // Repli si impossible de déterminer
+            base = "data"; // Repli si impossible de déterminer
         }
         return base;
     }
