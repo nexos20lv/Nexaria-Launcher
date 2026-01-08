@@ -3,8 +3,6 @@ name: Build and Auto-Release Nexaria Launcher
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'pom.xml'
   workflow_dispatch:
 
 permissions:
