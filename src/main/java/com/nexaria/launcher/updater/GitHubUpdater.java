@@ -11,17 +11,27 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Gère les mises à jour du launcher via GitHub Releases
+ * Système robuste avec retry, timeouts corrects et gestion d'erreurs complète
  */
 public class GitHubUpdater {
     private static final Logger logger = LoggerFactory.getLogger(GitHubUpdater.class);
     
+    private static final int CONNECT_TIMEOUT = 10000; // 10 secondes
+    private static final int READ_TIMEOUT = 30000;    // 30 secondes
+    private static final int MAX_RETRIES = 3;
+    private static final String USER_AGENT = "Nexaria-Launcher/1.0";
+    
     private final String githubRepo;
     private final String currentVersion;
+    private GitHubRelease cachedRelease;
 
     public GitHubUpdater(String githubRepo, String currentVersion) {
         this.githubRepo = githubRepo;
@@ -29,81 +39,195 @@ public class GitHubUpdater {
     }
 
     /**
-     * Récupère la dernière version depuis GitHub Releases
+     * Récupère la dernière version depuis GitHub Releases avec retry automatique
      */
-    public GitHubRelease getLatestRelease() throws Exception {
+    public GitHubRelease getLatestRelease() throws UpdateException {
+        if (cachedRelease != null) {
+            return cachedRelease;
+        }
+        
         String apiUrl = "https://api.github.com/repos/" + githubRepo + "/releases/latest";
         logger.info("Vérification des mises à jour: {}", apiUrl);
 
-        HttpURLConnection conn = (HttpURLConnection) URI.create(apiUrl).toURL().openConnection();
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
-        conn.setConnectTimeout(5000);
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                HttpURLConnection conn = (HttpURLConnection) new URL(apiUrl).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
+                conn.setRequestProperty("User-Agent", USER_AGENT);
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
 
-        try {
-            int responseCode = conn.getResponseCode();
-            if (responseCode != 200) {
-                throw new IOException("GitHub API error: " + responseCode);
-            }
+                try {
+                    int responseCode = conn.getResponseCode();
+                    
+                    if (responseCode == 404) {
+                        throw new UpdateException("Aucune release trouvée sur GitHub. Vérifiez le repo: " + githubRepo);
+                    }
+                    if (responseCode != 200) {
+                        throw new UpdateException("GitHub API error (code " + responseCode + ")");
+                    }
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-            }
-            reader.close();
-
-            JsonObject json = JsonParser.parseString(response.toString()).getAsJsonObject();
-            String tagName = json.get("tag_name").getAsString();
-            String downloadUrl = "";
-            
-            // Trouver le fichier JAR dans les assets
-            JsonArray assets = json.getAsJsonArray("assets");
-            for (JsonElement asset : assets) {
-                JsonObject assetObj = asset.getAsJsonObject();
-                String name = assetObj.get("name").getAsString();
-                if (name.endsWith(".jar")) {
-                    downloadUrl = assetObj.get("browser_download_url").getAsString();
-                    break;
+                    String jsonResponse = readInputStream(conn.getInputStream());
+                    cachedRelease = parseGitHubResponse(jsonResponse);
+                    
+                    if (cachedRelease.downloadUrl == null || cachedRelease.downloadUrl.isEmpty()) {
+                        throw new UpdateException("Aucun fichier JAR trouvé dans les assets GitHub");
+                    }
+                    
+                    logger.info("Release trouvée: {} avec URL: {}", cachedRelease.tagName, cachedRelease.downloadUrl);
+                    return cachedRelease;
+                    
+                } finally {
+                    conn.disconnect();
+                }
+            } catch (Exception e) {
+                lastException = e;
+                logger.warn("Tentative {} échouée: {}", attempt, e.getMessage());
+                
+                if (attempt < MAX_RETRIES) {
+                    try {
+                        Thread.sleep(1000 * attempt); // Délai progressif
+                    } catch (InterruptedException ignored) {}
                 }
             }
+        }
+        
+        throw new UpdateException("Impossible de récupérer la release après " + MAX_RETRIES + " tentatives", lastException);
+    }
 
-            return new GitHubRelease(tagName, downloadUrl, json.get("body").getAsString());
-        } finally {
-            conn.disconnect();
+    /**
+     * Parse la réponse JSON de GitHub
+     */
+    private GitHubRelease parseGitHubResponse(String jsonResponse) throws UpdateException {
+        try {
+            JsonObject json = JsonParser.parseString(jsonResponse).getAsJsonObject();
+            String tagName = json.get("tag_name").getAsString();
+            String downloadUrl = "";
+            String changelog = json.has("body") ? json.get("body").getAsString() : "";
+            
+            // Trouver le fichier JAR dans les assets
+            if (json.has("assets")) {
+                JsonArray assets = json.getAsJsonArray("assets");
+                for (JsonElement asset : assets) {
+                    JsonObject assetObj = asset.getAsJsonObject();
+                    String name = assetObj.get("name").getAsString();
+                    
+                    // Accepter les fichiers JAR avec patterns: launcher.jar, nexaria-launcher.jar, etc
+                    if (name.endsWith(".jar") && !name.contains("sources") && !name.contains("javadoc")) {
+                        downloadUrl = assetObj.get("browser_download_url").getAsString();
+                        logger.info("Asset trouvé: {}", name);
+                        break;
+                    }
+                }
+            }
+            
+            return new GitHubRelease(tagName, downloadUrl, changelog);
+        } catch (Exception e) {
+            throw new UpdateException("Erreur lors du parsing de la réponse GitHub", e);
         }
     }
 
     /**
-     * Vérifie s'il y a une mise à jour disponible
+     * Récupère et cache la dernière release disponible
      */
-    public boolean hasUpdate() throws Exception {
+    public UpdateCheckResult checkForUpdates() {
         try {
             GitHubRelease latest = getLatestRelease();
             String latestVersion = latest.tagName.replaceFirst("^v", "");
+            boolean hasUpdate = isNewerVersion(latestVersion, currentVersion);
             
-            return isNewerVersion(latestVersion, currentVersion);
-        } catch (Exception e) {
-            logger.warn("Erreur lors de la vérification des mises à jour", e);
-            return false;
+            logger.info("Version actuelle: {}, Dernière version: {}, Mise à jour disponible: {}", 
+                        currentVersion, latestVersion, hasUpdate);
+            
+            return new UpdateCheckResult(hasUpdate, latest, null);
+        } catch (UpdateException e) {
+            logger.warn("Erreur lors de la vérification des mises à jour: {}", e.getMessage());
+            return new UpdateCheckResult(false, null, e.getMessage());
         }
     }
 
     /**
-     * Télécharge la mise à jour depuis GitHub
+     * Télécharge la mise à jour depuis GitHub avec barre de progression
      */
-    public void downloadUpdate(GitHubRelease release, String destination) throws Exception {
-        logger.info("Téléchargement de la mise à jour: {}", release.downloadUrl);
+    public void downloadUpdate(GitHubRelease release, String destination) throws UpdateException {
+        if (release.downloadUrl == null || release.downloadUrl.isEmpty()) {
+            throw new UpdateException("URL de téléchargement invalide");
+        }
         
-        HttpURLConnection conn = (HttpURLConnection) URI.create(release.downloadUrl).toURL().openConnection();
+        Path destPath = Paths.get(destination);
+        
+        // Créer le répertoire parent s'il n'existe pas
+        try {
+            Files.createDirectories(destPath.getParent());
+        } catch (IOException e) {
+            throw new UpdateException("Impossible de créer le répertoire: " + destPath.getParent(), e);
+        }
+        
+        logger.info("Téléchargement de la mise à jour depuis: {}", release.downloadUrl);
+        
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                downloadFile(release.downloadUrl, destination);
+                
+                // Vérifier que le fichier a été créé et qu'il a une taille raisonnable
+                File downloadedFile = new File(destination);
+                if (!downloadedFile.exists() || downloadedFile.length() < 1000000) { // Au moins 1MB
+                    throw new UpdateException("Fichier téléchargé invalide ou trop petit");
+                }
+                
+                logger.info("Mise à jour téléchargée avec succès: {} ({} bytes)", destination, downloadedFile.length());
+                return;
+                
+            } catch (Exception e) {
+                lastException = e;
+                logger.warn("Tentative {} de téléchargement échouée: {}", attempt, e.getMessage());
+                
+                // Nettoyer le fichier corrompu
+                try {
+                    Files.deleteIfExists(destPath);
+                } catch (IOException ignored) {}
+                
+                if (attempt < MAX_RETRIES) {
+                    try {
+                        Thread.sleep(2000 * attempt);
+                    } catch (InterruptedException ignored) {}
+                }
+            }
+        }
+        
+        throw new UpdateException("Téléchargement échoué après " + MAX_RETRIES + " tentatives", lastException);
+    }
+
+    /**
+     * Télécharge un fichier avec gestion de redirects
+     */
+    private void downloadFile(String urlString, String destination) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
         conn.setRequestMethod("GET");
-        conn.setConnectTimeout(10000);
+        conn.setRequestProperty("User-Agent", USER_AGENT);
+        conn.setConnectTimeout(CONNECT_TIMEOUT);
+        conn.setReadTimeout(READ_TIMEOUT);
         conn.setInstanceFollowRedirects(true);
 
         try {
-            if (conn.getResponseCode() != 200) {
-                throw new IOException("Erreur lors du téléchargement: " + conn.getResponseCode());
+            int responseCode = conn.getResponseCode();
+            
+            // Gérer les redirects manuellement pour les GitHub redirects
+            if (responseCode == 301 || responseCode == 302 || responseCode == 307 || responseCode == 308) {
+                String redirectUrl = conn.getHeaderField("Location");
+                if (redirectUrl != null) {
+                    logger.debug("Redirect vers: {}", redirectUrl);
+                    conn.disconnect();
+                    downloadFile(redirectUrl, destination);
+                    return;
+                }
+            }
+            
+            if (responseCode != 200) {
+                throw new IOException("Erreur HTTP " + responseCode);
             }
 
             try (InputStream in = conn.getInputStream();
@@ -111,89 +235,219 @@ public class GitHubUpdater {
                 
                 byte[] buffer = new byte[8192];
                 int bytesRead;
+                long totalBytes = 0;
+                
                 while ((bytesRead = in.read(buffer)) != -1) {
                     out.write(buffer, 0, bytesRead);
+                    totalBytes += bytesRead;
                 }
+                
+                logger.debug("Téléchargement complété: {} bytes", totalBytes);
             }
-            
-            logger.info("Mise à jour téléchargée: {}", destination);
         } finally {
             conn.disconnect();
         }
     }
 
     /**
-     * Installe la mise à jour (compatible Windows, macOS, Linux)
+     * Installe la mise à jour de manière robuste (Windows, macOS, Linux)
      */
-    public static void installUpdate(String newJarPath) throws Exception {
-        logger.info("Installation de la mise à jour");
-        
-        String currentJar = new File(GitHubUpdater.class.getProtectionDomain()
-                .getCodeSource().getLocation().toURI()).getAbsolutePath();
-        
-        String os = System.getProperty("os.name").toLowerCase();
-        
-        if (os.contains("win")) {
-            // Windows : Script BAT
-            String scriptPath = LauncherConfig.getLauncherDir() + "/update.bat";
+    public static void installUpdate(String newJarPath) throws UpdateException {
+        try {
+            logger.info("Préparation de l'installation de la mise à jour");
             
-            StringBuilder script = new StringBuilder();
-            script.append("@echo off\n");
-            script.append("timeout /t 2 /nobreak > nul\n");
-            script.append("del /f \"").append(currentJar).append("\"\n");
-            script.append("move /y \"").append(newJarPath).append("\" \"").append(currentJar).append("\"\n");
-            script.append("start \"\" javaw -jar \"").append(currentJar).append("\"\n");
-            script.append("del \"%~f0\"\n"); // Supprime le script lui-même
-            
-            Files.write(Paths.get(scriptPath), script.toString().getBytes());
-            Runtime.getRuntime().exec(new String[]{"cmd.exe", "/c", scriptPath});
-        } else {
-            // macOS / Linux : Script Shell
-            String scriptPath = LauncherConfig.getLauncherDir() + "/update.sh";
-            
-            StringBuilder script = new StringBuilder();
-            script.append("#!/bin/bash\n");
-            script.append("sleep 2\n");
-            script.append("rm -f \"").append(currentJar).append("\"\n");
-            script.append("mv -f \"").append(newJarPath).append("\" \"").append(currentJar).append("\"\n");
-            
-            // Détecter le chemin Java
-            if (os.contains("mac")) {
-                script.append("# macOS\n");
-                script.append("java -jar \"").append(currentJar).append("\" &\n");
-            } else {
-                script.append("# Linux\n");
-                script.append("java -jar \"").append(currentJar).append("\" &\n");
+            File newJarFile = new File(newJarPath);
+            if (!newJarFile.exists()) {
+                throw new UpdateException("Le fichier de mise à jour n'existe pas: " + newJarPath);
             }
             
-            script.append("rm -f \"$0\"\n"); // Supprime le script lui-même
+            String currentJarPath = getCurrentJarPath();
+            String os = System.getProperty("os.name").toLowerCase();
             
-            File scriptFile = new File(scriptPath);
-            Files.write(scriptFile.toPath(), script.toString().getBytes());
-            scriptFile.setExecutable(true);
+            logger.info("JAR actuel: {}", currentJarPath);
+            logger.info("Système d'exploitation: {}", os);
             
-            Runtime.getRuntime().exec(new String[]{"/bin/sh", scriptPath});
+            if (os.contains("win")) {
+                installUpdateWindows(currentJarPath, newJarPath);
+            } else if (os.contains("mac") || os.contains("nix") || os.contains("nux")) {
+                installUpdateUnix(currentJarPath, newJarPath, os.contains("mac"));
+            } else {
+                throw new UpdateException("Système d'exploitation non supporté: " + os);
+            }
+            
+        } catch (UpdateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new UpdateException("Erreur lors de l'installation de la mise à jour", e);
+        }
+    }
+
+    /**
+     * Installation sur Windows
+     */
+    private static void installUpdateWindows(String currentJar, String newJar) throws Exception {
+        String launcherDir = LauncherConfig.getLauncherDir();
+        String scriptPath = Paths.get(launcherDir, "update.bat").toString();
+        
+        StringBuilder script = new StringBuilder();
+        script.append("@echo off\n");
+        script.append("REM Script de mise à jour du Nexaria Launcher\n");
+        script.append("setlocal enabledelayedexpansion\n");
+        script.append("\n");
+        script.append("REM Attendre que le launcher se ferme\n");
+        script.append("timeout /t 3 /nobreak > nul\n");
+        script.append("\n");
+        script.append("REM Supprimer l'ancienne version\n");
+        script.append("if exist \"").append(currentJar).append("\" (\n");
+        script.append("    del /f /q \"").append(currentJar).append("\" 2>nul\n");
+        script.append("    if exist \"").append(currentJar).append("\" (\n");
+        script.append("        echo Impossible de supprimer l'ancienne version\n");
+        script.append("        exit /b 1\n");
+        script.append("    )\n");
+        script.append(")\n");
+        script.append("\n");
+        script.append("REM Déplacer la nouvelle version\n");
+        script.append("move /y \"").append(newJar).append("\" \"").append(currentJar).append("\" >nul\n");
+        script.append("if not exist \"").append(currentJar).append("\" (\n");
+        script.append("    echo Erreur: le fichier de mise à jour n'a pas pu être déplacé\n");
+        script.append("    exit /b 1\n");
+        script.append(")\n");
+        script.append("\n");
+        script.append("REM Relancer le launcher\n");
+        script.append("start \"Nexaria Launcher\" \"").append(currentJar).append("\"\n");
+        script.append("\n");
+        script.append("REM Auto-suppression du script\n");
+        script.append("timeout /t 1 > nul\n");
+        script.append("del /f /q \"%~f0\" 2>nul\n");
+        
+        Files.write(Paths.get(scriptPath), script.toString().getBytes());
+        new File(scriptPath).setReadable(true);
+        new File(scriptPath).setWritable(true);
+        
+        logger.info("Script de mise à jour créé: {}", scriptPath);
+        logger.info("Lancement du script...");
+        
+        // Lancer le script en background
+        ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", scriptPath);
+        pb.directory(new File(LauncherConfig.getLauncherDir()));
+        pb.start();
+        
+        logger.info("Installation lancée, redémarrage...");
+        System.exit(0);
+    }
+
+    /**
+     * Installation sur macOS/Linux
+     */
+    private static void installUpdateUnix(String currentJar, String newJar, boolean isMac) throws Exception {
+        String launcherDir = LauncherConfig.getLauncherDir();
+        String scriptPath = Paths.get(launcherDir, "update.sh").toString();
+        
+        StringBuilder script = new StringBuilder();
+        script.append("#!/bin/bash\n");
+        script.append("# Script de mise à jour du Nexaria Launcher\n");
+        script.append("set -e\n");
+        script.append("\n");
+        script.append("# Attendre que le launcher se ferme\n");
+        script.append("sleep 3\n");
+        script.append("\n");
+        script.append("# Supprimer l'ancienne version\n");
+        script.append("if [ -f \"").append(currentJar).append("\" ]; then\n");
+        script.append("    rm -f \"").append(currentJar).append("\"\n");
+        script.append("fi\n");
+        script.append("\n");
+        script.append("# Déplacer la nouvelle version\n");
+        script.append("mv \"").append(newJar).append("\" \"").append(currentJar).append("\"\n");
+        script.append("\n");
+        script.append("# Relancer le launcher\n");
+        
+        if (isMac) {
+            script.append("nohup java -jar \"").append(currentJar).append("\" > /dev/null 2>&1 &\n");
+        } else {
+            script.append("nohup java -jar \"").append(currentJar).append("\" > /dev/null 2>&1 &\n");
         }
         
-        logger.info("Mise à jour lancée, redémarrage...");
+        script.append("\n");
+        script.append("# Auto-suppression du script\n");
+        script.append("sleep 1\n");
+        script.append("rm -f \"$0\"\n");
+        
+        Path scriptFilePath = Paths.get(scriptPath);
+        Files.write(scriptFilePath, script.toString().getBytes());
+        
+        File scriptFile = new File(scriptPath);
+        scriptFile.setExecutable(true, false);
+        scriptFile.setReadable(true, false);
+        scriptFile.setWritable(true, false);
+        
+        logger.info("Script de mise à jour créé: {}", scriptPath);
+        logger.info("Lancement du script...");
+        
+        // Lancer le script en background
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", scriptPath);
+        pb.directory(new File(LauncherConfig.getLauncherDir()));
+        pb.start();
+        
+        logger.info("Installation lancée, redémarrage...");
         System.exit(0);
+    }
+
+    /**
+     * Obtient le chemin du JAR actuel
+     */
+    private static String getCurrentJarPath() throws Exception {
+        return new File(GitHubUpdater.class.getProtectionDomain()
+                .getCodeSource().getLocation().toURI()).getAbsolutePath();
     }
 
     /**
      * Compare deux versions (ex: 1.0.1 > 1.0.0)
      */
     private boolean isNewerVersion(String latestVersion, String currentVersion) {
-        String[] latest = latestVersion.split("\\.");
-        String[] current = currentVersion.split("\\.");
-        
-        for (int i = 0; i < Math.max(latest.length, current.length); i++) {
-            int latestPart = i < latest.length ? Integer.parseInt(latest[i]) : 0;
-            int currentPart = i < current.length ? Integer.parseInt(current[i]) : 0;
+        try {
+            String[] latest = latestVersion.split("\\.");
+            String[] current = currentVersion.split("\\.");
             
-            if (latestPart > currentPart) return true;
-            if (latestPart < currentPart) return false;
+            for (int i = 0; i < Math.max(latest.length, current.length); i++) {
+                int latestPart = 0;
+                int currentPart = 0;
+                
+                try {
+                    if (i < latest.length) {
+                        latestPart = Integer.parseInt(latest[i]);
+                    }
+                    if (i < current.length) {
+                        currentPart = Integer.parseInt(current[i]);
+                    }
+                } catch (NumberFormatException e) {
+                    logger.warn("Erreur lors du parsing de la version: {} ou {}", 
+                               (i < latest.length ? latest[i] : ""), 
+                               (i < current.length ? current[i] : ""));
+                    continue;
+                }
+                
+                if (latestPart > currentPart) return true;
+                if (latestPart < currentPart) return false;
+            }
+            return false;
+        } catch (Exception e) {
+            logger.error("Erreur lors de la comparaison des versions", e);
+            return false;
         }
-        return false;
+    }
+
+    /**
+     * Lit un InputStream en String
+     */
+    private String readInputStream(InputStream inputStream) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            return response.toString();
+        }
     }
 
     /**
@@ -208,6 +462,34 @@ public class GitHubUpdater {
             this.tagName = tagName;
             this.downloadUrl = downloadUrl;
             this.changelog = changelog;
+        }
+    }
+
+    /**
+     * Résultat de la vérification des mises à jour
+     */
+    public static class UpdateCheckResult {
+        public boolean hasUpdate;
+        public GitHubRelease release;
+        public String error;
+
+        public UpdateCheckResult(boolean hasUpdate, GitHubRelease release, String error) {
+            this.hasUpdate = hasUpdate;
+            this.release = release;
+            this.error = error;
+        }
+    }
+
+    /**
+     * Exception personnalisée pour les erreurs de mise à jour
+     */
+    public static class UpdateException extends Exception {
+        public UpdateException(String message) {
+            super(message);
+        }
+
+        public UpdateException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }
