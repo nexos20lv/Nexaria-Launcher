@@ -1,42 +1,79 @@
-name: Build and Release NEXORA
+name: Build and Auto-Release Nexaria Launcher
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ main ]
+    paths:
+      - 'pom.xml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: true
 
-      - name: Set up JDK 11
+      - name: Set up JDK 21 (build)
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
+          java-version: '21'
           distribution: 'temurin'
           cache: maven
 
-      - name: Build launcher with Maven
-        run: mvn -B package --file pom.xml
+      - name: Extract project version
+        id: version
+        run: |
+          VER=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
+          echo "VERSION=$VER" >> $GITHUB_ENV
+          echo "version=$VER" >> $GITHUB_OUTPUT
 
-      - name: Create Release
+      - name: Sync launcherVersion in config.yml
+        run: |
+          sed -i -E "s/^launcherVersion:.*/launcherVersion: $VERSION/" config.yml || true
+          if git status --porcelain | grep -q 'config.yml'; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add config.yml
+            git commit -m "chore: sync launcherVersion to $VERSION [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
+      - name: Create tag v${{ steps.version.outputs.version }}
+        run: |
+          if git tag -l | grep -q "^v${{ steps.version.outputs.version }}$"; then
+            echo "Tag v$VERSION already exists";
+          else
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git tag -a v${{ steps.version.outputs.version }} -m "Release v${{ steps.version.outputs.version }}"
+            git push origin v${{ steps.version.outputs.version }}
+          fi
+
+      - name: Build launcher with Maven
+        run: mvn -B -DskipTests package --file pom.xml
+
+      - name: Create GitHub Release
         uses: actions/create-release@v1
         id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: Nexaria Launcher v${{ steps.version.outputs.version }}
           body: |
-            ## NEXORA Launcher Release
+            ## Nexaria Launcher v${{ steps.version.outputs.version }}
             
-            Auto-update available! The launcher will download this version automatically.
+            Auto-published by GitHub Actions.
             
-            ### Changes
-            - See commit history for details
+            - Built with Maven
+            - See commit history for changes
           draft: false
           prerelease: false
 
@@ -46,7 +83,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/nexora-launcher.jar
-          asset_name: nexora-launcher.jar
+          asset_path: target/nexaria-launcher-${{ steps.version.outputs.version }}.jar
+          asset_name: nexaria-launcher-${{ steps.version.outputs.version }}.jar
           asset_content_type: application/java-archive
 
