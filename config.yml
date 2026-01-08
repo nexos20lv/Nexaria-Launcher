@@ -14,7 +14,7 @@ minMemory: 1024
 maxMemory: 4096
 jvmArgs: -XX:+UseG1GC -XX:MaxGCPauseMillis=200
 
-launcherVersion: 1.0.0
+launcherVersion: 1.0.1
 autoUpdate: true
 debugMode: false
 language: fr
