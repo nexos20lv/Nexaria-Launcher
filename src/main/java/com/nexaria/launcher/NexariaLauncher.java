@@ -4,7 +4,6 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import com.nexaria.launcher.config.LauncherConfig;
 import com.nexaria.launcher.downloader.GitHubModManager;
 import com.nexaria.launcher.ui.LauncherWindow;
-import com.nexaria.launcher.ui.UpdateSplashScreen;
 import com.nexaria.launcher.updater.UpdateManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,18 +43,14 @@ public class NexariaLauncher {
             // Afficher le splash screen de mise à jour si activé
             if (config.isAutoUpdate() && config.githubRepo != null && !config.githubRepo.isEmpty()) {
                 try {
-                    UpdateSplashScreen splash = new UpdateSplashScreen();
                     UpdateManager updateManager = new UpdateManager(config.githubRepo, LAUNCHER_VERSION);
-                    splash.startUpdateCheck(updateManager);
                     
-                    // Attendre que le splash se ferme (max 10 secondes)
-                    Thread.sleep(10000);
+                    // Vérifier si une mise à jour est disponible sans afficher le splash à chaque fois
+                    // Le cache empêche les vérifications trop fréquentes (24h)
+                    updateManager.autoUpdateOnStartup();
                     
-                    if (splash.isVisible()) {
-                        splash.closeScreen();
-                    }
                 } catch (Exception e) {
-                    logger.warn("Erreur lors de l'affichage du splash screen de mise à jour", e);
+                    logger.warn("Erreur lors de la vérification des mises à jour", e);
                 }
             }
 
