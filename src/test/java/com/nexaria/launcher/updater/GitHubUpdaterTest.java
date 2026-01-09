@@ -10,12 +10,10 @@ import static org.junit.Assert.*;
  */
 public class GitHubUpdaterTest {
     
-    private GitHubUpdater updater;
-    
     @Before
     public void setUp() {
         // Utilise un repo de test (change selon tes besoins)
-        updater = new GitHubUpdater("Nexaria/nexaria-launcher", "1.0.0");
+        new GitHubUpdater("Nexaria/nexaria-launcher", "1.0.0");
     }
     
     @Test

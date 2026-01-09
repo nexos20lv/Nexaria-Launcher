@@ -6,9 +6,6 @@ import java.awt.*;
 
 public class FuturisticMainPanel extends JPanel {
 
-    private Runnable launchCallback;
-    private Runnable logoutCallback;
-
     private JLabel userLabel;
     private JLabel versionLabel;
     private JLabel statusLabel;
@@ -17,9 +14,6 @@ public class FuturisticMainPanel extends JPanel {
     private ModernButton logoutButton;
 
     public FuturisticMainPanel(Runnable launchCallback, Runnable logoutCallback) {
-        this.launchCallback = launchCallback;
-        this.logoutCallback = logoutCallback;
-
         setOpaque(false);
         setLayout(new GridBagLayout());
 

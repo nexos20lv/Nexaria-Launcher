@@ -28,6 +28,11 @@ public class LauncherConfig {
     public String language;
     public boolean verifyIntegrity;
     public boolean cleanupOldMods;
+    public boolean enforceModPolicy;
+    public String modManifestUrl;
+    public String bannedProcessesCsv;
+    public String configManifestUrl;
+    public boolean blockSymlinks;
     public boolean autoLaunchGame;
     public boolean minimizeOnLaunch;
     public int downloadTimeout;
@@ -74,6 +79,21 @@ public class LauncherConfig {
             instance.language = "fr";
             instance.verifyIntegrity = true;
             instance.cleanupOldMods = true;
+            instance.enforceModPolicy = true; // Par défaut, blocage et quarantaine activés
+            instance.modManifestUrl = "";     // Optionnel: URL JSON d'un manifest {"mods":[{"name":"...","sha256":"..."}]}
+                instance.bannedProcessesCsv = String.join(", ",
+                    "cheatengine.exe",
+                    "processhacker.exe",
+                    "x64dbg.exe",
+                    "x32dbg.exe",
+                    "ida64.exe",
+                    "ida.exe",
+                    "ollydbg.exe",
+                    "wireshark.exe",
+                    "fiddler.exe"
+                );
+            instance.configManifestUrl = "";  // Optionnel: URL JSON {"configs":[{"name":"...","sha256":"..."}]}
+            instance.blockSymlinks = true;     // Bloquer mods/configs symlinkés hors gameDir
             instance.autoLaunchGame = false;
             instance.minimizeOnLaunch = true;
             instance.downloadTimeout = 30;

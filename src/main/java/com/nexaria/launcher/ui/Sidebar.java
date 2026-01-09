@@ -32,6 +32,9 @@ public class Sidebar extends JPanel {
         Icon homeIcon = FontIcon.of(FontAwesomeSolid.HOME, 22, DesignConstants.TEXT_PRIMARY);
         add(createNavButton("ACCUEIL", homeIcon, "Accueil"));
         add(Box.createVerticalStrut(18));
+        Icon shieldIcon = FontIcon.of(FontAwesomeSolid.SHIELD_ALT, 22, DesignConstants.TEXT_PRIMARY);
+        add(createNavButton("SÉCURITÉ", shieldIcon, "Sécurité"));
+        add(Box.createVerticalStrut(18));
         Icon settingsIcon = FontIcon.of(FontAwesomeSolid.COG, 22, DesignConstants.TEXT_PRIMARY);
         add(createNavButton("PARAMÈTRES", settingsIcon, "Paramètres"));
 

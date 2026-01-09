@@ -2,12 +2,15 @@ package com.nexaria.launcher.ui;
 
 import com.nexaria.launcher.auth.AzAuthManager;
 import com.nexaria.launcher.model.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.function.Consumer;
 
 public class TwoFactorPanel extends JPanel {
+    private static final Logger logger = LoggerFactory.getLogger(TwoFactorPanel.class);
     private final AzAuthManager authManager;
     private final String username;
     private final String password;
@@ -103,10 +106,23 @@ public class TwoFactorPanel extends JPanel {
         if (code.isEmpty()) { statusLabel.setText("Veuillez entrer le code."); return; }
         confirmButton.setEnabled(false);
         SwingWorker<User, Void> worker = new SwingWorker<User, Void>(){
-            @Override protected User doInBackground() throws Exception { return authManager.authenticate(username, password, code); }
+            long startTime = System.currentTimeMillis();
+            @Override protected User doInBackground() throws Exception {
+                logger.info("[2FA] Verification du code");
+                return authManager.authenticate(username, password, code);
+            }
             @Override protected void done() {
-                try { User user = get(); onSuccess.accept(user); }
-                catch (Exception e) { statusLabel.setText("Code invalide ou erreur. Réessayez."); confirmButton.setEnabled(true); }
+                try {
+                    User user = get();
+                    long duration = System.currentTimeMillis() - startTime;
+                    logger.info("[2FA] OK en {}ms", duration);
+                    onSuccess.accept(user);
+                }
+                catch (Exception e) {
+                    logger.error("[2FA] ERREUR: {}", e.getMessage());
+                    statusLabel.setText("Code invalide ou erreur. Reessayez.");
+                    confirmButton.setEnabled(true);
+                }
             }
         };
         worker.execute();
