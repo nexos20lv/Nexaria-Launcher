@@ -1,6 +1,8 @@
 package com.nexaria.launcher.ui;
 
 import com.nexaria.launcher.config.LauncherConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicTabbedPaneUI;
@@ -16,6 +18,7 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 
 public class SettingsPanel extends JPanel {
+    private static final Logger logger = LoggerFactory.getLogger(SettingsPanel.class);
     private LauncherConfig cfg;
 
     @SuppressWarnings("unused")
@@ -382,15 +385,23 @@ public class SettingsPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Doit être un PNG.", "Erreur", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            com.nexaria.launcher.auth.AzAuthManager am = new com.nexaria.launcher.auth.AzAuthManager(url);
             SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
-                @Override protected Void doInBackground() throws Exception { am.uploadSkin(token, file); return null; }
+                long startTime = System.currentTimeMillis();
+                @Override protected Void doInBackground() throws Exception {
+                    logger.info("[SKIN] Upload de: {}", file.getName());
+                    com.nexaria.launcher.auth.AzAuthManager authMgr = new com.nexaria.launcher.auth.AzAuthManager(url);
+                    authMgr.uploadSkin(token, file);
+                    return null;
+                }
                 @Override protected void done() {
                     try {
                         get();
+                        long duration = System.currentTimeMillis() - startTime;
+                        logger.info("[SKIN] OK en {}ms", duration);
                         JOptionPane.showMessageDialog(SettingsPanel.this, "Skin mis à jour!", "Succès", JOptionPane.INFORMATION_MESSAGE);
                         if (onSkinChanged != null) onSkinChanged.run();
                     } catch (Exception ex) {
+                        logger.error("[SKIN] ERREUR: {}", ex.getMessage());
                         JOptionPane.showMessageDialog(SettingsPanel.this, "Échec mise à jour.", "Erreur", JOptionPane.ERROR_MESSAGE);
                     }
                 }
@@ -434,13 +445,19 @@ public class SettingsPanel extends JPanel {
 
     private void testConnectivity() {
         SwingWorker<Void, String> worker = new SwingWorker<Void, String>(){
+            long startTime = System.currentTimeMillis();
             @Override protected Void doInBackground() throws Exception {
+                logger.info("[CONNECTIVITY] Test debut");
                 String host = LauncherConfig.getInstance().getServerHost();
                 int port = LauncherConfig.getInstance().getServerPort();
                 try (Socket s = new Socket()) {
                     s.connect(new InetSocketAddress(host, port), 3000);
+                    logger.info("[CONNECTIVITY] Serveur Minecraft: OK");
                     publish("Serveur Minecraft: OK");
-                } catch (Exception e) { publish("Serveur Minecraft: KO"); }
+                } catch (Exception e) {
+                    logger.warn("[CONNECTIVITY] Serveur Minecraft: KO - {}", e.getMessage());
+                    publish("Serveur Minecraft: KO");
+                }
 
                 String az = LauncherConfig.getInstance().getAzuriomUrl();
                 try {
@@ -448,8 +465,14 @@ public class SettingsPanel extends JPanel {
                     conn.setRequestMethod("HEAD");
                     conn.setConnectTimeout(3000);
                     conn.connect();
+                    logger.info("[CONNECTIVITY] AzAuth: OK");
                     publish("AzAuth: OK");
-                } catch (Exception e) { publish("AzAuth: KO"); }
+                } catch (Exception e) {
+                    logger.warn("[CONNECTIVITY] AzAuth: KO - {}", e.getMessage());
+                    publish("AzAuth: KO");
+                }
+                long duration = System.currentTimeMillis() - startTime;
+                logger.info("[CONNECTIVITY] Test termine en {}ms", duration);
                 return null;
             }
             @Override protected void process(java.util.List<String> msgs) {

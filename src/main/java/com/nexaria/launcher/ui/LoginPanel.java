@@ -148,18 +148,29 @@ public class LoginPanel extends JPanel {
         if (username.isEmpty() || password.isEmpty()) { setStatusMessage("Veuillez saisir vos identifiants."); return; }
         String u = username; String p = password;
         SwingWorker<User, String> worker = new SwingWorker<User, String>() {
+            long startTime = System.currentTimeMillis();
             @Override protected User doInBackground() throws Exception {
-                try { publish("Authentification en cours..."); return authManager.authenticate(u, p, ""); }
-                catch (AuthenticationException e) { logger.error("Auth Error", e); throw e; }
+                try {
+                    logger.info("[LOGIN] Debut authentification pour: {}", u);
+                    publish("Authentification en cours...");
+                    return authManager.authenticate(u, p, "");
+                }
+                catch (AuthenticationException e) {
+                    logger.error("[LOGIN] ERREUR: {}", e.getMessage(), e);
+                    throw e;
+                }
             }
             @Override protected void process(java.util.List<String> chunks) { for (String m : chunks) setStatusMessage(m); }
             @Override protected void done() {
                 try {
                     User user = get();
+                    long duration = System.currentTimeMillis() - startTime;
                     passwordField.setText("");
+                    logger.info("[LOGIN] Succes en {}ms", duration);
                     
                     // Vérifier que l'email est vérifié
                     if (!user.isEmailVerified()) {
+                        logger.warn("[LOGIN] Email non verifie pour: {}", u);
                         setStatusMessage("Erreur : Vous devez vérifier votre email pour vous connecter");
                         setButtonsEnabled(true);
                         JOptionPane.showMessageDialog(
@@ -177,8 +188,10 @@ public class LoginPanel extends JPanel {
                 } catch (Exception e) {
                     Throwable cause = e.getCause();
                     if (cause instanceof com.nexaria.launcher.auth.TwoFactorRequiredException) {
+                        logger.info("[LOGIN] 2FA requis pour: {}", u);
                         showTwoFactor(u, p);
                     } else {
+                        logger.error("[LOGIN] ERREUR finale: {}", e.getMessage());
                         setStatusMessage("Erreur : " + e.getMessage());
                         setButtonsEnabled(true);
                     }

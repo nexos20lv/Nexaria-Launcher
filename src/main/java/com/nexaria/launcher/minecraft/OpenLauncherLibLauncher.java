@@ -14,6 +14,7 @@ import fr.flowarg.flowupdater.versions.fabric.FabricVersionBuilder;
 import fr.flowarg.openlauncherlib.NoFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.nexaria.launcher.security.AntiCheatService;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -164,7 +165,6 @@ public class OpenLauncherLibLauncher {
 
         // Configuration du launcher - GameFolder pointe vers les bons répertoires
         // Utiliser les dossiers du profil de jeu (FlowUpdater) plutôt que le dossier global Minecraft
-        Path mcDir = gameDir;
         
         fr.theshark34.openlauncherlib.minecraft.AuthInfos authInfos = 
             new fr.theshark34.openlauncherlib.minecraft.AuthInfos(
@@ -191,17 +191,30 @@ public class OpenLauncherLibLauncher {
             noFramework.getAdditionalVmArgs().add("-XstartOnFirstThread");
         }
         
-        // Ajouter les arguments JVM personnalisés si présents
+        // Ajouter les arguments JVM personnalisés si présents (sanitisés)
         if (cfg.jvmArgs != null && !cfg.jvmArgs.trim().isEmpty()) {
-            String[] customArgs = cfg.jvmArgs.trim().split("\\s+");
-            for (String arg : customArgs) {
-                if (!arg.isEmpty()) {
-                    noFramework.getAdditionalVmArgs().add(arg);
-                }
-            }
+            java.util.List<String> safeArgs = com.nexaria.launcher.security.JvmArgsSanitizer.sanitize(cfg.jvmArgs);
+            noFramework.getAdditionalVmArgs().addAll(safeArgs);
         }
         
+        // Anti-cheat: durcissement JVM minimal
+        try {
+            noFramework.getAdditionalVmArgs().addAll(new AntiCheatService().getJvmHardeningArgs());
+        } catch (Exception e) {
+            logger.warn("Echec application durcissement JVM anti-cheat", e);
+        }
+
         logger.info("Arguments JVM: {}", noFramework.getAdditionalVmArgs());
+
+        // Anti-cheat: détection basique de processus interdits
+        try {
+            new AntiCheatService().enforceOrThrowOnDetection();
+        } catch (SecurityException se) {
+            logger.error("Lancement bloqué par l'anti-cheat: {}", se.getMessage());
+            throw se;
+        } catch (Exception e) {
+            logger.warn("Vérification anti-cheat incomplète", e);
+        }
 
         // Lancer le jeu
         Process gameProcess = noFramework.launch(

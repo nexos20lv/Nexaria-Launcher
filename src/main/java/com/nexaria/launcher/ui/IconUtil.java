@@ -2,7 +2,6 @@ package com.nexaria.launcher.ui;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.GeneralPath;
 
 public class IconUtil {
     public static class ShapeIcon implements Icon {
