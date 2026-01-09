@@ -1,6 +1,5 @@
 package com.nexaria.launcher.ui;
 
-import com.nexaria.launcher.config.LauncherConfig;
 import com.nexaria.launcher.model.User;
 import com.nexaria.launcher.news.NewsCard;
 import com.nexaria.launcher.news.RSSFeedParser;
@@ -61,9 +60,12 @@ public class MainPanel extends JPanel {
         mainContent.setLayout(new BoxLayout(mainContent, BoxLayout.Y_AXIS));
 
         // Section News
-        JLabel newsTitle = new JLabel("📰  Actualités");
+        JLabel newsTitle = new JLabel("Actualités");
         newsTitle.setFont(DesignConstants.FONT_HEADER.deriveFont(20f));
         newsTitle.setForeground(DesignConstants.TEXT_PRIMARY);
+        newsTitle.setIcon(FontIcon.of(FontAwesomeSolid.NEWSPAPER, 22, DesignConstants.TEXT_PRIMARY));
+        newsTitle.setHorizontalTextPosition(SwingConstants.RIGHT);
+        newsTitle.setIconTextGap(10);
         newsTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
         newsTitle.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
         mainContent.add(newsTitle);
@@ -175,11 +177,20 @@ public class MainPanel extends JPanel {
 
     public void refreshServerStatus(String host, int port, String name) {
         SwingWorker<com.nexaria.launcher.model.ServerStatusInfo, Void> worker = new SwingWorker<com.nexaria.launcher.model.ServerStatusInfo, Void>(){
+            long startTime = System.currentTimeMillis();
             @Override protected com.nexaria.launcher.model.ServerStatusInfo doInBackground() throws Exception {
+                logger.info("[SERVEUR] Ping vers {}:{}", host, port);
                 return com.nexaria.launcher.downloader.MinecraftServerPing.ping(host, port, name);
             }
             @Override protected void done() {
-                try { serverCard.update(get()); } catch (Exception ignored) {}
+                try {
+                    long duration = System.currentTimeMillis() - startTime;
+                    com.nexaria.launcher.model.ServerStatusInfo info = get();
+                    logger.info("[SERVEUR] OK en {}ms - Joueurs: {}/{}", duration, info.playersOnline, info.playersMax);
+                    serverCard.update(info);
+                } catch (Exception e) {
+                    logger.warn("[SERVEUR] Erreur ping: {}", e.getMessage());
+                }
             }
         };
         worker.execute();
@@ -207,11 +218,14 @@ public class MainPanel extends JPanel {
     }
 
     public void loadNews(String azuriomUrl) {
+        setStatus("Chargement des actualités...");
+        setProgress(0);
         SwingWorker<List<RSSFeedParser.NewsItem>, Void> worker = new SwingWorker<List<RSSFeedParser.NewsItem>, Void>() {
+            long startTime = System.currentTimeMillis();
             @Override
             protected List<RSSFeedParser.NewsItem> doInBackground() {
                 String rssUrl = azuriomUrl + "/api/rss";
-                logger.info("Chargement des actualités depuis: {}", rssUrl);
+                logger.info("[ACTUALITES] Debut du chargement: {}", rssUrl);
                 return RSSFeedParser.fetchNews(rssUrl);
             }
 
@@ -219,6 +233,7 @@ public class MainPanel extends JPanel {
             protected void done() {
                 try {
                     List<RSSFeedParser.NewsItem> news = get();
+                    long duration = System.currentTimeMillis() - startTime;
                     newsContainer.removeAll();
 
                     if (news.isEmpty()) {
@@ -255,9 +270,13 @@ public class MainPanel extends JPanel {
 
                     newsContainer.revalidate();
                     newsContainer.repaint();
-                    logger.info("Actualités chargées: {} news affichées", news.size());
+                    logger.info("[ACTUALITES] Succes: {} actualites chargees en {}ms", news.size(), duration);
+                    setProgress(100);
+                    setStatus("Actualites chargees");
                 } catch (Exception e) {
-                    logger.error("Erreur lors du chargement des actualités", e);
+                    logger.error("[ACTUALITES] ERREUR: {}", e.getMessage(), e);
+                    setProgress(0);
+                    setStatus("Erreur lors du chargement des actualites");
                     
                     // Afficher un message d'erreur
                     newsContainer.removeAll();

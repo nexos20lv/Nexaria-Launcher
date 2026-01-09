@@ -13,6 +13,7 @@ import java.awt.image.BufferedImage;
 import java.awt.Taskbar;
 import java.awt.geom.RoundRectangle2D;
 import java.io.File;
+import java.nio.file.Path;
 
 public class LauncherWindow extends JFrame {
     private static final Logger logger = LoggerFactory.getLogger(LauncherWindow.class);
@@ -95,6 +96,7 @@ public class LauncherWindow extends JFrame {
         contentPanel.add(loginPanel, "CONNEXION");
         contentPanel.add(mainPanel, "ACCUEIL");
         contentPanel.add(settingsPanel, "PARAMÈTRES");
+        contentPanel.add(new SecurityPanel(), "SÉCURITÉ");
         uiRoot.add(contentPanel, BorderLayout.CENTER);
 
         cardLayout.show(contentPanel, "CONNEXION");
@@ -152,14 +154,18 @@ public class LauncherWindow extends JFrame {
 
     private void handleLaunch() {
         SwingWorker<Void, Integer> worker = new SwingWorker<Void, Integer>() {
+            long startTime = System.currentTimeMillis();
             @Override
             protected Void doInBackground() throws Exception {
                 try {
+                    logger.info("[LAUNCH] Debut du lancement");
                     mainPanel.setStatus("Synchronisation des mods...");
                     modManager.syncLocalMods();
+                    logger.info("[LAUNCH] Mods synchronises");
 
                     mainPanel.setStatus("Synchronisation des configurations...");
                     modManager.syncLocalConfigs();
+                    logger.info("[LAUNCH] Configs synchronisees");
 
                     mainPanel.setStatus("Préparation du lancement...");
                     SwingUtilities.invokeLater(() -> mainPanel.setIndeterminate(true));
@@ -167,7 +173,7 @@ public class LauncherWindow extends JFrame {
                     launchGame();
                     return null;
                 } catch (Exception e) {
-                    logger.error("Launch Error", e);
+                    logger.error("[LAUNCH] ERREUR: {}", e.getMessage(), e);
                     throw e;
                 }
             }
@@ -178,6 +184,8 @@ public class LauncherWindow extends JFrame {
             protected void done() {
                 try {
                     get();
+                    long duration = System.currentTimeMillis() - startTime;
+                    logger.info("[LAUNCH] Succes en {}ms", duration);
                     mainPanel.setButtonsEnabled(true);
                     mainPanel.setIndeterminate(false);
                     mainPanel.setStatus("Jeu lancé !");
@@ -187,12 +195,13 @@ public class LauncherWindow extends JFrame {
                     if (LauncherConfig.getInstance().minimizeOnLaunch) {
                         Timer minimizeTimer = new Timer(2000, e -> {
                             setState(JFrame.ICONIFIED);
-                            logger.info("Launcher minimisé - jeu en cours");
+                            logger.info("[LAUNCH] Launcher minimise - jeu en cours");
                         });
                         minimizeTimer.setRepeats(false);
                         minimizeTimer.start();
                     }
                 } catch (Exception e) {
+                    logger.error("[LAUNCH] ERREUR finale: {}", e.getMessage());
                     mainPanel.setButtonsEnabled(true);
                     mainPanel.setIndeterminate(false);
                     mainPanel.setStatus("Erreur : " + e.getMessage());
@@ -211,6 +220,99 @@ public class LauncherWindow extends JFrame {
         new File(gameDirectory).mkdirs();
         new File(LauncherConfig.getModsDir()).mkdirs();
         new File(LauncherConfig.getConfigsDir()).mkdirs();
+
+        // Générer des manifests à partir de data/ si absents et pas d'URL
+        try {
+            if ((LauncherConfig.getInstance().modManifestUrl == null || LauncherConfig.getInstance().modManifestUrl.isBlank())) {
+                java.nio.file.Path modsManifest = java.nio.file.Paths.get("data", "configs", "mods-manifest.json");
+                if (!java.nio.file.Files.exists(modsManifest)) {
+                    com.nexaria.launcher.security.ManifestGenerator.generateModsManifest(
+                            java.nio.file.Paths.get("data", "mods"),
+                            modsManifest,
+                            true
+                    );
+                }
+            }
+            if ((LauncherConfig.getInstance().configManifestUrl == null || LauncherConfig.getInstance().configManifestUrl.isBlank())) {
+                java.nio.file.Path cfgManifest = java.nio.file.Paths.get("data", "configs", "configs-manifest.json");
+                if (!java.nio.file.Files.exists(cfgManifest)) {
+                    com.nexaria.launcher.security.ManifestGenerator.generateConfigsManifest(
+                            java.nio.file.Paths.get("data", "configs"),
+                            cfgManifest,
+                            true
+                    );
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Génération des manifests depuis data/ échouée", e);
+        }
+
+        // Copier les manifests générés vers le dossier configs du jeu (distribution)
+        try {
+            java.nio.file.Path gameCfg = java.nio.file.Paths.get(LauncherConfig.getConfigsDir());
+            java.nio.file.Files.createDirectories(gameCfg);
+            java.nio.file.Path srcMods = java.nio.file.Paths.get("data", "mods", "mods-manifest.json");
+            java.nio.file.Path dstMods = gameCfg.resolve("mods-manifest.json");
+            if (java.nio.file.Files.exists(srcMods)) java.nio.file.Files.copy(srcMods, dstMods, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            java.nio.file.Path srcCfg = java.nio.file.Paths.get("data", "configs", "configs-manifest.json");
+            java.nio.file.Path dstCfg = gameCfg.resolve("configs-manifest.json");
+            if (java.nio.file.Files.exists(srcCfg)) java.nio.file.Files.copy(srcCfg, dstCfg, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            logger.warn("Copie des manifests vers game/configs échouée", e);
+        }
+
+        // Bloquer les symlinks suspects pointant hors du gameDir
+        if (LauncherConfig.getInstance().blockSymlinks) {
+            Path gameDir = java.nio.file.Paths.get(LauncherConfig.getGameDir()).toAbsolutePath().normalize();
+            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getModsDir()), gameDir, "mods");
+            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigsDir()), gameDir, "configs");
+        }
+
+        // Vérification des mods avant lancement
+        try {
+            com.nexaria.launcher.security.ModVerificationService verifier =
+                    new com.nexaria.launcher.security.ModVerificationService(java.nio.file.Paths.get(LauncherConfig.getModsDir()));
+            com.nexaria.launcher.security.ModVerificationService.VerificationResult res = verifier.verifyAndEnforce();
+            if (!res.isClean()) {
+                StringBuilder sb = new StringBuilder();
+                if (!res.missingRequired.isEmpty()) sb.append("Manquants: ").append(res.missingRequired).append("\n");
+                if (!res.unexpected.isEmpty()) sb.append("Non attendus: ").append(res.unexpected).append("\n");
+                if (!res.hashMismatch.isEmpty()) sb.append("Hashes invalides: ").append(res.hashMismatch).append("\n");
+                String msg = "Vérification des mods: des écarts ont été détectés.\n" + sb;
+                if (LauncherConfig.getInstance().enforceModPolicy) {
+                    throw new SecurityException(msg);
+                } else {
+                    javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Avertissement Mods", javax.swing.JOptionPane.WARNING_MESSAGE));
+                }
+            }
+        } catch (SecurityException se) {
+            throw se;
+        } catch (Exception e) {
+            logger.warn("Vérification des mods échouée", e);
+        }
+
+        // Vérification des configs avant lancement
+        try {
+            com.nexaria.launcher.security.ConfigVerificationService cfgVerifier =
+                    new com.nexaria.launcher.security.ConfigVerificationService(java.nio.file.Paths.get(LauncherConfig.getConfigsDir()));
+            com.nexaria.launcher.security.ConfigVerificationService.Result r = cfgVerifier.verify();
+            if (!r.isClean()) {
+                StringBuilder sb = new StringBuilder();
+                if (!r.missing.isEmpty()) sb.append("Manquantes: ").append(r.missing).append("\n");
+                if (!r.unexpected.isEmpty()) sb.append("Non attendues: ").append(r.unexpected).append("\n");
+                if (!r.badHash.isEmpty()) sb.append("Hashes invalides: ").append(r.badHash).append("\n");
+                String msg = "Vérification des configs: des écarts ont été détectés.\n" + sb;
+                if (LauncherConfig.getInstance().enforceModPolicy) {
+                    throw new SecurityException(msg);
+                } else {
+                    javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Avertissement Configs", javax.swing.JOptionPane.WARNING_MESSAGE));
+                }
+            }
+        } catch (SecurityException se) {
+            throw se;
+        } catch (Exception e) {
+            logger.warn("Vérification des configs échouée", e);
+        }
 
         // Utilisation d'OpenLauncherLib pour gérer tous les aspects du lancement
         com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.ProgressListener progressListener = 
@@ -255,6 +357,22 @@ public class LauncherWindow extends JFrame {
             }, "GameProcessMonitor");
             processMonitor.setDaemon(true);
             processMonitor.start();
+        }
+    }
+
+    private void enforceNoExternalSymlink(java.nio.file.Path path, java.nio.file.Path gameDir, String label) {
+        try {
+            java.nio.file.Path real = path.toRealPath();
+            if (!real.startsWith(gameDir)) {
+                String msg = "Le dossier " + label + " semble être un lien symbolique externe au gameDir. Lancement bloqué.";
+                if (LauncherConfig.getInstance().enforceModPolicy) {
+                    throw new SecurityException(msg);
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this, msg, "Sécurité symlink", javax.swing.JOptionPane.WARNING_MESSAGE);
+                }
+            }
+        } catch (java.io.IOException e) {
+            logger.warn("Impossible de résoudre le chemin réel pour {}: {}", label, e.getMessage());
         }
     }
 
@@ -342,6 +460,7 @@ public class LauncherWindow extends JFrame {
         }
         String dest = "ACCUEIL";
         if ("ACCUEIL".equals(route) || "HOME".equals(route)) dest = "ACCUEIL";
+        else if ("SÉCURITÉ".equals(route) || "SECURITE".equals(route) || "SECURITY".equals(route)) dest = "SÉCURITÉ";
         else if ("PARAMÈTRES".equals(route) || "SETTINGS".equals(route)) dest = "PARAMÈTRES";
         else if ("CONNEXION".equals(route) || "LOGIN".equals(route)) dest = "CONNEXION";
         cardLayout.show(contentPanel, dest);
@@ -352,8 +471,25 @@ public class LauncherWindow extends JFrame {
         com.nexaria.launcher.config.RememberStore.RememberSession s = com.nexaria.launcher.config.RememberStore.loadSession();
         if (s == null || s.accessToken == null || s.accessToken.isEmpty()) return;
         SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>(){
-            @Override protected Boolean doInBackground() throws Exception { return authManager.verifyAccessTokenRemote(s.accessToken); }
-            @Override protected void done() { try { if (get()) { User u = new User(s.id != null ? s.id : java.util.UUID.randomUUID().toString(), s.username != null ? s.username : "Utilisateur", s.accessToken); handleLogin(u); } } catch (Exception ignore) {} }
+            long startTime = System.currentTimeMillis();
+            @Override protected Boolean doInBackground() throws Exception {
+                logger.info("[AUTOLOGIN] Verification du token");
+                return authManager.verifyAccessTokenRemote(s.accessToken);
+            }
+            @Override protected void done() {
+                try {
+                    if (get()) {
+                        long duration = System.currentTimeMillis() - startTime;
+                        logger.info("[AUTOLOGIN] OK en {}ms", duration);
+                        User u = new User(s.id != null ? s.id : java.util.UUID.randomUUID().toString(), s.username != null ? s.username : "Utilisateur", s.accessToken);
+                        handleLogin(u);
+                    } else {
+                        logger.warn("[AUTOLOGIN] Token invalide");
+                    }
+                } catch (Exception e) {
+                    logger.warn("[AUTOLOGIN] ERREUR: {}", e.getMessage());
+                }
+            }
         };
         worker.execute();
     }

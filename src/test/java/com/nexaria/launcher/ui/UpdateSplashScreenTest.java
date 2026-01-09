@@ -1,8 +1,5 @@
 package com.nexaria.launcher.ui;
 
-import com.nexaria.launcher.updater.UpdateManager;
-import com.nexaria.launcher.updater.GitHubUpdater;
-
 import javax.swing.*;
 
 /**

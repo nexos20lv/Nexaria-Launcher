@@ -11,8 +11,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.RoundRectangle2D;
-import java.awt.image.BufferedImage;
-import com.nexaria.launcher.ui.DesignConstants;
 
 /**
  * Écran de démarrage (Splash Screen) pour les mises à jour automatiques
@@ -37,10 +35,8 @@ public class UpdateSplashScreen extends JWindow {
     private static final Color GRADIENT_START = DesignConstants.GRADIENT_MAIN_START;
     private static final Color GRADIENT_END = DesignConstants.GRADIENT_MAIN_END;
     private static final Color PRIMARY_COLOR = DesignConstants.PURPLE_ACCENT;
-    private static final Color SECONDARY_COLOR = DesignConstants.CYAN_ACCENT;
     private static final Color TEXT_COLOR = DesignConstants.TEXT_PRIMARY;
     private static final Color TEXT_SECONDARY = DesignConstants.TEXT_SECONDARY;
-    private static final Color GLASS_BACKGROUND = DesignConstants.GLASS_BACKGROUND;
     private static final Color ERROR_COLOR = new Color(200, 80, 100);
     private static final Color SUCCESS_COLOR = new Color(76, 175, 80);
 

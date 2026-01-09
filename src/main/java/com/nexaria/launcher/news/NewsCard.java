@@ -5,15 +5,13 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 
 import javax.swing.*;
-import javax.swing.border.AbstractBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
 import java.net.URI;
 
 public class NewsCard extends JPanel {
-    private RSSFeedParser.NewsItem newsItem;
+    private final RSSFeedParser.NewsItem newsItem;
     private boolean isHovered = false;
     private Color currentBorderColor = new Color(255, 255, 255, 30);
     private int borderWidth = 1;
