@@ -25,6 +25,21 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Generate data manifest
+        run: |
+          mvn -q -DskipTests compile
+          java -cp target/classes com.nexaria.launcher.build.ManifestGeneratorMojo data data/data-manifest.json
+
+      - name: Commit manifest if changed
+        run: |
+          if git status --porcelain | grep -q "data/data-manifest.json"; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add data/data-manifest.json
+            git commit -m "chore: update data manifest [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
       - name: Extract and increment version
         id: version
         run: |
