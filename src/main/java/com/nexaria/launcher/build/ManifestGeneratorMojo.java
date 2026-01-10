@@ -14,34 +14,24 @@ import java.util.Locale;
 import java.util.stream.Stream;
 
 /**
- * Utilitaire pour générer le manifest complet du dossier data/.
- * Scanne récursivement tous les fichiers et calcule leur SHA-256.
+ * Génère le manifest complet du dossier data/ avec SHA-256 de tous les fichiers.
  */
 public class ManifestGeneratorMojo {
 
-    /**
-     * Génère un manifest complet de tous les fichiers dans le dossier data/
-     */
     public static void generateDataManifest(Path dataDir, Path outputFile) throws IOException {
+        if (dataDir == null || outputFile == null) {
+            throw new IOException("dataDir et outputFile ne peuvent pas être null");
+        }
         Files.createDirectories(outputFile.getParent());
         List<String> entries = new ArrayList<>();
         
         if (Files.isDirectory(dataDir)) {
-            // Scanner récursivement tous les fichiers
             try (Stream<Path> walk = Files.walk(dataDir)) {
                 for (Path p : walk.filter(Files::isRegularFile).toList()) {
                     String fileName = p.getFileName().toString();
-                    
-                    // Exclure les manifests eux-mêmes et les fichiers cachés
-                    if (!fileName.endsWith("-manifest.json") && 
-                        !fileName.equals("data-manifest.json") &&
-                        !fileName.startsWith(".")) {
-                        
-                        // Chemin relatif depuis data/
+                    if (!fileName.endsWith("-manifest.json") && !fileName.startsWith(".")) {
                         String relativePath = dataDir.relativize(p).toString().replace("\\", "/");
-                        String name = escape(relativePath);
-                        String hash = sha256Hex(p);
-                        entries.add("{\"path\":\"" + name + "\",\"sha256\":\"" + hash + "\"}");
+                        entries.add("{\"path\":\"" + escape(relativePath) + "\",\"sha256\":\"" + sha256Hex(p) + "\"}");
                     }
                 }
             }
@@ -52,72 +42,18 @@ public class ManifestGeneratorMojo {
         System.out.println("✓ Manifeste data généré: " + outputFile + " (" + entries.size() + " fichiers)");
     }
 
-    public static void generateModsManifest(Path dataModsDir, Path outputFile) throws IOException {
-        Files.createDirectories(outputFile.getParent());
-        List<String> entries = new ArrayList<>();
-        
-        if (Files.isDirectory(dataModsDir)) {
-            try (var stream = Files.list(dataModsDir)) {
-                for (Path p : stream.toList()) {
-                    if (Files.isRegularFile(p)) {
-                        String fileName = p.getFileName().toString();
-                        // Inclure les fichiers .jar et exclure le manifest lui-même
-                        if (fileName.toLowerCase(Locale.ROOT).endsWith(".jar")) {
-                            String name = escape(fileName);
-                            String hash = sha256Hex(p);
-                            entries.add("{\"name\":\"" + name + "\",\"sha256\":\"" + hash + "\"}");
-                        }
-                    }
-                }
-            }
-        }
-        
-        String json = "{\n  \"mods\": [\n    " + String.join(",\n    ", entries) + "\n  ]\n}";
-        Files.writeString(outputFile, json, StandardCharsets.UTF_8);
-        System.out.println("✓ Manifeste des mods généré: " + outputFile + " (" + entries.size() + " mods)");
-    }
-
-    public static void generateConfigsManifest(Path dataConfigsDir, Path outputFile) throws IOException {
-        Files.createDirectories(outputFile.getParent());
-        List<String> entries = new ArrayList<>();
-        
-        if (Files.isDirectory(dataConfigsDir)) {
-            try (var stream = Files.list(dataConfigsDir)) {
-                for (Path p : stream.toList()) {
-                    if (Files.isRegularFile(p)) {
-                        String fileName = p.getFileName().toString();
-                        // Exclure les manifests
-                        if (!fileName.endsWith("-manifest.json") && !fileName.equals("configs-manifest.json") && !fileName.equals("mods-manifest.json")) {
-                            String name = escape(fileName);
-                            String hash = sha256Hex(p);
-                            entries.add("{\"name\":\"" + name + "\",\"sha256\":\"" + hash + "\"}");
-                        }
-                    }
-                }
-            }
-        }
-        
-        String json = "{\n  \"configs\": [\n    " + String.join(",\n    ", entries) + "\n  ]\n}";
-        Files.writeString(outputFile, json, StandardCharsets.UTF_8);
-        System.out.println("✓ Manifeste des configs généré: " + outputFile + " (" + entries.size() + " fichiers)");
-    }
-
     private static String sha256Hex(Path file) throws IOException {
         try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file.toFile()))) {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] buf = new byte[8192];
             int r;
-            while ((r = in.read(buf)) > 0) {
-                md.update(buf, 0, r);
-            }
-            byte[] digest = md.digest();
+            while ((r = in.read(buf)) > 0) md.update(buf, 0, r);
+            
             StringBuilder sb = new StringBuilder();
-            for (byte b : digest) {
-                sb.append(String.format(Locale.ROOT, "%02x", b));
-            }
+            for (byte b : md.digest()) sb.append(String.format(Locale.ROOT, "%02x", b));
             return sb.toString();
         } catch (Exception e) {
-            throw new IOException("Echec calcul SHA-256 pour " + file, e);
+            throw new IOException("Erreur calcul SHA-256: " + file, e);
         }
     }
 
@@ -127,24 +63,14 @@ public class ManifestGeneratorMojo {
 
     public static void main(String[] args) {
         try {
-            if (args.length >= 2 && "data".equalsIgnoreCase(args[0])) {
-                Path dataDir = new File(args[1]).toPath();
-                Path outputFile = new File(args.length > 2 ? args[2] : "data/data-manifest.json").toPath();
-                generateDataManifest(dataDir, outputFile);
-            } else if (args.length >= 2 && "configs".equalsIgnoreCase(args[0])) {
-                Path dataConfigsDir = new File(args[1]).toPath();
-                Path outputFile = new File(args.length > 2 ? args[2] : "data/configs/configs-manifest.json").toPath();
-                generateConfigsManifest(dataConfigsDir, outputFile);
-            } else {
-                Path dataModsDir = new File(args.length > 0 ? args[0] : "data/mods").toPath();
-                Path outputFile = new File(args.length > 1 ? args[1] : "data/mods/mods-manifest.json").toPath();
-                generateModsManifest(dataModsDir, outputFile);
+            if (args.length < 2) {
+                System.err.println("Usage: java ManifestGeneratorMojo <dataDir> <outputFile>");
+                System.exit(1);
             }
+            generateDataManifest(new File(args[0]).toPath(), new File(args[1]).toPath());
         } catch (IOException e) {
-            System.err.println("Erreur lors de la génération du manifest: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Erreur génération manifest: " + e.getMessage());
             System.exit(1);
         }
     }
 }
-

@@ -67,46 +67,88 @@ public class GitHubModManager {
             return;
         }
 
-        // Destination: game/data/
-        Path gameDataDir = Paths.get(LauncherConfig.getGameDir(), "data");
-        Files.createDirectories(gameDataDir);
+        // Destination: dossiers du jeu (racine) sans duplicata dans game/data
+        Path gameRootDir = Paths.get(LauncherConfig.getGameDir());
+        Files.createDirectories(gameRootDir);
 
-        // Copier récursivement data/config -> game/data/config
+        // Copier récursivement data/config -> game/config
         File localConfigDir = new File(localDataDir, "config");
         if (localConfigDir.exists()) {
-            Path targetConfigDir = gameDataDir.resolve("config");
-            copyDirectoryRecursively(localConfigDir.toPath(), targetConfigDir);
-            logger.info("Configs copiés: data/config -> game/data/config");
+            Path liveConfigDir = gameRootDir.resolve("config");
+            copyDirectoryReplacing(localConfigDir.toPath(), liveConfigDir);
+            logger.info("Configs copiés: data/config -> game/config");
         }
 
-        // Copier data/mods -> game/data/mods
+        // Copier data/mods -> game/mods
         File localModsDir = new File(localDataDir, "mods");
         if (localModsDir.exists()) {
-            Path targetModsDir = gameDataDir.resolve("mods");
-            Files.createDirectories(targetModsDir);
+            Path liveModsDir = gameRootDir.resolve("mods");
+            Files.createDirectories(liveModsDir);
             
             File[] mods = localModsDir.listFiles((dir, name) -> name.endsWith(".jar"));
             if (mods != null) {
                 for (File mod : mods) {
-                    Path dest = targetModsDir.resolve(mod.getName());
-                    if (!Files.exists(dest)) {
-                        Files.copy(mod.toPath(), dest);
-                        logger.debug("Mod copié: {}", mod.getName());
-                    }
+                    Path destLive = liveModsDir.resolve(mod.getName());
+                    Files.copy(mod.toPath(), destLive, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    logger.debug("Mod copié: {}", mod.getName());
                 }
             }
-            logger.info("Mods copiés: data/mods -> game/data/mods");
+            logger.info("Mods copiés: data/mods -> game/mods");
         }
 
-        // Copier le manifest
+        // Restaurer automatiquement les mods éventuels placés en quarantaine
+        restoreQuarantineMods(gameRootDir);
+
+        // Copier le manifest (racine du jeu)
         File manifestFile = new File(localDataDir, "data-manifest.json");
         if (manifestFile.exists()) {
-            Files.copy(manifestFile.toPath(), gameDataDir.resolve("data-manifest.json"), 
+            Files.copy(manifestFile.toPath(), gameRootDir.resolve("data-manifest.json"),
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            logger.info("Manifest copié: data-manifest.json");
+            logger.info("Manifest copié: data-manifest.json -> game/");
         }
         
         logger.info("Synchronisation complète de data/ terminée");
+    }
+
+    /**
+     * Si des mods .jar sont restés en quarantaine, on les remet automatiquement dans mods/
+     */
+    private void restoreQuarantineMods(Path gameRootDir) throws IOException {
+        Path quarantineDir = gameRootDir.resolve("quarantine");
+        Path modsLiveDir = gameRootDir.resolve("mods");
+        if (!Files.isDirectory(quarantineDir)) return;
+
+        Files.createDirectories(modsLiveDir);
+        try (var stream = Files.list(quarantineDir)) {
+            stream.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".jar"))
+                  .forEach(p -> {
+                      try {
+                          Path destLive = modsLiveDir.resolve(p.getFileName().toString());
+                          Files.move(p, destLive, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                          logger.info("Mod restauré depuis quarantaine: {}", p.getFileName());
+                      } catch (IOException e) {
+                          logger.warn("Impossible de restaurer {} depuis quarantaine", p.getFileName(), e);
+                      }
+                  });
+        }
+    }
+
+    private void copyDirectoryReplacing(Path source, Path target) throws IOException {
+        Files.createDirectories(target);
+        Files.walk(source).forEach(path -> {
+            try {
+                Path relative = source.relativize(path);
+                Path dest = target.resolve(relative);
+                if (Files.isDirectory(path)) {
+                    Files.createDirectories(dest);
+                } else {
+                    Files.createDirectories(dest.getParent());
+                    Files.copy(path, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private void copyDirectoryRecursively(Path source, Path target) throws IOException {

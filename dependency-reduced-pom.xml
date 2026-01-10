@@ -4,7 +4,7 @@
   <groupId>com.nexaria</groupId>
   <artifactId>nexaria-launcher</artifactId>
   <name>Nexaria Launcher</name>
-  <version>1.0.8</version>
+  <version>1.0.9</version>
   <build>
     <finalName>nexaria-launcher</finalName>
     <plugins>
@@ -23,24 +23,7 @@
               <mainClass>com.nexaria.launcher.build.ManifestGeneratorMojo</mainClass>
               <arguments>
                 <argument>data</argument>
-                <argument>data</argument>
                 <argument>data/data-manifest.json</argument>
-              </arguments>
-              <includeProjectDependencies>true</includeProjectDependencies>
-              <includePluginDependencies>false</includePluginDependencies>
-            </configuration>
-          </execution>
-          <execution>
-            <id>generate-mods-manifest</id>
-            <phase>process-classes</phase>
-            <goals>
-              <goal>java</goal>
-            </goals>
-            <configuration>
-              <mainClass>com.nexaria.launcher.build.ManifestGeneratorMojo</mainClass>
-              <arguments>
-                <argument>data/mods</argument>
-                <argument>data/mods/mods-manifest.json</argument>
               </arguments>
               <includeProjectDependencies>true</includeProjectDependencies>
               <includePluginDependencies>false</includePluginDependencies>

@@ -1,35 +1,12 @@
-# Maven (racine)
-/target/
-/.classpath
-/.project
-/.settings/
-/bin/
+# Fichiers générés par Maven
+target/
+dependency-reduced-pom.xml
+
+# Fichiers système
+.DS_Store
+**/.DS_Store
 
 # IDE
 .idea/
-.vscode/
 *.iml
-*.iws
-*.ipr
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Java
-*.class
-*.war
-*.nar
-*.zip
-*.tar.gz
-*.rar
-
-# User folders (auto-generated)
-~/.nexaria/
-
-# Logs
-*.log
-
-# OS
-Thumbs.db
-.DS_Store
+.vscode/
