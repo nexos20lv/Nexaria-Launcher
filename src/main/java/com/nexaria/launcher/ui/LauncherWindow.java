@@ -4,6 +4,7 @@ import com.nexaria.launcher.auth.AzAuthManager;
 import com.nexaria.launcher.downloader.GitHubModManager;
 import com.nexaria.launcher.config.LauncherConfig;
 import com.nexaria.launcher.model.User;
+import com.nexaria.launcher.security.DataVerificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -163,6 +164,9 @@ public class LauncherWindow extends JFrame {
                     modManager.syncAllData();
                     logger.info("[LAUNCH] Data synchronise (mods + configs)");
 
+                    // Vérifier immédiatement après la synchro pour éviter toute fenêtre de tir
+                    verifyDataIntegrity();
+
                     mainPanel.setStatus("Préparation du lancement...");
                     SwingUtilities.invokeLater(() -> mainPanel.setIndeterminate(true));
                     mainPanel.setStatus("Lancement du jeu...");
@@ -217,85 +221,15 @@ public class LauncherWindow extends JFrame {
         new File(LauncherConfig.getModsDir()).mkdirs();
         new File(LauncherConfig.getConfigDir()).mkdirs();
 
-        // Générer des manifests à partir de data/ si absents et pas d'URL
-        try {
-            if ((LauncherConfig.getInstance().modManifestUrl == null || LauncherConfig.getInstance().modManifestUrl.isBlank())) {
-                java.nio.file.Path modsManifest = java.nio.file.Paths.get("data", "configs", "mods-manifest.json");
-                if (!java.nio.file.Files.exists(modsManifest)) {
-                    com.nexaria.launcher.security.ManifestGenerator.generateModsManifest(
-                            java.nio.file.Paths.get("data", "mods"),
-                            modsManifest,
-                            true
-                    );
-                }
-            }
-            if ((LauncherConfig.getInstance().configManifestUrl == null || LauncherConfig.getInstance().configManifestUrl.isBlank())) {
-                java.nio.file.Path cfgManifest = java.nio.file.Paths.get("data", "configs", "configs-manifest.json");
-                if (!java.nio.file.Files.exists(cfgManifest)) {
-                    com.nexaria.launcher.security.ManifestGenerator.generateConfigsManifest(
-                            java.nio.file.Paths.get("data", "configs"),
-                            cfgManifest,
-                            true
-                    );
-                }
-            }
-        } catch (Exception e) {
-            logger.warn("Génération des manifests depuis data/ échouée", e);
-        }
-
-        // Copier les manifests générés vers le dossier configs du jeu (distribution)
-        try {
-            java.nio.file.Path gameCfg = java.nio.file.Paths.get(LauncherConfig.getConfigDir());
-            java.nio.file.Files.createDirectories(gameCfg);
-            java.nio.file.Path srcMods = java.nio.file.Paths.get("data", "mods", "mods-manifest.json");
-            java.nio.file.Path dstMods = gameCfg.resolve("mods-manifest.json");
-            if (java.nio.file.Files.exists(srcMods)) java.nio.file.Files.copy(srcMods, dstMods, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            java.nio.file.Path srcCfg = java.nio.file.Paths.get("data", "configs", "configs-manifest.json");
-            java.nio.file.Path dstCfg = gameCfg.resolve("configs-manifest.json");
-            if (java.nio.file.Files.exists(srcCfg)) java.nio.file.Files.copy(srcCfg, dstCfg, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        } catch (Exception e) {
-            logger.warn("Copie des manifests vers game/configs échouée", e);
-        }
-
         // Bloquer les symlinks suspects pointant hors du gameDir
         if (LauncherConfig.getInstance().blockSymlinks) {
             Path gameDir = java.nio.file.Paths.get(LauncherConfig.getGameDir()).toAbsolutePath().normalize();
             enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getModsDir()), gameDir, "mods");
-            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigDir()), gameDir, "configs");
+            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigDir()), gameDir, "config");
         }
 
-        // Vérification de l'intégrité complète de data/ (mods + configs)
-        try {
-            Path gameDataDir = java.nio.file.Paths.get(LauncherConfig.getGameDir()).resolve("data");
-            String policy = LauncherConfig.getInstance().enforceModPolicy ? "strict" : "warn";
-            
-            com.nexaria.launcher.security.DataVerificationService dataVerifier =
-                    new com.nexaria.launcher.security.DataVerificationService(gameDataDir, policy);
-            
-            com.nexaria.launcher.security.DataVerificationService.Result dataResult = dataVerifier.verify();
-            
-            if (!dataResult.ok) {
-                StringBuilder sb = new StringBuilder();
-                if (!dataResult.missing.isEmpty()) sb.append("Manquants: ").append(dataResult.missing).append("\n");
-                if (!dataResult.modified.isEmpty()) sb.append("Modifiés: ").append(dataResult.modified).append("\n");
-                if (!dataResult.unexpected.isEmpty()) sb.append("Non attendus: ").append(dataResult.unexpected).append("\n");
-                
-                String msg = "Vérification de l'intégrité data/: des écarts ont été détectés.\n" + sb;
-                
-                if (LauncherConfig.getInstance().enforceModPolicy) {
-                    dataVerifier.applyPolicy(dataResult);
-                    throw new SecurityException(msg);
-                } else {
-                    javax.swing.SwingUtilities.invokeLater(() -> 
-                        javax.swing.JOptionPane.showMessageDialog(this, msg, 
-                            "Avertissement Intégrité Data", javax.swing.JOptionPane.WARNING_MESSAGE));
-                }
-            }
-        } catch (SecurityException se) {
-            throw se;
-        } catch (Exception e) {
-            logger.warn("Vérification de l'intégrité data/ échouée", e);
-        }
+        // Vérification juste avant le lancement effectif (fenêtre de tir minimale)
+        verifyDataIntegrity();
 
         // Utilisation d'OpenLauncherLib pour gérer tous les aspects du lancement
         com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.ProgressListener progressListener = 
@@ -373,6 +307,37 @@ public class LauncherWindow extends JFrame {
             mainPanel.setStatus("Jeu arrêté");
             setState(JFrame.NORMAL);
             toFront();
+        }
+    }
+
+    /**
+     * Vérifie l'intégrité des data (mods + config) avec la politique configurée.
+     * Appelée juste après la synchro et juste avant le lancement pour réduire au minimum la fenêtre
+     * pendant laquelle des modifications pourraient se produire.
+     */
+    private void verifyDataIntegrity() throws Exception {
+        Path gameDir = java.nio.file.Paths.get(LauncherConfig.getGameDir());
+        String policy = LauncherConfig.getInstance().enforceModPolicy ? "strict" : "warn";
+
+        DataVerificationService dataVerifier = new DataVerificationService(gameDir, policy);
+        DataVerificationService.Result dataResult = dataVerifier.verify();
+
+        if (!dataResult.ok) {
+            StringBuilder sb = new StringBuilder();
+            if (!dataResult.missing.isEmpty()) sb.append("Manquants: ").append(dataResult.missing).append("\n");
+            if (!dataResult.modified.isEmpty()) sb.append("Modifiés: ").append(dataResult.modified).append("\n");
+            if (!dataResult.unexpected.isEmpty()) sb.append("Non attendus: ").append(dataResult.unexpected).append("\n");
+
+            String msg = "Vérification de l'intégrité data/: des écarts ont été détectés.\n" + sb;
+
+            if (LauncherConfig.getInstance().enforceModPolicy) {
+                dataVerifier.applyPolicy(dataResult);
+                throw new SecurityException(msg);
+            } else {
+                javax.swing.SwingUtilities.invokeLater(() ->
+                    javax.swing.JOptionPane.showMessageDialog(this, msg,
+                        "Avertissement Intégrité Data", javax.swing.JOptionPane.WARNING_MESSAGE));
+            }
         }
     }
 
