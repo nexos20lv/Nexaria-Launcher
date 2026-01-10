@@ -118,7 +118,6 @@
                             <mainClass>com.nexaria.launcher.build.ManifestGeneratorMojo</mainClass>
                             <arguments>
                                 <argument>data</argument>
-                                <argument>data</argument>
                                 <argument>data/data-manifest.json</argument>
                             </arguments>
                             <includeProjectDependencies>true</includeProjectDependencies>
