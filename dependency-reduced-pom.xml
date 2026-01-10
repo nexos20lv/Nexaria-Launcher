@@ -4,7 +4,7 @@
   <groupId>com.nexaria</groupId>
   <artifactId>nexaria-launcher</artifactId>
   <name>Nexaria Launcher</name>
-  <version>1.0.11</version>
+  <version>1.0.12</version>
   <build>
     <finalName>nexaria-launcher</finalName>
     <plugins>
@@ -76,8 +76,8 @@
     </dependency>
   </dependencies>
   <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.target>21</maven.compiler.target>
     <maven.compiler.source>21</maven.compiler.source>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 </project>
