@@ -189,7 +189,7 @@ public class ModVerificationService {
             logger.warn("Lecture manifest URL échouée", e);
         }
         // 2) game/configs
-        Path inGame = Paths.get(LauncherConfig.getConfigsDir(), "mods-manifest.json");
+        Path inGame = Paths.get(LauncherConfig.getConfigDir(), "mods-manifest.json");
         if (Files.exists(inGame)) {
             try { return parseManifest(Files.readString(inGame)); } catch (Exception e) { logger.warn("Manifest invalide: {}", inGame, e); }
         }

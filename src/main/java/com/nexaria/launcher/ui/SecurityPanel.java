@@ -101,7 +101,7 @@ public class SecurityPanel extends JPanel {
                 updateUI("Scan configs...", 66, true);
 
                 // Configs verification
-                ConfigVerificationService cvs = new ConfigVerificationService(Paths.get(LauncherConfig.getConfigsDir()));
+                ConfigVerificationService cvs = new ConfigVerificationService(Paths.get(LauncherConfig.getConfigDir()));
                 try {
                     ConfigVerificationService.Result cr = cvs.verify();
                     if (cr.isClean()) sb.append("[OK] Configs: intégrité OK\n");
@@ -177,7 +177,7 @@ public class SecurityPanel extends JPanel {
                     com.nexaria.launcher.security.ManifestGenerator.generateConfigsManifest(dataCfg, outCfg, true);
 
                     // Copier vers game/configs
-                    Path gameCfg = Paths.get(LauncherConfig.getConfigsDir());
+                    Path gameCfg = Paths.get(LauncherConfig.getConfigDir());
                     Files.createDirectories(gameCfg);
                     Files.copy(outMods, gameCfg.resolve("mods-manifest.json"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     Files.copy(outCfg, gameCfg.resolve("configs-manifest.json"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -209,7 +209,7 @@ public class SecurityPanel extends JPanel {
 
                 Path modsDir = Paths.get(LauncherConfig.getModsDir());
                 Path dataMods = Paths.get("data", "mods");
-                Path cfgDir = Paths.get(LauncherConfig.getConfigsDir());
+                Path cfgDir = Paths.get(LauncherConfig.getConfigDir());
                 Path dataCfg = Paths.get("data", "configs");
 
                 // 1) Mods: mettre en quarantaine les inattendus/mismatch puis restaurer depuis data/

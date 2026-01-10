@@ -4,10 +4,50 @@
   <groupId>com.nexaria</groupId>
   <artifactId>nexaria-launcher</artifactId>
   <name>Nexaria Launcher</name>
-  <version>1.0.7</version>
+  <version>1.0.8</version>
   <build>
     <finalName>nexaria-launcher</finalName>
     <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>generate-data-manifest</id>
+            <phase>process-classes</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>com.nexaria.launcher.build.ManifestGeneratorMojo</mainClass>
+              <arguments>
+                <argument>data</argument>
+                <argument>data</argument>
+                <argument>data/data-manifest.json</argument>
+              </arguments>
+              <includeProjectDependencies>true</includeProjectDependencies>
+              <includePluginDependencies>false</includePluginDependencies>
+            </configuration>
+          </execution>
+          <execution>
+            <id>generate-mods-manifest</id>
+            <phase>process-classes</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>com.nexaria.launcher.build.ManifestGeneratorMojo</mainClass>
+              <arguments>
+                <argument>data/mods</argument>
+                <argument>data/mods/mods-manifest.json</argument>
+              </arguments>
+              <includeProjectDependencies>true</includeProjectDependencies>
+              <includePluginDependencies>false</includePluginDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.11.0</version>
@@ -53,8 +93,8 @@
     </dependency>
   </dependencies>
   <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.target>21</maven.compiler.target>
     <maven.compiler.source>21</maven.compiler.source>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 </project>

@@ -102,7 +102,7 @@ public class ConfigVerificationService {
                 }
             }
         } catch (Exception e) { logger.warn("Lecture manifest configs URL échouée", e); }
-        Path inGame = Paths.get(LauncherConfig.getConfigsDir(), "configs-manifest.json");
+        Path inGame = Paths.get(LauncherConfig.getConfigDir(), "configs-manifest.json");
         if (Files.exists(inGame)) { try { return parse(Files.readString(inGame)); } catch (Exception e) { logger.warn("Manifest invalide: {}", inGame, e); } }
         Path local = Paths.get("data", "configs", "configs-manifest.json");
         if (Files.exists(local)) { try { return parse(Files.readString(local)); } catch (Exception e) { logger.warn("Manifest invalide: {}", local, e); } }
