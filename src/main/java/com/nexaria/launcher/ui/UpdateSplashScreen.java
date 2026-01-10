@@ -27,6 +27,7 @@ public class UpdateSplashScreen extends JWindow {
     private AnimatedLoadingSpinner spinner;
     private boolean updateFound = false;
     private GitHubUpdater.GitHubRelease latestRelease;
+    private Runnable onFinished;
     
     private static final int WIDTH = 500;
     private static final int HEIGHT = 300;
@@ -41,9 +42,15 @@ public class UpdateSplashScreen extends JWindow {
     private static final Color SUCCESS_COLOR = new Color(76, 175, 80);
 
     public UpdateSplashScreen() {
+        setAlwaysOnTop(true); // s'assurer que le splash est visible au-dessus
         initializeUI();
         centerOnScreen();
         setVisible(true);
+    }
+
+    public void startUpdateCheck(UpdateManager updateManager, Runnable onFinished) {
+        this.onFinished = onFinished;
+        startUpdateCheck(updateManager);
     }
 
     private void initializeUI() {
@@ -136,6 +143,7 @@ public class UpdateSplashScreen extends JWindow {
     }
 
     public void startUpdateCheck(UpdateManager updateManager) {
+        logger.debug("Splash update: démarrage des callbacks");
         updateManager.setCallback(new UpdateManager.UpdateCallback() {
             @Override
             public void onCheckStart() {
@@ -236,14 +244,17 @@ public class UpdateSplashScreen extends JWindow {
             }
         });
 
-        // Lancer la vérification
-        updateManager.checkForUpdatesAsync();
+        // Lancer la vérification + téléchargement avec callbacks (cache désactivé pour afficher l'état)
+        updateManager.autoUpdateWithCallbacks(false);
     }
 
     public void closeScreen() {
         spinner.stop();
         setVisible(false);
         dispose();
+        if (onFinished != null) {
+            try { onFinished.run(); } catch (Exception e) { logger.debug("onFinished callback failed", e); }
+        }
     }
 
     private String formatBytes(long bytes) {

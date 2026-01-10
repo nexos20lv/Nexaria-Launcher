@@ -8,10 +8,12 @@ import com.nexaria.launcher.updater.UpdateManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javax.swing.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class NexariaLauncher {
     private static final Logger logger = LoggerFactory.getLogger(NexariaLauncher.class);
-    private static final String LAUNCHER_VERSION = "1.0.5";
+    private static final String LAUNCHER_VERSION_FALLBACK = "0.0.0";
 
     public static void main(String[] args) {
         // Initialiser FlatLaf L&F pour un style moderne
@@ -32,7 +34,14 @@ public class NexariaLauncher {
             }
         } catch (Exception ignore) { }
 
-        logger.info("Démarrage du Nexaria Launcher v{}", LAUNCHER_VERSION);
+        String currentVersion = LAUNCHER_VERSION_FALLBACK;
+        try {
+            currentVersion = LauncherConfig.getInstance().launcherVersion != null
+                ? LauncherConfig.getInstance().launcherVersion
+                : LAUNCHER_VERSION_FALLBACK;
+        } catch (Exception ignore) { }
+
+        logger.info("Démarrage du Nexaria Launcher v{}", currentVersion);
 
         try {
             // Charger la configuration
@@ -49,12 +58,22 @@ public class NexariaLauncher {
             // Afficher le splash screen de mise à jour si activé (sauf en mode dev)
             if (!isDevMode && config.isAutoUpdate() && config.githubRepo != null && !config.githubRepo.isEmpty()) {
                 try {
-                    UpdateManager updateManager = new UpdateManager(config.githubRepo, LAUNCHER_VERSION);
-                    
-                    // Vérifier si une mise à jour est disponible sans afficher le splash à chaque fois
-                    // Le cache empêche les vérifications trop fréquentes (24h)
-                    updateManager.autoUpdateOnStartup();
-                    
+                    String updateVersion = config.launcherVersion != null ? config.launcherVersion : LAUNCHER_VERSION_FALLBACK;
+                    final UpdateManager updateManager = new UpdateManager(config.githubRepo, updateVersion);
+                    CountDownLatch latch = new CountDownLatch(1);
+
+                    SwingUtilities.invokeLater(() -> {
+                        try {
+                            com.nexaria.launcher.ui.UpdateSplashScreen splash = new com.nexaria.launcher.ui.UpdateSplashScreen();
+                            splash.startUpdateCheck(updateManager, latch::countDown);
+                        } catch (Exception ex) {
+                            logger.warn("Affichage du splash update impossible", ex);
+                            latch.countDown();
+                        }
+                    });
+
+                    // Attendre que la vérif/erreur se termine ou qu'une installation redémarre (120s max)
+                    latch.await(120, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     logger.warn("Erreur lors de la vérification des mises à jour", e);
                 }
@@ -78,7 +97,11 @@ public class NexariaLauncher {
     }
 
     public static String getVersion() {
-        return LAUNCHER_VERSION;
+        try {
+            return LauncherConfig.getInstance().launcherVersion != null ? LauncherConfig.getInstance().launcherVersion : LAUNCHER_VERSION_FALLBACK;
+        } catch (Exception e) {
+            return LAUNCHER_VERSION_FALLBACK;
+        }
     }
 
     /**
