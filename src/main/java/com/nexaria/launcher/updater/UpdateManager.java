@@ -64,44 +64,66 @@ public class UpdateManager {
      * Idéal pour être appelé au démarrage du launcher
      */
     public void autoUpdateOnStartup() {
+        // Toujours vérifier à chaque lancement pour garder le launcher à jour
+        autoUpdateWithCallbacks(false);
+    }
+
+    /**
+     * Variante avec callbacks (permet au splash screen d'afficher l'état)
+     * @param respectCache si true, ne re-vérifie pas avant 24h
+     */
+    public void autoUpdateWithCallbacks(boolean respectCache) {
         new Thread(() -> {
             try {
+                if (callback != null) callback.onCheckStart();
+
                 // Vérifier le cache d'abord
-                if (isCacheValid()) {
+                if (respectCache && isCacheValid()) {
                     logger.info("Vérification des mises à jour en cache (dernière vérification < 24h)");
+                    if (callback != null) callback.onCheckComplete(false, null, "Vérification récente (<24h)");
                     return;
                 }
-                
-                logger.info("Vérification automatique des mises à jour au démarrage");
-                
+
+                logger.info("Vérification automatique des mises à jour");
+
                 GitHubUpdater.UpdateCheckResult result = updater.checkForUpdates();
-                updateCache(); // Mettre à jour le timestamp du cache
-                
+                if (respectCache) updateCache(); // Mettre à jour le timestamp du cache
+
+                if (callback != null) {
+                    callback.onCheckComplete(result.hasUpdate, result.release, result.error);
+                }
+
                 if (result.hasUpdate && result.release != null) {
                     logger.info("Mise à jour disponible: {}", result.release.tagName);
-                    
+
                     try {
                         String cacheDir = LauncherConfig.getCacheDir();
                         String updatePath = cacheDir + "/nexaria-launcher-update.jar";
-                        
+
+                        if (callback != null) callback.onDownloadStart(result.release.tagName);
+
                         logger.info("Téléchargement de la mise à jour vers: {}", updatePath);
                         updater.downloadUpdate(result.release, updatePath);
-                        
+
+                        if (callback != null) callback.onDownloadComplete();
+
                         logger.info("Installation de la mise à jour...");
                         GitHubUpdater.installUpdate(updatePath);
-                        
-                        // Si on arrive ici, installUpdate aurait appelé System.exit(0)
+                        // installUpdate termine par un exit(0)
                     } catch (GitHubUpdater.UpdateException e) {
                         logger.error("Erreur lors du téléchargement/installation: {}", e.getMessage());
+                        if (callback != null) callback.onError(e.getMessage());
                     }
                 } else {
                     logger.info("Aucune mise à jour disponible");
                     if (result.error != null) {
                         logger.warn("Erreur lors de la vérification: {}", result.error);
+                        if (callback != null) callback.onError(result.error);
                     }
                 }
             } catch (Exception e) {
                 logger.error("Erreur critique lors de la vérification automatique", e);
+                if (callback != null) callback.onError(e.getMessage());
             }
         }, "AutoUpdater").start();
     }
