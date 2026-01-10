@@ -32,6 +32,7 @@ public class LauncherConfig {
     public String modManifestUrl;
     public String bannedProcessesCsv;
     public String configManifestUrl;
+    public String dataManifestUrl;
     public boolean blockSymlinks;
     public boolean autoLaunchGame;
     public boolean minimizeOnLaunch;
@@ -48,7 +49,7 @@ public class LauncherConfig {
     // Dossier de données runtime (AppData selon l'OS)
     public String dataFolder;
     public String modsDir;
-    public String configsDir;
+    public String configDir;
     public String launcherDir;
     public String cacheDir;
     public String versionsDir;
@@ -68,9 +69,9 @@ public class LauncherConfig {
             instance.azuriomUrl = "https://eclozionmc.ovh";
             instance.githubRepo = "nexos20lv/Nexaria-Launcher";
             instance.githubBranch = "main";
-            instance.minecraftVersion = "1.20.1";
+            instance.minecraftVersion = "1.21.5";
             instance.loader = "forge";
-            instance.loaderVersion = "47.2.0";
+            instance.loaderVersion = "55.1.4";
             instance.maxMemory = 4096;
             instance.minMemory = 1024;
             instance.jvmArgs = "-XX:+UseG1GC -XX:MaxGCPauseMillis=200";
@@ -93,6 +94,7 @@ public class LauncherConfig {
                     "fiddler.exe"
                 );
             instance.configManifestUrl = "";  // Optionnel: URL JSON {"configs":[{"name":"...","sha256":"..."}]}
+            instance.dataManifestUrl = "";    // Optionnel: URL JSON {"files":[{"path":"...","sha256":"..."}]} pour tout data/
             instance.blockSymlinks = true;     // Bloquer mods/configs symlinkés hors gameDir
             instance.autoLaunchGame = false;
             instance.minimizeOnLaunch = true;
@@ -112,11 +114,11 @@ public class LauncherConfig {
             instance.versionsDir = instance.dataFolder + File.separator + "versions";
             instance.gameDir = instance.dataFolder + File.separator + "game";
             instance.modsDir = instance.gameDir + File.separator + "mods";
-            instance.configsDir = instance.gameDir + File.separator + "configs";
+            instance.configDir = instance.gameDir + File.separator + "config";
 
             // Créer les répertoires
             new File(instance.modsDir).mkdirs();
-            new File(instance.configsDir).mkdirs();
+            new File(instance.configDir).mkdirs();
             new File(instance.launcherDir).mkdirs();
             new File(instance.cacheDir).mkdirs();
             // Le dossier versions n'est plus utilisé par le launcher (FlowUpdater gère tout)
@@ -182,8 +184,8 @@ public class LauncherConfig {
         return getInstance().modsDir;
     }
 
-    public static String getConfigsDir() {
-        return getInstance().configsDir;
+    public static String getConfigDir() {
+        return getInstance().configDir;
     }
 
     public static String getLauncherDir() {
@@ -258,10 +260,10 @@ public class LauncherConfig {
         if (path == null || path.isBlank()) return;
         this.gameDir = path;
         this.modsDir = this.gameDir + File.separator + "mods";
-        this.configsDir = this.gameDir + File.separator + "configs";
+        this.configDir = this.gameDir + File.separator + "config";
         new File(this.gameDir).mkdirs();
         new File(this.modsDir).mkdirs();
-        new File(this.configsDir).mkdirs();
+        new File(this.configDir).mkdirs();
         logger.info("Game directory set to: {}", this.gameDir);
     }
 

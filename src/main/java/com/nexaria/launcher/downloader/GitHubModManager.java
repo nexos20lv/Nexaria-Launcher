@@ -56,20 +56,57 @@ public class GitHubModManager {
     }
 
     /**
-     * Copie toutes les configs présentes dans data/configs vers le dossier de configs cible
+     * Synchronise tout le dossier data/ (mods + config) vers game/data/
+     * Ceci permet de vérifier l'intégrité complète avec le manifest data-manifest.json
      */
-    public void syncLocalConfigs() throws Exception {
-        // Source des configs dans le workspace (pas AppData)
-        String localConfigsPath = "data/configs";
-        File localConfigsDir = new File(localConfigsPath);
-
-        if (!localConfigsDir.exists() || !localConfigsDir.isDirectory()) {
-            logger.info("Aucun dossier local de configs trouvé: {}", localConfigsPath);
+    public void syncAllData() throws Exception {
+        // Source: dossier data/ du launcher
+        File localDataDir = new File("data");
+        if (!localDataDir.exists() || !localDataDir.isDirectory()) {
+            logger.info("Aucun dossier data/ trouvé");
             return;
         }
 
-        copyDirectoryRecursively(localConfigsDir.toPath(), Paths.get(LauncherConfig.getConfigsDir()));
-        logger.info("Synchronisation des configs locales complétée");
+        // Destination: game/data/
+        Path gameDataDir = Paths.get(LauncherConfig.getGameDir(), "data");
+        Files.createDirectories(gameDataDir);
+
+        // Copier récursivement data/config -> game/data/config
+        File localConfigDir = new File(localDataDir, "config");
+        if (localConfigDir.exists()) {
+            Path targetConfigDir = gameDataDir.resolve("config");
+            copyDirectoryRecursively(localConfigDir.toPath(), targetConfigDir);
+            logger.info("Configs copiés: data/config -> game/data/config");
+        }
+
+        // Copier data/mods -> game/data/mods
+        File localModsDir = new File(localDataDir, "mods");
+        if (localModsDir.exists()) {
+            Path targetModsDir = gameDataDir.resolve("mods");
+            Files.createDirectories(targetModsDir);
+            
+            File[] mods = localModsDir.listFiles((dir, name) -> name.endsWith(".jar"));
+            if (mods != null) {
+                for (File mod : mods) {
+                    Path dest = targetModsDir.resolve(mod.getName());
+                    if (!Files.exists(dest)) {
+                        Files.copy(mod.toPath(), dest);
+                        logger.debug("Mod copié: {}", mod.getName());
+                    }
+                }
+            }
+            logger.info("Mods copiés: data/mods -> game/data/mods");
+        }
+
+        // Copier le manifest
+        File manifestFile = new File(localDataDir, "data-manifest.json");
+        if (manifestFile.exists()) {
+            Files.copy(manifestFile.toPath(), gameDataDir.resolve("data-manifest.json"), 
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            logger.info("Manifest copié: data-manifest.json");
+        }
+        
+        logger.info("Synchronisation complète de data/ terminée");
     }
 
     private void copyDirectoryRecursively(Path source, Path target) throws IOException {

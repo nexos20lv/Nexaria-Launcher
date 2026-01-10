@@ -159,13 +159,9 @@ public class LauncherWindow extends JFrame {
             protected Void doInBackground() throws Exception {
                 try {
                     logger.info("[LAUNCH] Debut du lancement");
-                    mainPanel.setStatus("Synchronisation des mods...");
-                    modManager.syncLocalMods();
-                    logger.info("[LAUNCH] Mods synchronises");
-
-                    mainPanel.setStatus("Synchronisation des configurations...");
-                    modManager.syncLocalConfigs();
-                    logger.info("[LAUNCH] Configs synchronisees");
+                    mainPanel.setStatus("Synchronisation de data/...");
+                    modManager.syncAllData();
+                    logger.info("[LAUNCH] Data synchronise (mods + configs)");
 
                     mainPanel.setStatus("Préparation du lancement...");
                     SwingUtilities.invokeLater(() -> mainPanel.setIndeterminate(true));
@@ -219,7 +215,7 @@ public class LauncherWindow extends JFrame {
         String gameDirectory = LauncherConfig.getGameDir();
         new File(gameDirectory).mkdirs();
         new File(LauncherConfig.getModsDir()).mkdirs();
-        new File(LauncherConfig.getConfigsDir()).mkdirs();
+        new File(LauncherConfig.getConfigDir()).mkdirs();
 
         // Générer des manifests à partir de data/ si absents et pas d'URL
         try {
@@ -249,7 +245,7 @@ public class LauncherWindow extends JFrame {
 
         // Copier les manifests générés vers le dossier configs du jeu (distribution)
         try {
-            java.nio.file.Path gameCfg = java.nio.file.Paths.get(LauncherConfig.getConfigsDir());
+            java.nio.file.Path gameCfg = java.nio.file.Paths.get(LauncherConfig.getConfigDir());
             java.nio.file.Files.createDirectories(gameCfg);
             java.nio.file.Path srcMods = java.nio.file.Paths.get("data", "mods", "mods-manifest.json");
             java.nio.file.Path dstMods = gameCfg.resolve("mods-manifest.json");
@@ -265,53 +261,40 @@ public class LauncherWindow extends JFrame {
         if (LauncherConfig.getInstance().blockSymlinks) {
             Path gameDir = java.nio.file.Paths.get(LauncherConfig.getGameDir()).toAbsolutePath().normalize();
             enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getModsDir()), gameDir, "mods");
-            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigsDir()), gameDir, "configs");
+            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigDir()), gameDir, "configs");
         }
 
-        // Vérification des mods avant lancement
+        // Vérification de l'intégrité complète de data/ (mods + configs)
         try {
-            com.nexaria.launcher.security.ModVerificationService verifier =
-                    new com.nexaria.launcher.security.ModVerificationService(java.nio.file.Paths.get(LauncherConfig.getModsDir()));
-            com.nexaria.launcher.security.ModVerificationService.VerificationResult res = verifier.verifyAndEnforce();
-            if (!res.isClean()) {
+            Path gameDataDir = java.nio.file.Paths.get(LauncherConfig.getGameDir()).resolve("data");
+            String policy = LauncherConfig.getInstance().enforceModPolicy ? "strict" : "warn";
+            
+            com.nexaria.launcher.security.DataVerificationService dataVerifier =
+                    new com.nexaria.launcher.security.DataVerificationService(gameDataDir, policy);
+            
+            com.nexaria.launcher.security.DataVerificationService.Result dataResult = dataVerifier.verify();
+            
+            if (!dataResult.ok) {
                 StringBuilder sb = new StringBuilder();
-                if (!res.missingRequired.isEmpty()) sb.append("Manquants: ").append(res.missingRequired).append("\n");
-                if (!res.unexpected.isEmpty()) sb.append("Non attendus: ").append(res.unexpected).append("\n");
-                if (!res.hashMismatch.isEmpty()) sb.append("Hashes invalides: ").append(res.hashMismatch).append("\n");
-                String msg = "Vérification des mods: des écarts ont été détectés.\n" + sb;
+                if (!dataResult.missing.isEmpty()) sb.append("Manquants: ").append(dataResult.missing).append("\n");
+                if (!dataResult.modified.isEmpty()) sb.append("Modifiés: ").append(dataResult.modified).append("\n");
+                if (!dataResult.unexpected.isEmpty()) sb.append("Non attendus: ").append(dataResult.unexpected).append("\n");
+                
+                String msg = "Vérification de l'intégrité data/: des écarts ont été détectés.\n" + sb;
+                
                 if (LauncherConfig.getInstance().enforceModPolicy) {
+                    dataVerifier.applyPolicy(dataResult);
                     throw new SecurityException(msg);
                 } else {
-                    javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Avertissement Mods", javax.swing.JOptionPane.WARNING_MESSAGE));
+                    javax.swing.SwingUtilities.invokeLater(() -> 
+                        javax.swing.JOptionPane.showMessageDialog(this, msg, 
+                            "Avertissement Intégrité Data", javax.swing.JOptionPane.WARNING_MESSAGE));
                 }
             }
         } catch (SecurityException se) {
             throw se;
         } catch (Exception e) {
-            logger.warn("Vérification des mods échouée", e);
-        }
-
-        // Vérification des configs avant lancement
-        try {
-            com.nexaria.launcher.security.ConfigVerificationService cfgVerifier =
-                    new com.nexaria.launcher.security.ConfigVerificationService(java.nio.file.Paths.get(LauncherConfig.getConfigsDir()));
-            com.nexaria.launcher.security.ConfigVerificationService.Result r = cfgVerifier.verify();
-            if (!r.isClean()) {
-                StringBuilder sb = new StringBuilder();
-                if (!r.missing.isEmpty()) sb.append("Manquantes: ").append(r.missing).append("\n");
-                if (!r.unexpected.isEmpty()) sb.append("Non attendues: ").append(r.unexpected).append("\n");
-                if (!r.badHash.isEmpty()) sb.append("Hashes invalides: ").append(r.badHash).append("\n");
-                String msg = "Vérification des configs: des écarts ont été détectés.\n" + sb;
-                if (LauncherConfig.getInstance().enforceModPolicy) {
-                    throw new SecurityException(msg);
-                } else {
-                    javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Avertissement Configs", javax.swing.JOptionPane.WARNING_MESSAGE));
-                }
-            }
-        } catch (SecurityException se) {
-            throw se;
-        } catch (Exception e) {
-            logger.warn("Vérification des configs échouée", e);
+            logger.warn("Vérification de l'intégrité data/ échouée", e);
         }
 
         // Utilisation d'OpenLauncherLib pour gérer tous les aspects du lancement
