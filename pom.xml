@@ -6,7 +6,7 @@
 
     <groupId>com.nexaria</groupId>
     <artifactId>nexaria-launcher</artifactId>
-    <version>1.0.7</version>
+    <version>1.0.12</version>
     <name>Nexaria Launcher</name>
 
     <properties>
@@ -102,6 +102,30 @@
     <build>
         <finalName>nexaria-launcher</finalName>
         <plugins>
+            <!-- Plugin pour générer le manifest des mods pendant le build -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-data-manifest</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>com.nexaria.launcher.build.ManifestGeneratorMojo</mainClass>
+                            <arguments>
+                                <argument>data</argument>
+                                <argument>data/data-manifest.json</argument>
+                            </arguments>
+                            <includeProjectDependencies>true</includeProjectDependencies>
+                            <includePluginDependencies>false</includePluginDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

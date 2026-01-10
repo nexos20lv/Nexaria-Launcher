@@ -4,6 +4,7 @@ import com.nexaria.launcher.auth.AzAuthManager;
 import com.nexaria.launcher.downloader.GitHubModManager;
 import com.nexaria.launcher.config.LauncherConfig;
 import com.nexaria.launcher.model.User;
+import com.nexaria.launcher.security.DataVerificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,13 +160,12 @@ public class LauncherWindow extends JFrame {
             protected Void doInBackground() throws Exception {
                 try {
                     logger.info("[LAUNCH] Debut du lancement");
-                    mainPanel.setStatus("Synchronisation des mods...");
-                    modManager.syncLocalMods();
-                    logger.info("[LAUNCH] Mods synchronises");
+                    mainPanel.setStatus("Synchronisation de data/...");
+                    modManager.syncAllData();
+                    logger.info("[LAUNCH] Data synchronise (mods + configs)");
 
-                    mainPanel.setStatus("Synchronisation des configurations...");
-                    modManager.syncLocalConfigs();
-                    logger.info("[LAUNCH] Configs synchronisees");
+                    // Vérifier immédiatement après la synchro pour éviter toute fenêtre de tir
+                    verifyDataIntegrity();
 
                     mainPanel.setStatus("Préparation du lancement...");
                     SwingUtilities.invokeLater(() -> mainPanel.setIndeterminate(true));
@@ -219,100 +219,17 @@ public class LauncherWindow extends JFrame {
         String gameDirectory = LauncherConfig.getGameDir();
         new File(gameDirectory).mkdirs();
         new File(LauncherConfig.getModsDir()).mkdirs();
-        new File(LauncherConfig.getConfigsDir()).mkdirs();
-
-        // Générer des manifests à partir de data/ si absents et pas d'URL
-        try {
-            if ((LauncherConfig.getInstance().modManifestUrl == null || LauncherConfig.getInstance().modManifestUrl.isBlank())) {
-                java.nio.file.Path modsManifest = java.nio.file.Paths.get("data", "configs", "mods-manifest.json");
-                if (!java.nio.file.Files.exists(modsManifest)) {
-                    com.nexaria.launcher.security.ManifestGenerator.generateModsManifest(
-                            java.nio.file.Paths.get("data", "mods"),
-                            modsManifest,
-                            true
-                    );
-                }
-            }
-            if ((LauncherConfig.getInstance().configManifestUrl == null || LauncherConfig.getInstance().configManifestUrl.isBlank())) {
-                java.nio.file.Path cfgManifest = java.nio.file.Paths.get("data", "configs", "configs-manifest.json");
-                if (!java.nio.file.Files.exists(cfgManifest)) {
-                    com.nexaria.launcher.security.ManifestGenerator.generateConfigsManifest(
-                            java.nio.file.Paths.get("data", "configs"),
-                            cfgManifest,
-                            true
-                    );
-                }
-            }
-        } catch (Exception e) {
-            logger.warn("Génération des manifests depuis data/ échouée", e);
-        }
-
-        // Copier les manifests générés vers le dossier configs du jeu (distribution)
-        try {
-            java.nio.file.Path gameCfg = java.nio.file.Paths.get(LauncherConfig.getConfigsDir());
-            java.nio.file.Files.createDirectories(gameCfg);
-            java.nio.file.Path srcMods = java.nio.file.Paths.get("data", "mods", "mods-manifest.json");
-            java.nio.file.Path dstMods = gameCfg.resolve("mods-manifest.json");
-            if (java.nio.file.Files.exists(srcMods)) java.nio.file.Files.copy(srcMods, dstMods, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            java.nio.file.Path srcCfg = java.nio.file.Paths.get("data", "configs", "configs-manifest.json");
-            java.nio.file.Path dstCfg = gameCfg.resolve("configs-manifest.json");
-            if (java.nio.file.Files.exists(srcCfg)) java.nio.file.Files.copy(srcCfg, dstCfg, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        } catch (Exception e) {
-            logger.warn("Copie des manifests vers game/configs échouée", e);
-        }
+        new File(LauncherConfig.getConfigDir()).mkdirs();
 
         // Bloquer les symlinks suspects pointant hors du gameDir
         if (LauncherConfig.getInstance().blockSymlinks) {
             Path gameDir = java.nio.file.Paths.get(LauncherConfig.getGameDir()).toAbsolutePath().normalize();
             enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getModsDir()), gameDir, "mods");
-            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigsDir()), gameDir, "configs");
+            enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigDir()), gameDir, "config");
         }
 
-        // Vérification des mods avant lancement
-        try {
-            com.nexaria.launcher.security.ModVerificationService verifier =
-                    new com.nexaria.launcher.security.ModVerificationService(java.nio.file.Paths.get(LauncherConfig.getModsDir()));
-            com.nexaria.launcher.security.ModVerificationService.VerificationResult res = verifier.verifyAndEnforce();
-            if (!res.isClean()) {
-                StringBuilder sb = new StringBuilder();
-                if (!res.missingRequired.isEmpty()) sb.append("Manquants: ").append(res.missingRequired).append("\n");
-                if (!res.unexpected.isEmpty()) sb.append("Non attendus: ").append(res.unexpected).append("\n");
-                if (!res.hashMismatch.isEmpty()) sb.append("Hashes invalides: ").append(res.hashMismatch).append("\n");
-                String msg = "Vérification des mods: des écarts ont été détectés.\n" + sb;
-                if (LauncherConfig.getInstance().enforceModPolicy) {
-                    throw new SecurityException(msg);
-                } else {
-                    javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Avertissement Mods", javax.swing.JOptionPane.WARNING_MESSAGE));
-                }
-            }
-        } catch (SecurityException se) {
-            throw se;
-        } catch (Exception e) {
-            logger.warn("Vérification des mods échouée", e);
-        }
-
-        // Vérification des configs avant lancement
-        try {
-            com.nexaria.launcher.security.ConfigVerificationService cfgVerifier =
-                    new com.nexaria.launcher.security.ConfigVerificationService(java.nio.file.Paths.get(LauncherConfig.getConfigsDir()));
-            com.nexaria.launcher.security.ConfigVerificationService.Result r = cfgVerifier.verify();
-            if (!r.isClean()) {
-                StringBuilder sb = new StringBuilder();
-                if (!r.missing.isEmpty()) sb.append("Manquantes: ").append(r.missing).append("\n");
-                if (!r.unexpected.isEmpty()) sb.append("Non attendues: ").append(r.unexpected).append("\n");
-                if (!r.badHash.isEmpty()) sb.append("Hashes invalides: ").append(r.badHash).append("\n");
-                String msg = "Vérification des configs: des écarts ont été détectés.\n" + sb;
-                if (LauncherConfig.getInstance().enforceModPolicy) {
-                    throw new SecurityException(msg);
-                } else {
-                    javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Avertissement Configs", javax.swing.JOptionPane.WARNING_MESSAGE));
-                }
-            }
-        } catch (SecurityException se) {
-            throw se;
-        } catch (Exception e) {
-            logger.warn("Vérification des configs échouée", e);
-        }
+        // Vérification juste avant le lancement effectif (fenêtre de tir minimale)
+        verifyDataIntegrity();
 
         // Utilisation d'OpenLauncherLib pour gérer tous les aspects du lancement
         com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.ProgressListener progressListener = 
@@ -390,6 +307,37 @@ public class LauncherWindow extends JFrame {
             mainPanel.setStatus("Jeu arrêté");
             setState(JFrame.NORMAL);
             toFront();
+        }
+    }
+
+    /**
+     * Vérifie l'intégrité des data (mods + config) avec la politique configurée.
+     * Appelée juste après la synchro et juste avant le lancement pour réduire au minimum la fenêtre
+     * pendant laquelle des modifications pourraient se produire.
+     */
+    private void verifyDataIntegrity() throws Exception {
+        Path gameDir = java.nio.file.Paths.get(LauncherConfig.getGameDir());
+        String policy = LauncherConfig.getInstance().enforceModPolicy ? "strict" : "warn";
+
+        DataVerificationService dataVerifier = new DataVerificationService(gameDir, policy);
+        DataVerificationService.Result dataResult = dataVerifier.verify();
+
+        if (!dataResult.ok) {
+            StringBuilder sb = new StringBuilder();
+            if (!dataResult.missing.isEmpty()) sb.append("Manquants: ").append(dataResult.missing).append("\n");
+            if (!dataResult.modified.isEmpty()) sb.append("Modifiés: ").append(dataResult.modified).append("\n");
+            if (!dataResult.unexpected.isEmpty()) sb.append("Non attendus: ").append(dataResult.unexpected).append("\n");
+
+            String msg = "Vérification de l'intégrité data/: des écarts ont été détectés.\n" + sb;
+
+            if (LauncherConfig.getInstance().enforceModPolicy) {
+                dataVerifier.applyPolicy(dataResult);
+                throw new SecurityException(msg);
+            } else {
+                javax.swing.SwingUtilities.invokeLater(() ->
+                    javax.swing.JOptionPane.showMessageDialog(this, msg,
+                        "Avertissement Intégrité Data", javax.swing.JOptionPane.WARNING_MESSAGE));
+            }
         }
     }
 
