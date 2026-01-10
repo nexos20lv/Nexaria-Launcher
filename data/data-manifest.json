@@ -21,7 +21,7 @@
     {"path":"config/drippyloadingscreen/options.txt","sha256":"80ed128a0e856c1d2cf85164d65366dc0c3d14813009401f030ed29143be48e5"},
     {"path":"mods/konkrete_forge_1.9.11_MC_1.21.5.jar","sha256":"62b065a34a8c8e3245834c2acd1d3131882bc6e6498c653ad298c59681db5917"},
     {"path":"mods/drippyloadingscreen_forge_3.0.13_MC_1.21.5.jar","sha256":"ba158bc0805546154ec2616f8395ed643dc43f35ae284680576f5912d3cc90e3"},
-    {"path":"mods/nexsrvlock.jar","sha256":"80c682c48539581f8424e9ede6a19dc426111a872e87c4b21152b30ee24fe338"},
+    {"path":"mods/nexsrvlock.jar","sha256":"1e569ae88b51462fab160a330b24c32fd2e06ee87b8416dc8fca29ab3a05e767"},
     {"path":"mods/melody_forge_1.0.11_MC_1.21.5.jar","sha256":"9046ba7bf2a357ebf356923fc43cd0e38967a0f7e1f7ba4a97aff7a36f336089"},
     {"path":"mods/fancymenu_forge_3.5.1_MC_1.21.5.jar","sha256":"88bb3047338acb453962bd7f50b6f7faecba62a610fd572f3fde7bceb6993738"}
   ]
