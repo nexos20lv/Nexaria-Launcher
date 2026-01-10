@@ -1,8 +1,3 @@
-git clone https://github.com/nexos20lv/nexaria-launcher.git
-githubRepo: nexos20lv/nexaria-launcher
-githubBranch: main
-autoUpdate: true
-debugMode: false
 # Nexaria Launcher
 
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net)
