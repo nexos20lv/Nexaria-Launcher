@@ -24,7 +24,7 @@ B:game_intro_fade_out = 'true';
 
 ##[window]
 
-B:show_custom_window_icon = 'false';
+B:show_custom_window_icon = 'true';
 S:custom_window_icon_macos = '/config/fancymenu/assets/logo.icns';
 S:custom_window_icon_32 = '/config/fancymenu/assets/logo-32x.png';
 S:custom_window_title = 'Nexaria MC - V1.0';
