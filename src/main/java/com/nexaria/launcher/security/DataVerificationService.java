@@ -53,6 +53,7 @@ public class DataVerificationService {
     /**
      * Vérifie l'intégrité de tous les fichiers du dossier data/
      * Les fichiers créés par Minecraft (nouveaux dossiers/fichiers) sont ignorés
+     * Restaure automatiquement les fichiers manquants depuis la source locale
      */
     public Result verify() throws IOException {
         long t0 = System.currentTimeMillis();
@@ -72,6 +73,20 @@ public class DataVerificationService {
             expectedPaths.add(e.path);
         }
 
+        // Pré-scan: restaurer les fichiers manquants depuis la source locale
+        List<String> missingBeforeRestore = new ArrayList<>();
+        for (Entry e : m.files) {
+            Path file = gameDataDir.resolve(e.path);
+            if (!Files.exists(file)) {
+                missingBeforeRestore.add(e.path);
+            }
+        }
+        
+        if (!missingBeforeRestore.isEmpty()) {
+            logger.info("Tentative de restauration de {} fichier(s) manquant(s)...", missingBeforeRestore.size());
+            restoreMissingFiles(missingBeforeRestore, m);
+        }
+
         // Vérifier chaque fichier attendu
         for (Entry e : m.files) {
             Path file = gameDataDir.resolve(e.path);
@@ -79,7 +94,7 @@ public class DataVerificationService {
             if (!Files.exists(file)) {
                 r.missing.add(e.path);
                 r.ok = false;
-                logger.warn("Fichier manquant: {}", e.path);
+                logger.warn("Fichier toujours manquant après restauration: {}", e.path);
             } else if (e.sha256 != null && !e.sha256.isEmpty()) {
                 String actualHash = sha256Hex(file);
                 if (!actualHash.equalsIgnoreCase(e.sha256)) {
@@ -247,6 +262,15 @@ public class DataVerificationService {
                     "Non attendus: " + r.unexpected);
         }
 
+        // Restaurer automatiquement les fichiers manquants (en mode warn ou quarantine)
+        if (!r.missing.isEmpty()) {
+            logger.info("Restauration automatique de {} fichier(s) manquant(s)...", r.missing.size());
+            Manifest m = loadManifest();
+            if (m != null) {
+                restoreMissingFiles(r.missing, m);
+            }
+        }
+
         if ("quarantine".equalsIgnoreCase(policy)) {
             Path qDir = gameDataDir.resolve("quarantine");
             Files.createDirectories(qDir);
@@ -271,6 +295,31 @@ public class DataVerificationService {
             logger.info("Application de la politique: éléments non conformes déplacés vers {}", qDir);
         } else {
             logger.warn("Politique '{}' : écarts détectés mais aucune action prise", policy);
+        }
+    }
+
+    /**
+     * Restaure les fichiers manquants depuis le dossier local data/
+     */
+    private void restoreMissingFiles(List<String> missingPaths, Manifest m) {
+        Path localDataDir = Paths.get("data");
+
+        for (String missingPath : missingPaths) {
+            Path sourceFile = localDataDir.resolve(missingPath);
+            Path targetFile = gameDataDir.resolve(missingPath);
+
+            // Vérifier si le fichier existe dans data/
+            if (Files.exists(sourceFile)) {
+                try {
+                    Files.createDirectories(targetFile.getParent());
+                    Files.copy(sourceFile, targetFile);
+                    logger.info("Fichier restauré: {}", missingPath);
+                } catch (IOException e) {
+                    logger.error("Échec restauration fichier: {}", missingPath, e);
+                }
+            } else {
+                logger.warn("Fichier source manquant pour restauration: {}", missingPath);
+            }
         }
     }
 }
