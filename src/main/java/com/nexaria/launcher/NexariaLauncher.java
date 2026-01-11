@@ -93,9 +93,16 @@ public class NexariaLauncher {
                 logger.warn("Erreur lors de la synchronisation de data/", e);
             }
 
-            // Lancer l'interface graphique
-            LauncherWindow gui = new LauncherWindow();
-            gui.setVisible(true);
+            // Lancer l'interface graphique sur l'EDT
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    LauncherWindow gui = new LauncherWindow();
+                    gui.setVisible(true);
+                    logger.info("Fenetre principale rendue visible");
+                } catch (Exception e) {
+                    logger.error("Erreur lors de l'affichage de la fenetre", e);
+                }
+            });
         } catch (Exception e) {
             logger.error("Erreur lors du démarrage du launcher", e);
             e.printStackTrace();

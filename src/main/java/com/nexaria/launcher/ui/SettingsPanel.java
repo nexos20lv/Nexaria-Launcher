@@ -48,31 +48,40 @@ public class SettingsPanel extends JPanel {
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Navigation par onglets en haut, stylée comme le reste de l'app
-        JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
-        tabs.setOpaque(false);
-        tabs.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
-        tabs.setFont(DesignConstants.FONT_REGULAR.deriveFont(13f));
-        tabs.setForeground(DesignConstants.TEXT_PRIMARY);
-        tabs.setBackground(new Color(0, 0, 0, 0));
-        tabs.setFocusable(false);
-        tabs.setUI(new BasicTabbedPaneUI() {
-            @Override
-            protected void paintFocusIndicator(Graphics g, int tp, Rectangle[] rects, int ti, Rectangle iconRect,
-                    Rectangle textRect, boolean isSelected) {
-            }
+        // Layout principal
+        setLayout(new BorderLayout());
+        setBorder(null); // Full width/height
 
+        // 1. Sidebar (Gauche)
+        JPanel sidebar = new JPanel() {
             @Override
-            protected void paintTabBorder(Graphics g, int tp, int ti, int tx, int ty, int tw, int th,
-                    boolean isSelected) {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+                super.paintComponent(g);
             }
+        };
+        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+        sidebar.setOpaque(false); // Important pour la transparence
+        sidebar.setBackground(new Color(30, 20, 40, 240)); // Almost opaque for stability
+        sidebar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 0, 1, DesignConstants.GLASS_BORDER), // Right divider
+                BorderFactory.createEmptyBorder(20, 10, 20, 10)));
+        sidebar.setPreferredSize(new Dimension(240, 0)); // Slightly wider
 
-            @Override
-            protected void paintContentBorder(Graphics g, int tp, int si) {
-            }
-        });
+        // 2. Content (Droite)
+        CardLayout cardLayout = new CardLayout();
+        JPanel contentResults = new JPanel(cardLayout);
+        contentResults.setOpaque(false);
+        contentResults.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0)); // Add spacing from sidebar
 
-        // Onglet Général (basics)
+        // Groupe pour les boutons (radio behavior)
+        ButtonGroup group = new ButtonGroup();
+
+        // Création du panel Général
         JPanel general = createTabBase("Paramètres généraux");
         general.add(Box.createVerticalStrut(10));
         JCheckBox minimizeOnLaunch = new JCheckBox("Minimiser le launcher lorsque le jeu démarre");
@@ -89,58 +98,102 @@ public class SettingsPanel extends JPanel {
         general.add(minimizeOnLaunch);
         general.add(Box.createVerticalGlue());
 
-        tabs.addTab("Général", wrapInScroll(general));
-        tabs.addTab("Compte", wrapInScroll(createAccountTab()));
-        tabs.addTab("Mémoire", wrapInScroll(createMemoryTab()));
-        tabs.addTab("Réseau", wrapInScroll(createNetworkTab()));
-        tabs.addTab("Dossiers", wrapInScroll(createFoldersTab()));
-        tabs.addTab("Diagnostics", wrapInScroll(createDiagnosticsTab()));
+        // Définition des catégories
+        addCategory(sidebar, contentResults, group, cardLayout, "Général", FontAwesomeSolid.COG, wrapInScroll(general),
+                true);
+        addCategory(sidebar, contentResults, group, cardLayout, "Compte", FontAwesomeSolid.USER,
+                wrapInScroll(createAccountTab()), false);
+        addCategory(sidebar, contentResults, group, cardLayout, "Mémoire", FontAwesomeSolid.MEMORY,
+                wrapInScroll(createMemoryTab()), false);
+        addCategory(sidebar, contentResults, group, cardLayout, "Réseau", FontAwesomeSolid.WIFI,
+                wrapInScroll(createNetworkTab()), false);
+        addCategory(sidebar, contentResults, group, cardLayout, "Dossiers", FontAwesomeSolid.FOLDER_OPEN,
+                wrapInScroll(createFoldersTab()), false);
+        addCategory(sidebar, contentResults, group, cardLayout, "Diagnostics", FontAwesomeSolid.STETHOSCOPE,
+                wrapInScroll(createDiagnosticsTab()), false);
 
-        Icon[] tabIcons = new Icon[] {
-                FontIcon.of(FontAwesomeSolid.COG, 14, DesignConstants.TEXT_SECONDARY),
-                FontIcon.of(FontAwesomeSolid.USER, 14, DesignConstants.TEXT_SECONDARY),
-                FontIcon.of(FontAwesomeSolid.MEMORY, 14, DesignConstants.TEXT_SECONDARY),
-                FontIcon.of(FontAwesomeSolid.WIFI, 14, DesignConstants.TEXT_SECONDARY),
-                FontIcon.of(FontAwesomeSolid.FOLDER_OPEN, 14, DesignConstants.TEXT_SECONDARY),
-                FontIcon.of(FontAwesomeSolid.STETHOSCOPE, 14, DesignConstants.TEXT_SECONDARY)
-        };
+        ConsolePanel consolePanel = new ConsolePanel();
+        consolePanel.redirectSystemStreams();
+        addCategory(sidebar, contentResults, group, cardLayout, "Console", FontAwesomeSolid.TERMINAL, consolePanel,
+                false);
 
-        // Tab components custom pour coller au design
-        for (int i = 0; i < tabs.getTabCount(); i++) {
-            tabs.setTabComponentAt(i, createTabHeader(tabs, tabs.getTitleAt(i), tabIcons[i]));
-        }
-        tabs.addChangeListener(e -> updateTabHeaderStyles(tabs));
-        updateTabHeaderStyles(tabs);
-
-        add(tabs, BorderLayout.CENTER);
+        // Assemblage
+        add(sidebar, BorderLayout.WEST);
+        add(contentResults, BorderLayout.CENTER);
     }
 
-    private Component createTabHeader(JTabbedPane tabs, String title, Icon icon) {
-        JLabel lbl = new JLabel(title.toUpperCase(), icon, JLabel.LEADING);
-        lbl.setFont(DesignConstants.FONT_HEADER.deriveFont(13f));
-        lbl.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
-        lbl.setOpaque(true);
-        lbl.setBackground(new Color(0, 0, 0, 0));
-        lbl.setForeground(DesignConstants.TEXT_SECONDARY);
-        lbl.setIconTextGap(8);
-        lbl.putClientProperty("isTabLabel", true);
-        return lbl;
-    }
+    private void addCategory(JPanel sidebar, JPanel content, ButtonGroup group, CardLayout cards,
+            String title, FontAwesomeSolid icon, JComponent panel, boolean selected) {
+        String id = title.toUpperCase();
 
-    private void updateTabHeaderStyles(JTabbedPane tabs) {
-        for (int i = 0; i < tabs.getTabCount(); i++) {
-            Component c = tabs.getTabComponentAt(i);
-            if (c instanceof JLabel) {
-                JLabel lbl = (JLabel) c;
-                boolean selected = tabs.getSelectedIndex() == i;
-                lbl.setBackground(selected ? new Color(60, 40, 90, 200) : new Color(0, 0, 0, 0));
-                lbl.setForeground(selected ? DesignConstants.PURPLE_ACCENT : DesignConstants.TEXT_SECONDARY);
-                lbl.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, selected ? 2 : 1, 0,
-                                selected ? DesignConstants.PURPLE_ACCENT : new Color(255, 255, 255, 30)),
-                        BorderFactory.createEmptyBorder(8, 14, 8, 14)));
-                lbl.setOpaque(true);
+        // Bouton Custom
+        JToggleButton btn = new JToggleButton(title);
+        btn.setIcon(FontIcon.of(icon, 18, DesignConstants.TEXT_SECONDARY)); // Slightly larger icon
+        btn.setSelectedIcon(FontIcon.of(icon, 18, DesignConstants.PURPLE_ACCENT));
+        btn.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
+        btn.setForeground(DesignConstants.TEXT_SECONDARY);
+        btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setIconTextGap(15);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setMaximumSize(new Dimension(220, 50)); // Taller for better hit area
+        btn.setPreferredSize(new Dimension(220, 50));
+
+        // ChangeListener pour gérer les couleurs (évite l'appel setForeground dans
+        // paint)
+        btn.addChangeListener(e -> {
+            if (btn.isSelected()) {
+                btn.setForeground(DesignConstants.PURPLE_ACCENT);
+            } else if (btn.getModel().isRollover()) {
+                btn.setForeground(DesignConstants.TEXT_PRIMARY);
+            } else {
+                btn.setForeground(DesignConstants.TEXT_SECONDARY);
             }
+        });
+
+        // Custom UI pour l'effet de sélection (Pill shape à la ModernButton)
+        btn.setUI(new javax.swing.plaf.basic.BasicToggleButtonUI() {
+            @Override
+            public void paint(Graphics g, JComponent c) {
+                JToggleButton b = (JToggleButton) c;
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int r = 15; // Corner radius
+
+                if (b.isSelected()) {
+                    // Fond actif (Gradient subtil)
+                    GradientPaint gp = new GradientPaint(0, 0, new Color(170, 80, 255, 40), b.getWidth(), 0,
+                            new Color(170, 80, 255, 10));
+                    g2.setPaint(gp);
+                    g2.fillRoundRect(0, 0, b.getWidth(), b.getHeight(), r, r);
+
+                    // Bordure gauche plus "design"
+                    g2.setColor(DesignConstants.PURPLE_ACCENT);
+                    g2.fillRoundRect(0, 10, 4, b.getHeight() - 20, 4, 4);
+                } else if (b.getModel().isRollover()) {
+                    // Hover glass
+                    g2.setColor(new Color(255, 255, 255, 20));
+                    g2.fillRoundRect(0, 0, b.getWidth(), b.getHeight(), r, r);
+                }
+
+                super.paint(g2, c);
+                g2.dispose();
+            }
+        });
+
+        btn.addActionListener(e -> cards.show(content, id));
+
+        group.add(btn);
+        sidebar.add(btn);
+        sidebar.add(Box.createVerticalStrut(5));
+
+        content.add(panel, id);
+
+        if (selected) {
+            btn.setSelected(true);
         }
     }
 

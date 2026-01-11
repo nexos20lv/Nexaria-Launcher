@@ -48,7 +48,8 @@ public class ServerStatusCard extends JPanel {
     }
 
     public void update(ServerStatusInfo info) {
-        if (info == null) return;
+        if (info == null)
+            return;
         nameLabel.setText(info.name);
         if (info.online) {
             statusLabel.setText("En ligne • " + info.pingMs + " ms");
@@ -69,5 +70,34 @@ public class ServerStatusCard extends JPanel {
             // Icône serveur par défaut
             iconLabel.setIcon(FontIcon.of(FontAwesomeSolid.SERVER, 20, DesignConstants.TEXT_PRIMARY));
         }
+
+        // Construction du tooltip détaillé
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html>");
+        if (info.description != null && !info.description.isEmpty()) {
+            sb.append("<b>Message:</b><br/>");
+            // Basic handling of color codes not implemented effectively in tooltip without
+            // parsing,
+            // but we display raw text or sanitized text.
+            sb.append(info.description.replace("\n", "<br/>")).append("<br/><br/>");
+        }
+
+        sb.append("<b>Joueurs connectés:</b><br/>");
+        if (info.playerList != null && !info.playerList.isEmpty()) {
+            int count = 0;
+            for (String p : info.playerList) {
+                sb.append("• ").append(p).append("<br/>");
+                count++;
+                if (count >= 10) {
+                    sb.append("<i>...et ").append(info.playersOnline - 10).append(" autres</i>");
+                    break;
+                }
+            }
+        } else {
+            sb.append("<i>Aucun joueur listé</i>");
+        }
+        sb.append("</html>");
+
+        setToolTipText(sb.toString());
     }
 }

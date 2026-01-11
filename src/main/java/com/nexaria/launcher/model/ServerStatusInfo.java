@@ -9,4 +9,6 @@ public class ServerStatusInfo {
     public int playersMax;
     public long pingMs;
     public ImageIcon favicon;
+    public String description;
+    public java.util.List<String> playerList;
 }
