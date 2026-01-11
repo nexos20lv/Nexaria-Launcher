@@ -42,8 +42,14 @@ public class ConsolePanel extends JPanel {
         clearBtn.setIcon(FontIcon.of(FontAwesomeSolid.TRASH, 14, DesignConstants.TEXT_PRIMARY));
         clearBtn.addActionListener(e -> textArea.setText(""));
 
+        ModernButton exportBtn = new ModernButton("EXPORTER LOGS", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, false);
+        exportBtn.setIcon(FontIcon.of(FontAwesomeSolid.FILE_ARCHIVE, 14, DesignConstants.TEXT_PRIMARY));
+        exportBtn.addActionListener(e -> exportLogs());
+
         toolbar.add(copyBtn);
         toolbar.add(clearBtn);
+        toolbar.add(exportBtn);
         add(toolbar, BorderLayout.NORTH);
 
         // Text Area
@@ -140,6 +146,68 @@ public class ConsolePanel extends JPanel {
                 java.nio.charset.StandardCharsets.UTF_8));
         System.setErr(new java.io.PrintStream(new TeeOutputStream(System.err, out), true,
                 java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private void exportLogs() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Enregistrer les logs");
+        fileChooser.setSelectedFile(new java.io.File("logs_export_" + System.currentTimeMillis() + ".zip"));
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            java.io.File zipFile = fileChooser.getSelectedFile();
+            try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(
+                    new java.io.FileOutputStream(zipFile))) {
+
+                // 1. Logs du launcher (contenu de la console)
+                java.util.zip.ZipEntry launcherLogEntry = new java.util.zip.ZipEntry("launcher_console.txt");
+                zos.putNextEntry(launcherLogEntry);
+                byte[] data = textArea.getText().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                zos.write(data, 0, data.length);
+                zos.closeEntry();
+
+                // 2. Logs du jeu (si disponibles)
+                String gameDir = com.nexaria.launcher.config.LauncherConfig.getGameDir();
+                java.io.File logsDir = new java.io.File(gameDir, "logs");
+                if (logsDir.exists() && logsDir.isDirectory()) {
+                    java.io.File latestLog = new java.io.File(logsDir, "latest.log");
+                    if (latestLog.exists()) {
+                        addToZip(latestLog, "game_latest.log", zos);
+                    }
+                    java.io.File debugLog = new java.io.File(logsDir, "debug.log");
+                    if (debugLog.exists()) {
+                        addToZip(debugLog, "game_debug.log", zos);
+                    }
+                }
+
+                JOptionPane.showMessageDialog(this, "Logs exportés avec succès :\n" + zipFile.getAbsolutePath(),
+                        "Succès", JOptionPane.INFORMATION_MESSAGE);
+
+                // Ouvrir le dossier
+                if (Desktop.isDesktopSupported()) {
+                    Desktop.getDesktop().open(zipFile.getParentFile());
+                }
+
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Erreur lors de l'export : " + e.getMessage(), "Erreur",
+                        JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void addToZip(java.io.File file, String entryName, java.util.zip.ZipOutputStream zos)
+            throws java.io.IOException {
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+            java.util.zip.ZipEntry zipEntry = new java.util.zip.ZipEntry(entryName);
+            zos.putNextEntry(zipEntry);
+            byte[] bytes = new byte[1024];
+            int length;
+            while ((length = fis.read(bytes)) >= 0) {
+                zos.write(bytes, 0, length);
+            }
+            zos.closeEntry();
+        }
     }
 
     private static class TeeOutputStream extends java.io.OutputStream {
