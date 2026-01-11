@@ -65,20 +65,57 @@ public class RememberStore {
         return null;
     }
 
+    // Nouvelle méthode: Sauvegarder potentiellement plusieurs sessions
+    // On garde l'ancienne méthode pour compatibilité, mais elle écrasera avec une
+    // liste de 1 élément
     public static void saveSession(String id, String username, String accessToken) {
+        addOrUpdateSession(new RememberSession(id, username, accessToken));
+    }
+
+    public static void addOrUpdateSession(RememberSession session) {
         try {
             ensureParent();
-            Map<String, Object> m = new HashMap<>();
-            if (id != null)
-                m.put("id", id);
-            if (username != null)
-                m.put("username", username);
-            if (accessToken != null)
-                m.put("access_token", accessToken);
+            java.util.List<RememberSession> sessions = loadSessions();
+            if (sessions == null)
+                sessions = new java.util.ArrayList<>();
 
-            String json = gson.toJson(m);
+            // Remove existing session with same ID or Username to update it
+            sessions.removeIf(s -> (s.id != null && s.id.equals(session.id))
+                    || (s.username != null && s.username.equals(session.username)));
+
+            // Add as first (most recent)
+            sessions.add(0, session);
+
+            saveSessions(sessions);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void removeSession(String username) {
+        try {
+            java.util.List<RememberSession> sessions = loadSessions();
+            if (sessions != null) {
+                sessions.removeIf(s -> s.username != null && s.username.equals(username));
+                saveSessions(sessions);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void saveSessions(java.util.List<RememberSession> sessions) {
+        try {
+            ensureParent();
+            // Wrap in a map for future extensibility
+            Map<String, Object> root = new HashMap<>();
+            root.put("sessions", sessions); // Nouvelle structure
+            // Backwards compat: store "primary" fields at root so old launchers might still
+            // read something (though risk of conflict)
+            // Better behavior: Just switch to new format. Old launcher reading this will
+            // likely fail or see nulls.
+            // Since we are upgrading the launcher, we define the format.
+
+            String json = gson.toJson(root);
             String encoded = java.util.Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
-
             try (Writer w = new OutputStreamWriter(new FileOutputStream(getStoreFile()), StandardCharsets.UTF_8)) {
                 w.write(encoded);
             }
@@ -86,17 +123,16 @@ public class RememberStore {
         }
     }
 
-    public static RememberSession loadSession() {
+    public static java.util.List<RememberSession> loadSessions() {
         try {
             File storeFile = getStoreFile();
             if (!storeFile.exists())
-                return null;
+                return new java.util.ArrayList<>();
+
             Type t = new TypeToken<Map<String, Object>>() {
             }.getType();
-
             byte[] fileBytes = Files.readAllBytes(storeFile.toPath());
             String encoded = new String(fileBytes, StandardCharsets.UTF_8);
-
             String json;
             try {
                 json = new String(java.util.Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8);
@@ -104,18 +140,40 @@ public class RememberStore {
                 json = encoded;
             }
 
-            Map<String, Object> m = gson.fromJson(json, t);
-            if (m != null) {
-                RememberSession s = new RememberSession();
-                Object id = m.get("id");
-                Object un = m.get("username");
-                Object at = m.get("access_token");
-                s.id = id != null ? String.valueOf(id) : null;
-                s.username = un != null ? String.valueOf(un) : null;
-                s.accessToken = at != null ? String.valueOf(at) : null;
-                return s;
+            Map<String, Object> root = gson.fromJson(json, t);
+            if (root != null) {
+                // Check if it's the new format
+                if (root.containsKey("sessions")) {
+                    String sessionsJson = gson.toJson(root.get("sessions"));
+                    Type listType = new TypeToken<java.util.List<RememberSession>>() {
+                    }.getType();
+                    return gson.fromJson(sessionsJson, listType);
+                } else {
+                    // Old format (single session at root)
+                    RememberSession s = new RememberSession();
+                    Object id = root.get("id");
+                    Object un = root.get("username");
+                    Object at = root.get("access_token");
+                    if (at != null) {
+                        s.id = id != null ? String.valueOf(id) : null;
+                        s.username = un != null ? String.valueOf(un) : null;
+                        s.accessToken = at != null ? String.valueOf(at) : null;
+                        java.util.List<RememberSession> list = new java.util.ArrayList<>();
+                        list.add(s);
+                        return list;
+                    }
+                }
             }
         } catch (Exception ignored) {
+        }
+        return new java.util.ArrayList<>();
+    }
+
+    // Garder loadSession() pour compatibilité: retourne le premier (le plus récent)
+    public static RememberSession loadSession() {
+        java.util.List<RememberSession> list = loadSessions();
+        if (list != null && !list.isEmpty()) {
+            return list.get(0);
         }
         return null;
     }
@@ -136,8 +194,20 @@ public class RememberStore {
     }
 
     public static class RememberSession {
+        @com.google.gson.annotations.SerializedName("id")
         public String id;
+        @com.google.gson.annotations.SerializedName("username")
         public String username;
+        @com.google.gson.annotations.SerializedName("access_token")
         public String accessToken;
+
+        public RememberSession() {
+        }
+
+        public RememberSession(String id, String username, String accessToken) {
+            this.id = id;
+            this.username = username;
+            this.accessToken = accessToken;
+        }
     }
 }

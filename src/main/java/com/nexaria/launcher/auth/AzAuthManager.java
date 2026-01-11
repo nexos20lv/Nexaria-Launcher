@@ -265,7 +265,118 @@ public class AzAuthManager {
         }
     }
 
-    // Remote verification of access token
+    // Verify token and fetch user data
+    public User verify(String token) throws AuthenticationException {
+        try {
+            String base = azuriomUrl != null ? azuriomUrl.replaceAll("/+$", "") : "";
+            // Use /api/profile which is standard for Azuriom to get current user info with
+            // token
+            HttpURLConnection conn = (HttpURLConnection) URI.create(base + "/api/profile").toURL().openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            int status = conn.getResponseCode();
+            if (status == 200) {
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null)
+                        sb.append(line);
+
+                    JsonObject json = JsonParser.parseString(sb.toString()).getAsJsonObject();
+
+                    // The profile endpoint usually returns similar structure to auth but without
+                    // access_token in root (sometimes)
+                    // We reuse the token we passed
+                    int id = json.has("id") ? json.get("id").getAsInt() : -1;
+                    String username = json.has("username") ? json.get("username").getAsString() : "MobileUser";
+                    String uid = (id >= 0) ? String.valueOf(id) : UUID.randomUUID().toString();
+                    String uuid = json.has("uuid") ? json.get("uuid").getAsString() : null;
+                    boolean emailVerified = json.has("email_verified") && json.get("email_verified").getAsBoolean();
+                    double money = json.has("money") ? json.get("money").getAsDouble() : 0.0;
+
+                    String roleName = null;
+                    String roleColor = null;
+                    if (json.has("role") && json.get("role").isJsonObject()) {
+                        JsonObject role = json.getAsJsonObject("role");
+                        roleName = role.has("name") ? role.get("name").getAsString() : null;
+                        roleColor = role.has("color") ? role.get("color").getAsString() : null;
+                    }
+                    boolean banned = json.has("banned") && json.get("banned").getAsBoolean();
+                    String createdAt = json.has("created_at") ? json.get("created_at").getAsString() : null;
+
+                    this.currentUser = new User(uid, username, token, uuid, emailVerified, money, roleName, roleColor,
+                            banned, createdAt);
+                    this.accessToken = token;
+                    return currentUser;
+                }
+            } else {
+                throw new AuthenticationException("Token invalide ou session expirée");
+            }
+        } catch (Exception e) {
+            // Fallback: Essayer /api/auth/verify (Legacy / External App)
+            try {
+                logger.warn("Échec /api/profile ({}), tentative fallback sur /api/auth/verify", e.getMessage());
+                String base = azuriomUrl != null ? azuriomUrl.replaceAll("/+$", "") : "";
+                HttpURLConnection conn = (HttpURLConnection) URI.create(base + "/api/auth/verify").toURL()
+                        .openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Authorization", "Bearer " + token); // Certains Azuriom l'acceptent ici aussi
+
+                JsonObject payload = new JsonObject();
+                payload.addProperty("access_token", token);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+                }
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    try (BufferedReader br = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = br.readLine()) != null)
+                            sb.append(line);
+
+                        JsonObject json = JsonParser.parseString(sb.toString()).getAsJsonObject();
+
+                        // Structure de réponse de /verify
+                        // Souvent: { "id": 1, "username": "...", ... } OU { "user": { ... } }
+                        // On essaie de parser au mieux
+                        JsonObject userJson = json;
+                        if (json.has("user") && json.get("user").isJsonObject()) {
+                            userJson = json.getAsJsonObject("user");
+                        }
+
+                        int id = userJson.has("id") ? userJson.get("id").getAsInt() : -1;
+                        String username = userJson.has("username") ? userJson.get("username").getAsString() : "Unknown";
+                        String uid = (id >= 0) ? String.valueOf(id) : UUID.randomUUID().toString();
+                        String uuid = userJson.has("uuid") ? userJson.get("uuid").getAsString() : null;
+
+                        // Créer un utilisateur "minimal" mais valide
+                        this.currentUser = new User(uid, username, token, uuid, false, 0.0, null, null, false, null);
+                        this.accessToken = token;
+                        logger.info("Authentification réussie via fallback /api/auth/verify");
+                        return currentUser;
+                    }
+                }
+            } catch (Exception fallbackEx) {
+                logger.error("Échec du fallback", fallbackEx);
+            }
+
+            throw new AuthenticationException("Erreur verification: " + e.getMessage());
+        }
+    }
+
+    // Remote verification of access token (Legacy/Simple)
     public boolean verifyAccessTokenRemote(String token) {
         try {
             String base = azuriomUrl != null ? azuriomUrl.replaceAll("/+$", "") : "";

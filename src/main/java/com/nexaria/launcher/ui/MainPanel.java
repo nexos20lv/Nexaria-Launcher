@@ -24,7 +24,7 @@ public class MainPanel extends JPanel {
     private JLabel versionLabel;
     private JLabel statusLabel;
     private JProgressBar progressBar;
-    private ModernButton launchButton;
+    private AnimatedLaunchButton launchButton;
     private javax.swing.Timer refreshTimer;
     private boolean playing = false;
     private Runnable onStopCallback;
@@ -81,7 +81,7 @@ public class MainPanel extends JPanel {
         newsWrapper.setOpaque(false);
         newsWrapper.add(newsContainer, BorderLayout.CENTER);
         newsWrapper.setMaximumSize(new Dimension(1050, 400));
-        
+
         mainContent.add(newsWrapper);
         mainContent.add(Box.createVerticalStrut(15));
 
@@ -104,7 +104,7 @@ public class MainPanel extends JPanel {
         centerPanel.add(Box.createVerticalStrut(8));
 
         progressBar = new JProgressBar(0, 100);
-        progressBar.setStringPainted(false);  // Désactiver l'affichage du pourcentage
+        progressBar.setStringPainted(false); // Désactiver l'affichage du pourcentage
         progressBar.setForeground(DesignConstants.PURPLE_ACCENT);
         progressBar.setBackground(new Color(255, 255, 255, 20));
         progressBar.setBorderPainted(false);
@@ -114,8 +114,8 @@ public class MainPanel extends JPanel {
         centerPanel.add(progressBar);
         centerPanel.add(Box.createVerticalStrut(20));
 
-        launchButton = new ModernButton("JOUER", DesignConstants.PURPLE_ACCENT,
-            DesignConstants.PURPLE_ACCENT_DARK, true);
+        launchButton = new AnimatedLaunchButton("JOUER", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, true); // Changed ModernButton to AnimatedLaunchButton
         launchButton.setPreferredSize(new Dimension(250, 60));
         launchButton.setMaximumSize(new Dimension(250, 60));
         launchButton.setFont(DesignConstants.FONT_TITLE);
@@ -123,7 +123,8 @@ public class MainPanel extends JPanel {
         launchButton.setIcon(FontIcon.of(FontAwesomeSolid.PLAY, 20, DesignConstants.TEXT_PRIMARY));
         launchButton.addActionListener(e -> {
             if (playing) {
-                if (onStopCallback != null) onStopCallback.run();
+                if (onStopCallback != null)
+                    onStopCallback.run();
             } else {
                 launchCallback.run();
             }
@@ -144,15 +145,23 @@ public class MainPanel extends JPanel {
     }
 
     public void setVersion(String minecraftVersion, String loaderName, String loaderVersion) {
-        versionLabel.setText(String.format("Version : Minecraft %s - %s %s", minecraftVersion, loaderName, loaderVersion));
+        versionLabel
+                .setText(String.format("Version : Minecraft %s - %s %s", minecraftVersion, loaderName, loaderVersion));
     }
 
-    public void setStatus(String message) { statusLabel.setText(message); }
-    public void setProgress(int progress) { progressBar.setValue(progress); }
+    public void setStatus(String message) {
+        statusLabel.setText(message);
+    }
+
+    public void setProgress(int progress) {
+        progressBar.setValue(progress);
+    }
 
     public void setButtonsEnabled(boolean enabled) {
         launchButton.setEnabled(enabled);
         launchButton.setVisible(enabled);
+        // Activer le pulse quand le bouton est prêt
+        launchButton.setPulseEnabled(enabled && !playing);
         progressBar.setVisible(!enabled);
     }
 
@@ -176,13 +185,17 @@ public class MainPanel extends JPanel {
     }
 
     public void refreshServerStatus(String host, int port, String name) {
-        SwingWorker<com.nexaria.launcher.model.ServerStatusInfo, Void> worker = new SwingWorker<com.nexaria.launcher.model.ServerStatusInfo, Void>(){
+        SwingWorker<com.nexaria.launcher.model.ServerStatusInfo, Void> worker = new SwingWorker<com.nexaria.launcher.model.ServerStatusInfo, Void>() {
             long startTime = System.currentTimeMillis();
-            @Override protected com.nexaria.launcher.model.ServerStatusInfo doInBackground() throws Exception {
+
+            @Override
+            protected com.nexaria.launcher.model.ServerStatusInfo doInBackground() throws Exception {
                 logger.info("[SERVEUR] Ping vers {}:{}", host, port);
                 return com.nexaria.launcher.downloader.MinecraftServerPing.ping(host, port, name);
             }
-            @Override protected void done() {
+
+            @Override
+            protected void done() {
                 try {
                     long duration = System.currentTimeMillis() - startTime;
                     com.nexaria.launcher.model.ServerStatusInfo info = get();
@@ -205,7 +218,10 @@ public class MainPanel extends JPanel {
     }
 
     public void stopServerStatusAutoRefresh() {
-        if (refreshTimer != null) { refreshTimer.stop(); refreshTimer = null; }
+        if (refreshTimer != null) {
+            refreshTimer.stop();
+            refreshTimer = null;
+        }
     }
 
     public void reset() {
@@ -222,6 +238,7 @@ public class MainPanel extends JPanel {
         setProgress(0);
         SwingWorker<List<RSSFeedParser.NewsItem>, Void> worker = new SwingWorker<List<RSSFeedParser.NewsItem>, Void>() {
             long startTime = System.currentTimeMillis();
+
             @Override
             protected List<RSSFeedParser.NewsItem> doInBackground() {
                 String rssUrl = azuriomUrl + "/api/rss";
@@ -239,30 +256,30 @@ public class MainPanel extends JPanel {
                     if (news.isEmpty()) {
                         // Message "Aucune actualité"
                         newsContainer.setLayout(new FlowLayout(FlowLayout.CENTER));
-                        
+
                         JPanel noNewsPanel = new JPanel();
                         noNewsPanel.setOpaque(false);
                         noNewsPanel.setLayout(new BoxLayout(noNewsPanel, BoxLayout.Y_AXIS));
-                        
+
                         JLabel icon = new JLabel();
                         icon.setIcon(FontIcon.of(FontAwesomeSolid.INBOX, 48, new Color(255, 255, 255, 100)));
                         icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-                        
+
                         JLabel noNews = new JLabel("Aucune actualité disponible");
                         noNews.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
                         noNews.setForeground(DesignConstants.TEXT_SECONDARY);
                         noNews.setAlignmentX(Component.CENTER_ALIGNMENT);
-                        
+
                         noNewsPanel.add(icon);
                         noNewsPanel.add(Box.createVerticalStrut(10));
                         noNewsPanel.add(noNews);
-                        
+
                         newsContainer.add(noNewsPanel);
                     } else {
                         // Adapter le layout en fonction du nombre de news
                         int columns = Math.min(news.size(), 3); // Max 3 colonnes
                         newsContainer.setLayout(new GridLayout(0, columns, 15, 15));
-                        
+
                         for (RSSFeedParser.NewsItem item : news) {
                             newsContainer.add(new NewsCard(item));
                         }
@@ -277,16 +294,17 @@ public class MainPanel extends JPanel {
                     logger.error("[ACTUALITES] ERREUR: {}", e.getMessage(), e);
                     setProgress(0);
                     setStatus("Erreur lors du chargement des actualites");
-                    
+
                     // Afficher un message d'erreur
                     newsContainer.removeAll();
                     newsContainer.setLayout(new FlowLayout(FlowLayout.CENTER));
-                    
+
                     JLabel errorLabel = new JLabel("Erreur de chargement des actualités");
                     errorLabel.setFont(DesignConstants.FONT_SMALL);
                     errorLabel.setForeground(new Color(255, 100, 100));
-                    errorLabel.setIcon(FontIcon.of(FontAwesomeSolid.EXCLAMATION_TRIANGLE, 14, new Color(255, 100, 100)));
-                    
+                    errorLabel
+                            .setIcon(FontIcon.of(FontAwesomeSolid.EXCLAMATION_TRIANGLE, 14, new Color(255, 100, 100)));
+
                     newsContainer.add(errorLabel);
                     newsContainer.revalidate();
                     newsContainer.repaint();

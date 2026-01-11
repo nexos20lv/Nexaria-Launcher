@@ -84,7 +84,28 @@ public class LauncherWindow extends JFrame {
 
         uiRoot.add(new TitleBar(this), BorderLayout.NORTH);
 
-        sidebar = new Sidebar(this::navigate, this::handleLogout);
+        sidebar = new Sidebar(this::navigate, this::handleLogout, (session) -> {
+            // Callback quand on change de compte
+            // On se reconnecte avec la session stockée
+            if (session != null && session.accessToken != null) {
+                // Créer un utilisateur temporaire ou valider le token
+                try {
+                    // Tenter de rafraichir/valider le profil avec le token stocké
+                    com.nexaria.launcher.auth.AzAuthManager authManager = new com.nexaria.launcher.auth.AzAuthManager(
+                            LauncherConfig.getInstance().getAzuriomUrl());
+                    User user = authManager.verify(session.accessToken);
+                    // Update session timestamp (move to top)
+                    com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(),
+                            user.getAccessToken());
+                    handleLogin(user);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Session expirée pour " + session.username, "Erreur",
+                            JOptionPane.ERROR_MESSAGE);
+                    // Si expiré, on logout (ce qui ramène au login panel)
+                    handleLogout();
+                }
+            }
+        });
         uiRoot.add(sidebar, BorderLayout.WEST);
 
         cardLayout = new CardLayout();
@@ -92,21 +113,67 @@ public class LauncherWindow extends JFrame {
         contentPanel.setOpaque(false);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 10, 20, 20));
 
-        loginPanel = new LoginPanel(this::handleLogin);
+        loginPanel = new LoginPanel(this::handleLogin, null);
         mainPanel = new MainPanel(this::handleLaunch);
         LauncherConfig cfgInst = LauncherConfig.getInstance();
         JPanel settingsPanel = new SettingsPanel(
                 () -> currentUser != null ? currentUser.getAccessToken() : null,
+                () -> currentUser != null ? currentUser.getUuid() : null,
+                () -> currentUser != null ? currentUser.getUsername() : null,
                 () -> cfgInst.getAzuriomUrl(),
                 () -> {
                     if (currentUser != null)
                         sidebar.setUserProfile(currentUser, cfgInst.getAzuriomUrl());
+                },
+                this::handleLogout,
+                (session) -> {
+                    // Callback switch account since SettingsPanel mimics Sidebar logic here
+                    if (session != null && session.accessToken != null) {
+                        try {
+                            com.nexaria.launcher.auth.AzAuthManager am = new com.nexaria.launcher.auth.AzAuthManager(
+                                    LauncherConfig.getInstance().getAzuriomUrl());
+                            User user = am.verify(session.accessToken);
+                            com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(),
+                                    user.getAccessToken());
+                            handleLogin(user);
+                        } catch (Exception ex) {
+                            // Session expirée : Rediriger vers le login
+                            com.nexaria.launcher.config.RememberStore.removeSession(session.username);
+
+                            loginPanel.resetState();
+                            loginPanel.setUsername(session.username);
+                            // Set cancel callback to return to settings
+                            loginPanel.setCancelCallback(() -> {
+                                cardLayout.show(contentPanel, "PARAMÈTRES");
+                                sidebar.setVisible(true);
+                            });
+
+                            JOptionPane.showMessageDialog(this,
+                                    "Session expirée pour " + session.username + ".\nVeuillez vous reconnecter.",
+                                    "Session Expirée",
+                                    JOptionPane.WARNING_MESSAGE);
+
+                            cardLayout.show(contentPanel, "CONNEXION");
+                            sidebar.setVisible(false);
+                        }
+                    }
+                },
+                () -> {
+                    // Add Account Callback
+                    loginPanel.resetState();
+                    loginPanel.setCancelCallback(() -> {
+                        cardLayout.show(contentPanel, "PARAMÈTRES");
+                        sidebar.setVisible(true);
+                    });
+                    cardLayout.show(contentPanel, "CONNEXION");
+                    sidebar.setVisible(false);
                 });
 
-        contentPanel.add(loginPanel, "CONNEXION");
         contentPanel.add(mainPanel, "ACCUEIL");
-        contentPanel.add(settingsPanel, "PARAMÈTRES");
         contentPanel.add(new SecurityPanel(), "SÉCURITÉ");
+        contentPanel.add(new com.nexaria.launcher.screenshots.ScreenshotsPanel(), "SCREENSHOTS");
+        contentPanel.add(settingsPanel, "PARAMÈTRES");
+        contentPanel.add(loginPanel, "CONNEXION");
         uiRoot.add(contentPanel, BorderLayout.CENTER);
 
         cardLayout.show(contentPanel, "CONNEXION");
@@ -176,10 +243,14 @@ public class LauncherWindow extends JFrame {
         mainPanel.startServerStatusAutoRefresh(LauncherConfig.getInstance().getServerHost(),
                 LauncherConfig.getInstance().getServerPort(), LauncherConfig.getInstance().getServerName());
 
-        // Charger les actualités
+        // Charger les actualités (et rafraîchir le profil dans Settings)
         mainPanel.loadNews(LauncherConfig.getInstance().getAzuriomUrl());
+        if (contentPanel.getComponent(2) instanceof SettingsPanel) {
+            ((SettingsPanel) contentPanel.getComponent(2)).refreshUserProfile();
+        }
 
         sidebar.setVisible(true);
+        sidebar.setActive("ACCUEIL");
         cardLayout.show(contentPanel, "ACCUEIL");
     }
 
@@ -530,6 +601,8 @@ public class LauncherWindow extends JFrame {
             dest = "ACCUEIL";
         else if ("SÉCURITÉ".equals(route) || "SECURITE".equals(route) || "SECURITY".equals(route))
             dest = "SÉCURITÉ";
+        else if ("SCREENSHOTS".equals(route))
+            dest = "SCREENSHOTS";
         else if ("PARAMÈTRES".equals(route) || "SETTINGS".equals(route))
             dest = "PARAMÈTRES";
         else if ("CONNEXION".equals(route) || "LOGIN".equals(route))

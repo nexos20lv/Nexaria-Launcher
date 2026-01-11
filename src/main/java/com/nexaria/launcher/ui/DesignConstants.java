@@ -20,6 +20,7 @@ public class DesignConstants {
     // Text
     public static final Color TEXT_PRIMARY = new Color(255, 255, 255);
     public static final Color TEXT_SECONDARY = new Color(180, 160, 200); // Light Purple-Grey
+    public static final Color SUCCESS_COLOR = new Color(80, 200, 120); // Green
 
     // Glass
     public static final Color GLASS_BACKGROUND = new Color(30, 20, 40, 100); // Darker glass for better contrast

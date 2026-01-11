@@ -213,10 +213,14 @@ public class OpenLauncherLibLauncher {
         if (customJavaPath != null) {
             noFramework.setLastCallback(launcher -> {
                 launcher.setLaunchingEvent(pb -> {
-                    java.util.List<String> command = pb.command(); // Assuming command is retrieved from ProcessBuilder
-                    command.set(0, customJavaPath);
-                    pb.command(command);
-                    logger.info("Java Path remplacé par: {}", customJavaPath);
+                    java.util.List<String> command = pb.command();
+                    if (!command.isEmpty()) {
+                        command.set(0, customJavaPath);
+                        pb.command(command);
+                        logger.info("Java Path remplacé par: {}", customJavaPath);
+                    } else {
+                        logger.warn("Impossible de remplacer le chemin Java: commande vide");
+                    }
                 });
             });
         }

@@ -81,8 +81,8 @@ public class LauncherConfig {
             instance.verifyIntegrity = true;
             instance.cleanupOldMods = true;
             instance.enforceModPolicy = true; // Par défaut, blocage et quarantaine activés
-            instance.modManifestUrl = "";     // Optionnel: URL JSON d'un manifest {"mods":[{"name":"...","sha256":"..."}]}
-                instance.bannedProcessesCsv = String.join(", ",
+            instance.modManifestUrl = ""; // Optionnel: URL JSON d'un manifest {"mods":[{"name":"...","sha256":"..."}]}
+            instance.bannedProcessesCsv = String.join(", ",
                     "cheatengine.exe",
                     "processhacker.exe",
                     "x64dbg.exe",
@@ -91,21 +91,21 @@ public class LauncherConfig {
                     "ida.exe",
                     "ollydbg.exe",
                     "wireshark.exe",
-                    "fiddler.exe"
-                );
-            instance.configManifestUrl = "";  // Optionnel: URL JSON {"configs":[{"name":"...","sha256":"..."}]}
-            instance.dataManifestUrl = "";    // Optionnel: URL JSON {"files":[{"path":"...","sha256":"..."}]} pour tout data/
-            instance.blockSymlinks = true;     // Bloquer mods/configs symlinkés hors gameDir
+                    "fiddler.exe");
+            instance.configManifestUrl = ""; // Optionnel: URL JSON {"configs":[{"name":"...","sha256":"..."}]}
+            instance.dataManifestUrl = ""; // Optionnel: URL JSON {"files":[{"path":"...","sha256":"..."}]} pour tout
+                                           // data/
+            instance.blockSymlinks = true; // Bloquer mods/configs symlinkés hors gameDir
             instance.autoLaunchGame = false;
             instance.minimizeOnLaunch = true;
             instance.downloadTimeout = 30;
             instance.downloadRateLimitKBps = 0;
             instance.downloadMirrorBase = "";
             instance.rememberMeDefault = true;
-            instance.launcherVersion = "1.0.17";
-            instance.serverHost = "eclozionmc.ovh";
-            instance.serverPort = 25565;
-            instance.serverName = "EclozionMC";
+            instance.launcherVersion = "1.0.18";
+            instance.serverHost = "151.240.30.3";
+            instance.serverPort = 25545;
+            instance.serverName = "Nexaria";
 
             // Initialiser le dossier de données runtime (AppData selon OS)
             instance.dataFolder = computeAppDataDir();
@@ -121,7 +121,8 @@ public class LauncherConfig {
             new File(instance.configDir).mkdirs();
             new File(instance.launcherDir).mkdirs();
             new File(instance.cacheDir).mkdirs();
-            // Le dossier versions n'est plus utilisé par le launcher (FlowUpdater gère tout)
+            // Le dossier versions n'est plus utilisé par le launcher (FlowUpdater gère
+            // tout)
             // new File(instance.versionsDir).mkdirs();
             new File(instance.gameDir).mkdirs();
 
@@ -176,9 +177,17 @@ public class LauncherConfig {
         return loaderVersion;
     }
 
-    public String getServerHost() { return serverHost; }
-    public int getServerPort() { return serverPort; }
-    public String getServerName() { return serverName; }
+    public String getServerHost() {
+        return serverHost;
+    }
+
+    public int getServerPort() {
+        return serverPort;
+    }
+
+    public String getServerName() {
+        return serverName;
+    }
 
     public static String getModsDir() {
         return getInstance().modsDir;
@@ -254,10 +263,13 @@ public class LauncherConfig {
         this.autoUpdate = value;
     }
 
-    public void setDebugMode(boolean value) { this.debugMode = value; }
+    public void setDebugMode(boolean value) {
+        this.debugMode = value;
+    }
 
     public void setGameDir(String path) {
-        if (path == null || path.isBlank()) return;
+        if (path == null || path.isBlank())
+            return;
         this.gameDir = path;
         this.modsDir = this.gameDir + File.separator + "mods";
         this.configDir = this.gameDir + File.separator + "config";
@@ -267,13 +279,23 @@ public class LauncherConfig {
         logger.info("Game directory set to: {}", this.gameDir);
     }
 
-    public void setDownloadRateLimitKBps(int kbps) { this.downloadRateLimitKBps = Math.max(0, kbps); }
-    public void setDownloadMirrorBase(String base) { this.downloadMirrorBase = base != null ? base : ""; }
-    public void setRememberMeDefault(boolean v) { this.rememberMeDefault = v; }
+    public void setDownloadRateLimitKBps(int kbps) {
+        this.downloadRateLimitKBps = Math.max(0, kbps);
+    }
+
+    public void setDownloadMirrorBase(String base) {
+        this.downloadMirrorBase = base != null ? base : "";
+    }
+
+    public void setRememberMeDefault(boolean v) {
+        this.rememberMeDefault = v;
+    }
 
     public void saveConfig() {
         // TODO: implémenter la sauvegarde YAML réelle; pour l'instant, log des valeurs
-        logger.info("Saving config: Memory={}, AutoUpdate={}, DebugMode={}, GameDir={}, RateLimitKBps={}, MirrorBase={}, RememberMeDefault={}",
-                maxMemory, autoUpdate, debugMode, gameDir, downloadRateLimitKBps, downloadMirrorBase, rememberMeDefault);
+        logger.info(
+                "Saving config: Memory={}, AutoUpdate={}, DebugMode={}, GameDir={}, RateLimitKBps={}, MirrorBase={}, RememberMeDefault={}",
+                maxMemory, autoUpdate, debugMode, gameDir, downloadRateLimitKBps, downloadMirrorBase,
+                rememberMeDefault);
     }
 }

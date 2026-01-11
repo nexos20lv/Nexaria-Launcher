@@ -21,12 +21,15 @@ public class LoginPanel extends JPanel {
     private ModernButton loginButton;
     private JCheckBox rememberCheck;
     private JLabel statusLabel;
+    private Runnable cancelCallback;
     private Consumer<User> loginCallback;
     private AzAuthManager authManager;
     private JPanel twoFaContainer;
+    private JPanel buttonPanel;
 
-    public LoginPanel(Consumer<User> loginCallback) {
+    public LoginPanel(Consumer<User> loginCallback, Runnable cancelCallback) {
         this.loginCallback = loginCallback;
+        this.cancelCallback = cancelCallback;
         this.authManager = new AzAuthManager(LauncherConfig.getInstance().getAzuriomUrl());
 
         setOpaque(false);
@@ -94,14 +97,21 @@ public class LoginPanel extends JPanel {
         glassCard.add(Box.createVerticalStrut(20));
 
         loginButton = new ModernButton("CONNEXION", DesignConstants.PURPLE_ACCENT,
-            DesignConstants.PURPLE_ACCENT_DARK, true);
+                DesignConstants.PURPLE_ACCENT_DARK, true);
         loginButton.setMaximumSize(new Dimension(360, 55));
         loginButton.setFont(DesignConstants.FONT_HEADER.deriveFont(18f));
         loginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         loginButton.setIcon(FontIcon.of(FontAwesomeSolid.SIGN_IN_ALT, 18, DesignConstants.TEXT_PRIMARY));
         loginButton.addActionListener(e -> performLogin());
 
-        glassCard.add(loginButton);
+        // Container pour les boutons (dynamique)
+        buttonPanel = new JPanel();
+        buttonPanel.setOpaque(false);
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+        glassCard.add(buttonPanel);
+
+        rebuildButtons();
+
         glassCard.add(Box.createVerticalStrut(20));
 
         statusLabel = new JLabel(" ");
@@ -122,7 +132,8 @@ public class LoginPanel extends JPanel {
         field.setBackground(new Color(60, 40, 90, 255));
         field.setForeground(DesignConstants.TEXT_PRIMARY);
         field.setCaretColor(DesignConstants.PURPLE_ACCENT);
-        field.setSelectionColor(new Color(DesignConstants.PURPLE_ACCENT.getRed(), DesignConstants.PURPLE_ACCENT.getGreen(), DesignConstants.PURPLE_ACCENT.getBlue(), 80));
+        field.setSelectionColor(new Color(DesignConstants.PURPLE_ACCENT.getRed(),
+                DesignConstants.PURPLE_ACCENT.getGreen(), DesignConstants.PURPLE_ACCENT.getBlue(), 80));
         field.setSelectedTextColor(DesignConstants.TEXT_PRIMARY);
         field.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         field.setFont(DesignConstants.FONT_REGULAR);
@@ -135,7 +146,8 @@ public class LoginPanel extends JPanel {
         field.setBackground(new Color(60, 40, 90, 255));
         field.setForeground(DesignConstants.TEXT_PRIMARY);
         field.setCaretColor(DesignConstants.PURPLE_ACCENT);
-        field.setSelectionColor(new Color(DesignConstants.PURPLE_ACCENT.getRed(), DesignConstants.PURPLE_ACCENT.getGreen(), DesignConstants.PURPLE_ACCENT.getBlue(), 80));
+        field.setSelectionColor(new Color(DesignConstants.PURPLE_ACCENT.getRed(),
+                DesignConstants.PURPLE_ACCENT.getGreen(), DesignConstants.PURPLE_ACCENT.getBlue(), 80));
         field.setSelectedTextColor(DesignConstants.TEXT_PRIMARY);
         field.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         field.setFont(DesignConstants.FONT_REGULAR);
@@ -145,45 +157,59 @@ public class LoginPanel extends JPanel {
     private void performLogin() {
         String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword());
-        if (username.isEmpty() || password.isEmpty()) { setStatusMessage("Veuillez saisir vos identifiants."); return; }
-        String u = username; String p = password;
+        if (username.isEmpty() || password.isEmpty()) {
+            setStatusMessage("Veuillez saisir vos identifiants.");
+            return;
+        }
+        String u = username;
+        String p = password;
         SwingWorker<User, String> worker = new SwingWorker<User, String>() {
             long startTime = System.currentTimeMillis();
-            @Override protected User doInBackground() throws Exception {
+
+            @Override
+            protected User doInBackground() throws Exception {
                 try {
                     logger.info("[LOGIN] Debut authentification pour: {}", u);
                     publish("Authentification en cours...");
                     return authManager.authenticate(u, p, "");
-                }
-                catch (AuthenticationException e) {
+                } catch (AuthenticationException e) {
                     logger.error("[LOGIN] ERREUR: {}", e.getMessage(), e);
                     throw e;
                 }
             }
-            @Override protected void process(java.util.List<String> chunks) { for (String m : chunks) setStatusMessage(m); }
-            @Override protected void done() {
+
+            @Override
+            protected void process(java.util.List<String> chunks) {
+                for (String m : chunks)
+                    setStatusMessage(m);
+            }
+
+            @Override
+            protected void done() {
                 try {
                     User user = get();
                     long duration = System.currentTimeMillis() - startTime;
                     passwordField.setText("");
                     logger.info("[LOGIN] Succes en {}ms", duration);
-                    
+
                     // Vérifier que l'email est vérifié
                     if (!user.isEmailVerified()) {
                         logger.warn("[LOGIN] Email non verifie pour: {}", u);
                         setStatusMessage("Erreur : Vous devez vérifier votre email pour vous connecter");
                         setButtonsEnabled(true);
                         JOptionPane.showMessageDialog(
-                            LoginPanel.this,
-                            "Veuillez vérifier votre adresse email avant de vous connecter au launcher.\nConsultez vos emails et cliquez sur le lien de vérification.",
-                            "Email non vérifié",
-                            JOptionPane.WARNING_MESSAGE
-                        );
+                                LoginPanel.this,
+                                "Veuillez vérifier votre adresse email avant de vous connecter au launcher.\nConsultez vos emails et cliquez sur le lien de vérification.",
+                                "Email non vérifié",
+                                JOptionPane.WARNING_MESSAGE);
                         return;
                     }
-                    
-                    if (rememberCheck.isSelected()) com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(), user.getAccessToken());
-                    else com.nexaria.launcher.config.RememberStore.clear();
+
+                    if (rememberCheck.isSelected())
+                        com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(),
+                                user.getAccessToken());
+                    else
+                        com.nexaria.launcher.config.RememberStore.removeSession(user.getUsername());
                     loginCallback.accept(user);
                 } catch (Exception e) {
                     Throwable cause = e.getCause();
@@ -215,19 +241,21 @@ public class LoginPanel extends JPanel {
                         setStatusMessage("Erreur : Vous devez vérifier votre email pour vous connecter");
                         setButtonsEnabled(true);
                         JOptionPane.showMessageDialog(
-                            LoginPanel.this,
-                            "Veuillez vérifier votre adresse email avant de vous connecter au launcher.\nConsultez vos emails et cliquez sur le lien de vérification.",
-                            "Email non vérifié",
-                            JOptionPane.WARNING_MESSAGE
-                        );
+                                LoginPanel.this,
+                                "Veuillez vérifier votre adresse email avant de vous connecter au launcher.\nConsultez vos emails et cliquez sur le lien de vérification.",
+                                "Email non vérifié",
+                                JOptionPane.WARNING_MESSAGE);
                         return;
                     }
-                    
+
                     CardLayout cl = (CardLayout) twoFaContainer.getLayout();
                     cl.show(twoFaContainer, "LOGIN");
                     passwordField.setText("");
-                    if (rememberCheck.isSelected()) com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(), user.getAccessToken());
-                    else com.nexaria.launcher.config.RememberStore.clear();
+                    if (rememberCheck.isSelected())
+                        com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(),
+                                user.getAccessToken());
+                    else
+                        com.nexaria.launcher.config.RememberStore.removeSession(user.getUsername());
                     loginCallback.accept(user);
                 },
                 () -> {
@@ -235,15 +263,71 @@ public class LoginPanel extends JPanel {
                     cl.show(twoFaContainer, "LOGIN");
                     setButtonsEnabled(true);
                     setStatusMessage("2FA annulée.");
-                }
-        );
+                });
         twoFaContainer.add(twofa, "2FA");
         CardLayout cl = (CardLayout) twoFaContainer.getLayout();
         cl.show(twoFaContainer, "2FA");
     }
 
-    public void setStatusMessage(String message) { statusLabel.setText(message); }
-    public void setButtonsEnabled(boolean enabled) { loginButton.setEnabled(enabled); usernameField.setEnabled(enabled); passwordField.setEnabled(enabled); }
-    public void clearPassword() { passwordField.setText(""); }
-    public void resetState() { setButtonsEnabled(true); setStatusMessage(" "); clearPassword(); usernameField.setText(""); }
+    public void setStatusMessage(String message) {
+        statusLabel.setText(message);
+    }
+
+    public void setButtonsEnabled(boolean enabled) {
+        loginButton.setEnabled(enabled);
+        usernameField.setEnabled(enabled);
+        passwordField.setEnabled(enabled);
+    }
+
+    public void clearPassword() {
+        passwordField.setText("");
+    }
+
+    public void resetState() {
+        setButtonsEnabled(true);
+        setStatusMessage(" ");
+        clearPassword();
+        usernameField.setText("");
+        this.cancelCallback = null;
+        rebuildButtons();
+    }
+
+    public void setCancelCallback(Runnable cancelCallback) {
+        this.cancelCallback = cancelCallback;
+        rebuildButtons();
+    }
+
+    public void setUsername(String username) {
+        if (username != null) {
+            usernameField.setText(username);
+        }
+    }
+
+    private void rebuildButtons() {
+        if (buttonPanel == null)
+            return;
+        buttonPanel.removeAll();
+
+        if (cancelCallback != null) {
+            ModernButton cancelBtn = new ModernButton("ANNULER", new Color(180, 50, 50), new Color(140, 30, 30), true);
+            cancelBtn.setMaximumSize(new Dimension(100, 55));
+            cancelBtn.setPreferredSize(new Dimension(100, 55));
+            cancelBtn.setFont(DesignConstants.FONT_HEADER.deriveFont(14f));
+            cancelBtn.addActionListener(e -> cancelCallback.run());
+
+            loginButton.setMaximumSize(new Dimension(250, 55));
+            loginButton.setPreferredSize(new Dimension(250, 55));
+
+            buttonPanel.add(cancelBtn);
+            buttonPanel.add(Box.createHorizontalStrut(10));
+            buttonPanel.add(loginButton);
+        } else {
+            loginButton.setMaximumSize(new Dimension(360, 55));
+            // Reset to default preferred size if needed, but LoginPanel constraints usually
+            // handle it
+            buttonPanel.add(loginButton);
+        }
+        buttonPanel.revalidate();
+        buttonPanel.repaint();
+    }
 }

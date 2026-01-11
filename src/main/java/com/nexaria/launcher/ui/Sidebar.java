@@ -16,13 +16,16 @@ public class Sidebar extends JPanel {
     private Consumer<String> onNavigate;
     @SuppressWarnings("unused")
     private Runnable logoutCallback;
+    private java.util.function.Consumer<com.nexaria.launcher.config.RememberStore.RememberSession> switchAccountCallback;
     private Map<String, ModernButton> buttons = new HashMap<>();
     private JLabel avatarLabel;
     private User currentUser;
 
-    public Sidebar(Consumer<String> onNavigate, Runnable logoutCallback) {
+    public Sidebar(Consumer<String> onNavigate, Runnable logoutCallback,
+            java.util.function.Consumer<com.nexaria.launcher.config.RememberStore.RememberSession> switchAccountCallback) {
         this.onNavigate = onNavigate;
         this.logoutCallback = logoutCallback;
+        this.switchAccountCallback = switchAccountCallback;
 
         setOpaque(false);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -34,6 +37,9 @@ public class Sidebar extends JPanel {
         add(Box.createVerticalStrut(18));
         Icon shieldIcon = FontIcon.of(FontAwesomeSolid.SHIELD_ALT, 22, DesignConstants.TEXT_PRIMARY);
         add(createNavButton("SÉCURITÉ", shieldIcon, "Sécurité"));
+        add(Box.createVerticalStrut(18));
+        Icon screenshotsIcon = FontIcon.of(FontAwesomeSolid.IMAGES, 22, DesignConstants.TEXT_PRIMARY);
+        add(createNavButton("SCREENSHOTS", screenshotsIcon, "Screenshots"));
         add(Box.createVerticalStrut(18));
         Icon settingsIcon = FontIcon.of(FontAwesomeSolid.COG, 22, DesignConstants.TEXT_PRIMARY);
         add(createNavButton("PARAMÈTRES", settingsIcon, "Paramètres"));
@@ -48,48 +54,6 @@ public class Sidebar extends JPanel {
         avatarLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         avatarLabel.setOpaque(false);
         avatarLabel.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
-
-        avatarLabel.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (currentUser == null) return;
-                JPopupMenu menu = new JPopupMenu();
-                
-                // Nom d'utilisateur avec rôle
-                String title = currentUser.getUsername();
-                if (currentUser.getRoleName() != null && !currentUser.getRoleName().isEmpty()) {
-                    title += " (" + currentUser.getRoleName() + ")";
-                }
-                JMenuItem info = new JMenuItem(title);
-                info.setEnabled(false);
-                info.setIcon(FontIcon.of(FontAwesomeSolid.USER, 14, DesignConstants.TEXT_SECONDARY));
-                menu.add(info);
-                
-                // ID
-                JMenuItem idItem = new JMenuItem("ID : " + currentUser.getId());
-                idItem.setEnabled(false);
-                idItem.setIcon(FontIcon.of(FontAwesomeSolid.ID_CARD, 14, DesignConstants.TEXT_SECONDARY));
-                menu.add(idItem);
-                
-                // Argent
-                JMenuItem moneyItem = new JMenuItem(String.format("Argent : %.2f", currentUser.getMoney()));
-                moneyItem.setEnabled(false);
-                moneyItem.setIcon(FontIcon.of(FontAwesomeSolid.COINS, 14, new Color(255, 215, 0)));
-                menu.add(moneyItem);
-                
-                menu.addSeparator();
-                
-                // Déconnexion
-                JMenuItem logout = new JMenuItem("Se déconnecter");
-                logout.setIcon(FontIcon.of(FontAwesomeSolid.SIGN_OUT_ALT, 14, DesignConstants.PURPLE_ACCENT));
-                logout.addActionListener(ev -> {
-                    if (logoutCallback != null) logoutCallback.run();
-                });
-                menu.add(logout);
-                
-                menu.show(avatarLabel, e.getX(), e.getY());
-            }
-        });
 
         add(avatarLabel);
     }
@@ -126,7 +90,7 @@ public class Sidebar extends JPanel {
             avatarLabel.setText("");
             return;
         }
-        String url = buildAvatarUrl(azuriomUrl, user);
+        String url = buildAvatarUrl(azuriomUrl, user) + "?t=" + System.currentTimeMillis();
         try {
             ImageIcon raw = new ImageIcon(URI.create(url).toURL());
             BufferedImage rounded = createRoundedAvatar(raw.getImage(), 48);
@@ -137,25 +101,27 @@ public class Sidebar extends JPanel {
             avatarLabel.setText(user.getUsername());
             avatarLabel.setToolTipText("Avatar indisponible");
         }
+        revalidate();
+        repaint();
     }
 
     private BufferedImage createRoundedAvatar(Image img, int size) {
         // Créer une image carrée avec canal alpha
         BufferedImage output = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = output.createGraphics();
-        
+
         // Anti-aliasing pour des bords lisses
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        
+
         // Dessiner un cercle blanc comme masque
         g2.setColor(Color.WHITE);
         g2.fillOval(0, 0, size, size);
-        
+
         // Utiliser le masque pour ne garder que la partie circulaire de l'image
         g2.setComposite(AlphaComposite.SrcIn);
         g2.drawImage(img, 0, 0, size, size, null);
-        
+
         g2.dispose();
         return output;
     }
@@ -207,8 +173,8 @@ public class Sidebar extends JPanel {
                         java.awt.RadialGradientPaint rg = new java.awt.RadialGradientPaint(
                                 new Point(cx, cy),
                                 radius,
-                                new float[]{0f, 0.65f, 1f},
-                                new Color[]{
+                                new float[] { 0f, 0.65f, 1f },
+                                new Color[] {
                                         new Color(255, 255, 255, 220),
                                         new Color(170, 80, 255, 90),
                                         new Color(170, 80, 255, 0)

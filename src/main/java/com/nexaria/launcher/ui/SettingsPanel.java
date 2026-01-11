@@ -22,27 +22,38 @@ public class SettingsPanel extends JPanel {
     private static final Logger logger = LoggerFactory.getLogger(SettingsPanel.class);
     private LauncherConfig cfg;
 
-    @SuppressWarnings("unused")
-    private java.util.function.Supplier<String> accessTokenSupplier;
-    @SuppressWarnings("unused")
-    private java.util.function.Supplier<String> azuriomUrlSupplier;
-    @SuppressWarnings("unused")
-    private Runnable onSkinChanged;
-
     // Variables pour les contrôles (utilisées dans getUpdatedConfig)
+    private final java.util.function.Supplier<String> accessTokenSupplier;
+    private final java.util.function.Supplier<String> uuidSupplier;
+    private final java.util.function.Supplier<String> usernameSupplier;
+    private final java.util.function.Supplier<String> azuriomUrlSupplier;
+    private final Runnable skinChangedCallback;
+    private final Runnable logoutCallback;
+    private final java.util.function.Consumer<com.nexaria.launcher.config.RememberStore.RememberSession> switchAccountCallback;
+    private final Runnable addAccountCallback;
+    private JCheckBox rememberDefault;
     private JSlider ramSlider;
     private JCheckBox autoUpdate;
     private JCheckBox debugMode;
     private JSpinner rateSpinner;
-    private JCheckBox rememberDefault;
     private JTextField gameDirField;
 
     public SettingsPanel(java.util.function.Supplier<String> accessTokenSupplier,
+            java.util.function.Supplier<String> uuidSupplier,
+            java.util.function.Supplier<String> usernameSupplier,
             java.util.function.Supplier<String> azuriomUrlSupplier,
-            Runnable onSkinChanged) {
+            Runnable skinChangedCallback,
+            Runnable logoutCallback,
+            java.util.function.Consumer<com.nexaria.launcher.config.RememberStore.RememberSession> switchAccountCallback,
+            Runnable addAccountCallback) {
         this.accessTokenSupplier = accessTokenSupplier;
+        this.uuidSupplier = uuidSupplier;
+        this.usernameSupplier = usernameSupplier;
         this.azuriomUrlSupplier = azuriomUrlSupplier;
-        this.onSkinChanged = onSkinChanged;
+        this.skinChangedCallback = skinChangedCallback;
+        this.logoutCallback = logoutCallback;
+        this.switchAccountCallback = switchAccountCallback;
+        this.addAccountCallback = addAccountCallback;
         cfg = LauncherConfig.getInstance();
         setOpaque(false);
         setLayout(new BorderLayout());
@@ -83,19 +94,33 @@ public class SettingsPanel extends JPanel {
 
         // Création du panel Général
         JPanel general = createTabBase("Paramètres généraux");
-        general.add(Box.createVerticalStrut(10));
+        general.add(Box.createVerticalStrut(20));
+
+        // Carte Comportement
+        JPanel behaviorCard = createCard();
+        behaviorCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        behaviorCard.setMaximumSize(new Dimension(600, 100));
+
+        JLabel behaviorTitle = new JLabel("Comportement de l'application");
+        behaviorTitle.setFont(DesignConstants.FONT_HEADER.deriveFont(14f));
+        behaviorTitle.setForeground(DesignConstants.PURPLE_ACCENT);
+        behaviorTitle.setIcon(FontIcon.of(FontAwesomeSolid.COG, 16, DesignConstants.PURPLE_ACCENT));
+        behaviorCard.add(behaviorTitle);
+        behaviorCard.add(Box.createVerticalStrut(15));
+
         JCheckBox minimizeOnLaunch = new JCheckBox("Minimiser le launcher lorsque le jeu démarre");
         minimizeOnLaunch.setOpaque(false);
-        minimizeOnLaunch.setForeground(DesignConstants.TEXT_SECONDARY);
-        minimizeOnLaunch.setFont(DesignConstants.FONT_REGULAR.deriveFont(13f));
+        minimizeOnLaunch.setForeground(DesignConstants.TEXT_PRIMARY);
+        minimizeOnLaunch.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
         minimizeOnLaunch.setSelected(cfg.minimizeOnLaunch);
-        minimizeOnLaunch.setAlignmentX(Component.LEFT_ALIGNMENT);
         minimizeOnLaunch.setFocusPainted(false);
         minimizeOnLaunch.setBorderPainted(false);
-        minimizeOnLaunch.setIcon(FontIcon.of(FontAwesomeSolid.SQUARE, 16, new Color(255, 255, 255, 40)));
-        minimizeOnLaunch.setSelectedIcon(FontIcon.of(FontAwesomeSolid.CHECK_SQUARE, 16, DesignConstants.PURPLE_ACCENT));
+        minimizeOnLaunch.setIcon(FontIcon.of(FontAwesomeSolid.SQUARE, 18, new Color(255, 255, 255, 40)));
+        minimizeOnLaunch.setSelectedIcon(FontIcon.of(FontAwesomeSolid.CHECK_SQUARE, 18, DesignConstants.PURPLE_ACCENT));
         minimizeOnLaunch.addActionListener(e -> cfg.minimizeOnLaunch = minimizeOnLaunch.isSelected());
-        general.add(minimizeOnLaunch);
+        behaviorCard.add(minimizeOnLaunch);
+
+        general.add(behaviorCard);
         general.add(Box.createVerticalGlue());
 
         // Définition des catégories
@@ -205,58 +230,216 @@ public class SettingsPanel extends JPanel {
         return scroll;
     }
 
+    // private JLabel skinPreviewLabel; // Removed
+
+    private JPanel accountListContainer; // Container for the account list
+
     private JPanel createAccountTab() {
         JPanel p = createTabBase("Compte & Sécurité");
         p.add(Box.createVerticalStrut(20));
 
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.X_AXIS));
+        content.setOpaque(false);
+        content.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Colonne gauche: Contrôles
+        JPanel left = new JPanel();
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        left.setOpaque(false);
+
+        // Carte Préférences
+        JPanel prefsCard = createCard();
+        prefsCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        prefsCard.setMaximumSize(new Dimension(500, 80));
+
         rememberDefault = new JCheckBox("Se souvenir de moi par défaut");
         rememberDefault.setOpaque(false);
-        rememberDefault.setForeground(DesignConstants.TEXT_SECONDARY);
-        rememberDefault.setFont(DesignConstants.FONT_REGULAR.deriveFont(13f));
+        rememberDefault.setForeground(DesignConstants.TEXT_PRIMARY);
+        rememberDefault.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
         rememberDefault.setSelected(cfg.rememberMeDefault);
-        rememberDefault.setAlignmentX(Component.LEFT_ALIGNMENT);
         rememberDefault.setFocusPainted(false);
         rememberDefault.setBorderPainted(false);
-        rememberDefault.setIcon(FontIcon.of(FontAwesomeSolid.SQUARE, 16, new Color(255, 255, 255, 40)));
-        rememberDefault.setSelectedIcon(FontIcon.of(FontAwesomeSolid.CHECK_SQUARE, 16, DesignConstants.PURPLE_ACCENT));
-        p.add(rememberDefault);
+        rememberDefault.setIcon(FontIcon.of(FontAwesomeSolid.SQUARE, 18, new Color(255, 255, 255, 40)));
+        rememberDefault.setSelectedIcon(FontIcon.of(FontAwesomeSolid.CHECK_SQUARE, 18, DesignConstants.PURPLE_ACCENT));
+        prefsCard.add(rememberDefault);
+        left.add(prefsCard);
 
-        p.add(Box.createVerticalStrut(30));
+        left.add(Box.createVerticalStrut(20));
+
+        // Carte Actions
+        JPanel actionsCard = createCard();
+        actionsCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        actionsCard.setMaximumSize(new Dimension(500, 140));
+
+        JLabel actionsTitle = new JLabel("Actions du compte");
+        actionsTitle.setFont(DesignConstants.FONT_HEADER.deriveFont(14f));
+        actionsTitle.setForeground(DesignConstants.PURPLE_ACCENT);
+        actionsTitle.setIcon(FontIcon.of(FontAwesomeSolid.COG, 16, DesignConstants.PURPLE_ACCENT));
+        actionsTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        actionsCard.add(actionsTitle);
+        actionsCard.add(Box.createVerticalStrut(15));
+
         ModernButton uploadSkinBtn = new ModernButton("CHANGER LE SKIN", DesignConstants.PURPLE_ACCENT,
                 DesignConstants.PURPLE_ACCENT_DARK, true);
-        uploadSkinBtn.setPreferredSize(new Dimension(220, 45));
+        uploadSkinBtn.setPreferredSize(new Dimension(200, 40));
+        uploadSkinBtn.setMaximumSize(new Dimension(200, 40));
         uploadSkinBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        uploadSkinBtn.setIcon(FontIcon.of(FontAwesomeSolid.USER, 18, DesignConstants.TEXT_PRIMARY));
+        uploadSkinBtn.setIcon(FontIcon.of(FontAwesomeSolid.USER_EDIT, 16, DesignConstants.TEXT_PRIMARY));
         uploadSkinBtn.addActionListener(e -> handleSkinUpload());
-        p.add(uploadSkinBtn);
+        actionsCard.add(uploadSkinBtn);
+        actionsCard.add(Box.createVerticalStrut(10));
 
+        ModernButton logoutBtn = new ModernButton("SE DÉCONNECTER", new Color(180, 50, 50),
+                new Color(140, 30, 30), true);
+        logoutBtn.setPreferredSize(new Dimension(200, 40));
+        logoutBtn.setMaximumSize(new Dimension(200, 40));
+        logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoutBtn.setIcon(FontIcon.of(FontAwesomeSolid.SIGN_OUT_ALT, 16, DesignConstants.TEXT_PRIMARY));
+        logoutBtn.addActionListener(e -> {
+            if (logoutCallback != null)
+                logoutCallback.run();
+        });
+        actionsCard.add(logoutBtn);
+        left.add(actionsCard);
+
+        left.add(Box.createVerticalGlue());
+
+        /*
+         * SECTION GESTION COMPTES
+         */
+        accountListContainer = new JPanel();
+        accountListContainer.setLayout(new BoxLayout(accountListContainer, BoxLayout.Y_AXIS));
+        accountListContainer.setOpaque(false);
+        accountListContainer.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, DesignConstants.GLASS_BORDER),
+                "Comptes enregistrés",
+                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
+                javax.swing.border.TitledBorder.DEFAULT_POSITION,
+                DesignConstants.FONT_REGULAR,
+                DesignConstants.TEXT_SECONDARY));
+
+        rebuildAccountList();
+
+        left.add(Box.createVerticalStrut(20));
+        left.add(accountListContainer);
+        left.add(Box.createVerticalGlue());
+
+        content.add(left);
+        content.add(Box.createHorizontalGlue());
+
+        p.add(content);
         p.add(Box.createVerticalGlue());
         return p;
+    }
+
+    private void rebuildAccountList() {
+        if (accountListContainer == null)
+            return;
+        accountListContainer.removeAll();
+
+        java.util.List<com.nexaria.launcher.config.RememberStore.RememberSession> sessions = com.nexaria.launcher.config.RememberStore
+                .loadSessions();
+        if (sessions != null && !sessions.isEmpty()) {
+            String current = usernameSupplier.get();
+
+            for (com.nexaria.launcher.config.RememberStore.RememberSession s : sessions) {
+                boolean isCurrent = current != null && current.equals(s.username);
+
+                AccountCard card = new AccountCard(
+                        s,
+                        azuriomUrlSupplier.get(),
+                        isCurrent,
+                        isCurrent ? null : () -> {
+                            if (switchAccountCallback != null)
+                                switchAccountCallback.accept(s);
+                        },
+                        () -> {
+                            com.nexaria.launcher.config.RememberStore.removeSession(s.username);
+                            rebuildAccountList();
+                            accountListContainer.revalidate();
+                            accountListContainer.repaint();
+                        });
+
+                accountListContainer.add(card);
+                accountListContainer.add(Box.createVerticalStrut(10));
+            }
+        } else {
+            // Message si aucun compte
+            JLabel noAccountLabel = new JLabel("Aucun compte enregistré");
+            noAccountLabel.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
+            noAccountLabel.setForeground(new Color(255, 255, 255, 120));
+            noAccountLabel.setIcon(FontIcon.of(FontAwesomeSolid.INFO_CIRCLE, 14, new Color(255, 255, 255, 120)));
+            accountListContainer.add(noAccountLabel);
+            accountListContainer.add(Box.createVerticalStrut(10));
+        }
+
+        ModernButton addAccountBtn = new ModernButton("AJOUTER UN COMPTE", DesignConstants.SUCCESS_COLOR,
+                DesignConstants.SUCCESS_COLOR.darker(), true);
+        addAccountBtn.setPreferredSize(new Dimension(220, 40));
+        addAccountBtn.setMaximumSize(new Dimension(220, 40));
+        addAccountBtn.setIcon(FontIcon.of(FontAwesomeSolid.PLUS, 14, DesignConstants.TEXT_PRIMARY));
+        addAccountBtn.addActionListener(e -> {
+            if (addAccountCallback != null)
+                addAccountCallback.run();
+        });
+
+        accountListContainer.add(Box.createVerticalStrut(10));
+        accountListContainer.add(addAccountBtn);
+    }
+
+    public void refreshUserProfile() {
+        rebuildAccountList();
+        if (accountListContainer != null) {
+            accountListContainer.revalidate();
+            accountListContainer.repaint();
+        }
     }
 
     private JPanel createMemoryTab() {
         JPanel p = createTabBase("Allocation Mémoire Java");
         p.add(Box.createVerticalStrut(20));
 
+        // Carte Allocation Mémoire
+        JPanel ramCard = createCard();
+        ramCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ramCard.setMaximumSize(new Dimension(600, 150));
+
         int ram = cfg.getMaxMemory();
         JLabel ramValue = new JLabel(ram + " MB");
         ramValue.setForeground(DesignConstants.PURPLE_ACCENT);
-        ramValue.setFont(DesignConstants.FONT_HEADER.deriveFont(24f));
-        ramValue.setAlignmentX(Component.LEFT_ALIGNMENT);
-        ramValue.setIcon(FontIcon.of(FontAwesomeSolid.MEMORY, 20, DesignConstants.PURPLE_ACCENT));
+        ramValue.setFont(DesignConstants.FONT_HEADER.deriveFont(28f));
+        ramValue.setIcon(FontIcon.of(FontAwesomeSolid.MEMORY, 24, DesignConstants.PURPLE_ACCENT));
+        ramCard.add(ramValue);
+        ramCard.add(Box.createVerticalStrut(15));
 
         ramSlider = new JSlider(512, 16384, ram);
         ramSlider.setOpaque(false);
         ramSlider.setForeground(DesignConstants.PURPLE_ACCENT);
         ramSlider.setPaintTicks(true);
-        ramSlider.setMajorTickSpacing(2048);
-        ramSlider.setAlignmentX(Component.LEFT_ALIGNMENT);
-        ramSlider.setMaximumSize(new Dimension(500, 50));
+        ramSlider.setPaintLabels(true);
+        ramSlider.setMajorTickSpacing(4096);
+        ramSlider.setMinorTickSpacing(1024);
+        ramSlider.setPreferredSize(new Dimension(500, 60));
         ramSlider.addChangeListener(e -> ramValue.setText(ramSlider.getValue() + " MB"));
+        ramCard.add(ramSlider);
 
-        p.add(ramValue);
-        p.add(Box.createVerticalStrut(15));
-        p.add(ramSlider);
+        JLabel ramHint = new JLabel("Recommandé: 4096-8192 MB pour une expérience optimale");
+        ramHint.setFont(DesignConstants.FONT_REGULAR.deriveFont(11f));
+        ramHint.setForeground(new Color(255, 255, 255, 120));
+        ramCard.add(Box.createVerticalStrut(10));
+        ramCard.add(ramHint);
+
+        p.add(ramCard);
+
+        p.add(Box.createVerticalStrut(20));
+
+        // Graphique d'utilisation RAM en temps réel
+        RAMUsageChart ramChart = new RAMUsageChart();
+        ramChart.setAllocatedMemory(ram);
+        ramChart.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ramSlider.addChangeListener(e -> ramChart.setAllocatedMemory(ramSlider.getValue()));
+        p.add(ramChart);
 
         p.add(Box.createVerticalStrut(40));
         addSubsection(p, "Mises à jour & Débogague");
@@ -295,20 +478,36 @@ public class SettingsPanel extends JPanel {
         JPanel p = createTabBase("Réseau & Téléchargements");
         p.add(Box.createVerticalStrut(20));
 
-        addSubsection(p, "Limite de débit");
-        p.add(Box.createVerticalStrut(10));
-        JPanel ratePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // Carte Limite de débit
+        JPanel rateCard = createCard();
+        rateCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        rateCard.setMaximumSize(new Dimension(600, 120));
+
+        JLabel rateTitle = new JLabel("Limite de débit de téléchargement");
+        rateTitle.setFont(DesignConstants.FONT_HEADER.deriveFont(14f));
+        rateTitle.setForeground(DesignConstants.PURPLE_ACCENT);
+        rateTitle.setIcon(FontIcon.of(FontAwesomeSolid.DOWNLOAD, 16, DesignConstants.PURPLE_ACCENT));
+        rateCard.add(rateTitle);
+        rateCard.add(Box.createVerticalStrut(15));
+
+        JPanel ratePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         ratePanel.setOpaque(false);
-        JLabel rateLabel = new JLabel("KB/s:");
-        rateLabel.setForeground(DesignConstants.TEXT_SECONDARY);
-        rateLabel.setFont(DesignConstants.FONT_REGULAR.deriveFont(12f));
-        rateLabel.setIcon(FontIcon.of(FontAwesomeSolid.DOWNLOAD, 14, DesignConstants.TEXT_SECONDARY));
-        rateSpinner = new JSpinner(new SpinnerNumberModel(cfg.downloadRateLimitKBps, 0, 102400, 64));
-        ((JSpinner.DefaultEditor) rateSpinner.getEditor()).getTextField().setPreferredSize(new Dimension(80, 28));
-        ratePanel.add(rateLabel);
-        ratePanel.add(rateSpinner);
         ratePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(ratePanel);
+
+        rateSpinner = new JSpinner(new SpinnerNumberModel(cfg.downloadRateLimitKBps, 0, 102400, 64));
+        ((JSpinner.DefaultEditor) rateSpinner.getEditor()).getTextField().setPreferredSize(new Dimension(100, 32));
+        ((JSpinner.DefaultEditor) rateSpinner.getEditor()).getTextField()
+                .setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
+
+        JLabel rateLabel = new JLabel("KB/s (0 = illimité)");
+        rateLabel.setForeground(DesignConstants.TEXT_SECONDARY);
+        rateLabel.setFont(DesignConstants.FONT_REGULAR.deriveFont(13f));
+
+        ratePanel.add(rateSpinner);
+        ratePanel.add(rateLabel);
+        rateCard.add(ratePanel);
+
+        p.add(rateCard);
 
         p.add(Box.createVerticalGlue());
         return p;
@@ -318,14 +517,30 @@ public class SettingsPanel extends JPanel {
         JPanel p = createTabBase("Dossiers & Cache");
         p.add(Box.createVerticalStrut(20));
 
-        addSubsection(p, "Répertoire de jeu");
-        p.add(Box.createVerticalStrut(10));
+        // Carte Répertoire de jeu
+        JPanel dirCard = createCard();
+        dirCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        dirCard.setMaximumSize(new Dimension(700, 120));
+
+        JLabel dirTitle = new JLabel("Répertoire de jeu");
+        dirTitle.setFont(DesignConstants.FONT_HEADER.deriveFont(14f));
+        dirTitle.setForeground(DesignConstants.PURPLE_ACCENT);
+        dirTitle.setIcon(FontIcon.of(FontAwesomeSolid.FOLDER, 16, DesignConstants.PURPLE_ACCENT));
+        dirCard.add(dirTitle);
+        dirCard.add(Box.createVerticalStrut(15));
+
+        JPanel pathPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        pathPanel.setOpaque(false);
+        pathPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         gameDirField = new JTextField(LauncherConfig.getGameDir());
-        gameDirField.setPreferredSize(new Dimension(360, 32));
-        gameDirField.setMaximumSize(new Dimension(500, 32));
+        gameDirField.setPreferredSize(new Dimension(400, 35));
+        gameDirField.setFont(DesignConstants.FONT_REGULAR.deriveFont(13f));
+
         ModernButton chooseDirBtn = new ModernButton("PARCOURIR", DesignConstants.PURPLE_ACCENT,
                 DesignConstants.PURPLE_ACCENT_DARK, false);
         chooseDirBtn.setIcon(FontIcon.of(FontAwesomeSolid.FOLDER_OPEN, 16, DesignConstants.TEXT_PRIMARY));
+        chooseDirBtn.setPreferredSize(new Dimension(140, 35));
         chooseDirBtn.addActionListener(e -> {
             JFileChooser fc = new JFileChooser(LauncherConfig.getGameDir());
             fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
@@ -335,21 +550,34 @@ public class SettingsPanel extends JPanel {
                     gameDirField.setText(dir.getAbsolutePath());
             }
         });
-        JPanel pathPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        pathPanel.setOpaque(false);
+
         pathPanel.add(gameDirField);
         pathPanel.add(chooseDirBtn);
-        pathPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(pathPanel);
+        dirCard.add(pathPanel);
+        p.add(dirCard);
 
-        p.add(Box.createVerticalStrut(30));
-        addSubsection(p, "Gestion du cache");
-        p.add(Box.createVerticalStrut(10));
-        JPanel cachePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        p.add(Box.createVerticalStrut(20));
+
+        // Carte Gestion du cache
+        JPanel cacheCard = createCard();
+        cacheCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        cacheCard.setMaximumSize(new Dimension(700, 140));
+
+        JLabel cacheTitle = new JLabel("Gestion du cache & maintenance");
+        cacheTitle.setFont(DesignConstants.FONT_HEADER.deriveFont(14f));
+        cacheTitle.setForeground(DesignConstants.PURPLE_ACCENT);
+        cacheTitle.setIcon(FontIcon.of(FontAwesomeSolid.DATABASE, 16, DesignConstants.PURPLE_ACCENT));
+        cacheCard.add(cacheTitle);
+        cacheCard.add(Box.createVerticalStrut(15));
+
+        JPanel cachePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         cachePanel.setOpaque(false);
+        cachePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         ModernButton clearCacheBtn = new ModernButton("VIDER CACHE", DesignConstants.PURPLE_ACCENT,
                 DesignConstants.PURPLE_ACCENT_DARK, false);
         clearCacheBtn.setIcon(FontIcon.of(FontAwesomeSolid.TRASH, 16, DesignConstants.TEXT_PRIMARY));
+        clearCacheBtn.setPreferredSize(new Dimension(160, 40));
         clearCacheBtn.addActionListener(e -> {
             int res = JOptionPane.showConfirmDialog(SettingsPanel.this, "Vider le cache?", "Confirmation",
                     JOptionPane.YES_NO_OPTION);
@@ -363,9 +591,11 @@ public class SettingsPanel extends JPanel {
                 }
             }
         });
-        ModernButton resetDataBtn = new ModernButton("RÉINIT. DONNÉES", DesignConstants.PURPLE_ACCENT,
-                DesignConstants.PURPLE_ACCENT_DARK, false);
+
+        ModernButton resetDataBtn = new ModernButton("RÉINIT. DONNÉES", new Color(200, 100, 50),
+                new Color(160, 80, 30), false);
         resetDataBtn.setIcon(FontIcon.of(FontAwesomeSolid.BROOM, 16, DesignConstants.TEXT_PRIMARY));
+        resetDataBtn.setPreferredSize(new Dimension(180, 40));
         resetDataBtn.addActionListener(e -> {
             int res = JOptionPane.showConfirmDialog(SettingsPanel.this, "Réinitialiser toutes les données?",
                     "Zone dangereuse", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
@@ -380,10 +610,10 @@ public class SettingsPanel extends JPanel {
             }
         });
 
-        ModernButton repairBtn = new ModernButton("RÉPARER LE JEU", DesignConstants.PURPLE_ACCENT,
-                DesignConstants.PURPLE_ACCENT_DARK,
-                false);
+        ModernButton repairBtn = new ModernButton("RÉPARER LE JEU", DesignConstants.SUCCESS_COLOR,
+                DesignConstants.SUCCESS_COLOR.darker(), false);
         repairBtn.setIcon(FontIcon.of(FontAwesomeSolid.TOOLS, 16, DesignConstants.TEXT_PRIMARY));
+        repairBtn.setPreferredSize(new Dimension(170, 40));
         repairBtn.addActionListener(e -> {
             int res = JOptionPane.showConfirmDialog(SettingsPanel.this,
                     "Ceci va forcer la re-synchronisation de tous les fichiers du jeu.\nContinuer ?",
@@ -415,8 +645,7 @@ public class SettingsPanel extends JPanel {
         cachePanel.add(clearCacheBtn);
         cachePanel.add(resetDataBtn);
         cachePanel.add(repairBtn);
-        cachePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(cachePanel);
+        cacheCard.add(cachePanel);
 
         p.add(Box.createVerticalGlue());
         return p;
@@ -449,6 +678,13 @@ public class SettingsPanel extends JPanel {
         testConnBtn.addActionListener(e -> testConnectivity());
         diagPanel.add(exportLogsBtn);
         diagPanel.add(testConnBtn);
+
+        ModernButton cleanupBtn = new ModernButton("NETTOYER LE CACHE", new Color(180, 120, 60),
+                new Color(160, 100, 40), false);
+        cleanupBtn.setIcon(FontIcon.of(FontAwesomeSolid.BROOM, 14, DesignConstants.TEXT_PRIMARY));
+        cleanupBtn.addActionListener(e -> performCleanup());
+        diagPanel.add(cleanupBtn);
+
         diagPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         p.add(diagPanel);
 
@@ -468,6 +704,32 @@ public class SettingsPanel extends JPanel {
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         p.add(titleLabel);
         return p;
+    }
+
+    private JPanel createCard() {
+        JPanel card = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Fond avec effet glassmorphism
+                g2.setColor(new Color(40, 30, 50, 180));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+
+                // Bordure subtile
+                g2.setColor(new Color(170, 80, 255, 60));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 15, 15);
+
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        return card;
     }
 
     private void addSubsection(JPanel panel, String text) {
@@ -514,8 +776,8 @@ public class SettingsPanel extends JPanel {
                         logger.info("[SKIN] OK en {}ms", duration);
                         JOptionPane.showMessageDialog(SettingsPanel.this, "Skin mis à jour!", "Succès",
                                 JOptionPane.INFORMATION_MESSAGE);
-                        if (onSkinChanged != null)
-                            onSkinChanged.run();
+                        if (skinChangedCallback != null)
+                            skinChangedCallback.run();
                     } catch (Exception ex) {
                         logger.error("[SKIN] ERREUR: {}", ex.getMessage());
                         JOptionPane.showMessageDialog(SettingsPanel.this, "Échec mise à jour.", "Erreur",
@@ -628,5 +890,64 @@ public class SettingsPanel extends JPanel {
                 cfg.setGameDir(newDir);
         }
         return cfg;
+    }
+
+    private void openLink(String url) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().browse(new java.net.URI(url));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void performCleanup() {
+        // Analyser d'abord ce qui peut être nettoyé
+        com.nexaria.launcher.util.CacheCleanupService.CleanupResult analysis = com.nexaria.launcher.util.CacheCleanupService
+                .analyzeCleanableFiles();
+
+        double mb = analysis.bytesFreed / (1024.0 * 1024.0);
+        String message = String.format(
+                "Fichiers à nettoyer :\n\n" +
+                        "• %d fichiers temporaires\n" +
+                        "• %.2f MB d'espace disque\n\n" +
+                        "Voulez-vous continuer ?",
+                analysis.filesDeleted, mb);
+
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                message,
+                "Nettoyage du cache",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+
+        if (choice == JOptionPane.YES_OPTION) {
+            SwingWorker<com.nexaria.launcher.util.CacheCleanupService.CleanupResult, Void> worker = new SwingWorker<>() {
+                @Override
+                protected com.nexaria.launcher.util.CacheCleanupService.CleanupResult doInBackground() {
+                    return com.nexaria.launcher.util.CacheCleanupService.cleanupFiles(true, true, true);
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        com.nexaria.launcher.util.CacheCleanupService.CleanupResult result = get();
+                        JOptionPane.showMessageDialog(
+                                SettingsPanel.this,
+                                result.getSummary(),
+                                "Nettoyage terminé",
+                                JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception e) {
+                        JOptionPane.showMessageDialog(
+                                SettingsPanel.this,
+                                "Erreur lors du nettoyage: " + e.getMessage(),
+                                "Erreur",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            };
+            worker.execute();
+        }
     }
 }
