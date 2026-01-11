@@ -36,7 +36,8 @@ public class AzAuthManager {
                 throw new AuthenticationException("Identifiants manquants");
             }
             String base = azuriomUrl != null ? azuriomUrl.replaceAll("/+$", "") : "";
-            HttpURLConnection conn = (HttpURLConnection) URI.create(base + "/api/auth/authenticate").toURL().openConnection();
+            HttpURLConnection conn = (HttpURLConnection) URI.create(base + "/api/auth/authenticate").toURL()
+                    .openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -48,7 +49,8 @@ public class AzAuthManager {
             JsonObject payload = new JsonObject();
             payload.addProperty("email", usernameOrEmail);
             payload.addProperty("password", password);
-            if (!code.isEmpty()) payload.addProperty("code", code);
+            if (!code.isEmpty())
+                payload.addProperty("code", code);
 
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] data = payload.toString().getBytes(StandardCharsets.UTF_8);
@@ -61,23 +63,33 @@ public class AzAuthManager {
                     StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             String line;
-            while ((line = br.readLine()) != null) sb.append(line);
+            while ((line = br.readLine()) != null)
+                sb.append(line);
             br.close();
 
             if (status == 200) {
                 JsonObject json = JsonParser.parseString(sb.toString()).getAsJsonObject();
-                logger.debug("Réponse API Azuriom: {}", json.toString());
-                
+                // SÉCURITÉ : Ne pas logger le token en clair
+                if (logger.isDebugEnabled()) {
+                    JsonObject safeLog = json.deepCopy();
+                    if (safeLog.has("access_token"))
+                        safeLog.addProperty("access_token", "***MASKED***");
+                    if (safeLog.has("refresh_token"))
+                        safeLog.addProperty("refresh_token", "***MASKED***");
+                    logger.debug("Réponse API Azuriom: {}", safeLog.toString());
+                }
+
                 int id = json.has("id") ? json.get("id").getAsInt() : -1;
                 String siteUsername = json.has("username") ? json.get("username").getAsString() : usernameOrEmail;
-                this.accessToken = json.has("access_token") ? json.get("access_token").getAsString() : UUID.randomUUID().toString();
+                this.accessToken = json.has("access_token") ? json.get("access_token").getAsString()
+                        : UUID.randomUUID().toString();
                 String uid = (id >= 0) ? String.valueOf(id) : UUID.randomUUID().toString();
-                
+
                 // Extraire les données supplémentaires de l'API Azuriom
                 String uuid = json.has("uuid") ? json.get("uuid").getAsString() : null;
                 boolean emailVerified = json.has("email_verified") && json.get("email_verified").getAsBoolean();
                 double money = json.has("money") ? json.get("money").getAsDouble() : 0.0;
-                
+
                 String roleName = null;
                 String roleColor = null;
                 if (json.has("role") && json.get("role").isJsonObject()) {
@@ -85,22 +97,26 @@ public class AzAuthManager {
                     roleName = role.has("name") ? role.get("name").getAsString() : null;
                     roleColor = role.has("color") ? role.get("color").getAsString() : null;
                 }
-                
+
                 boolean banned = json.has("banned") && json.get("banned").getAsBoolean();
                 String createdAt = json.has("created_at") ? json.get("created_at").getAsString() : null;
-                
-                logger.info("Données utilisateur - UUID: {}, Role: {}, Money: {}, EmailVerified: {}", 
-                           uuid, roleName, money, emailVerified);
-                
-                this.currentUser = new User(uid, siteUsername, accessToken, uuid, emailVerified, 
-                                           money, roleName, roleColor, banned, createdAt);
+
+                logger.info("Données utilisateur - UUID: {}, Role: {}, Money: {}, EmailVerified: {}",
+                        uuid, roleName, money, emailVerified);
+
+                this.currentUser = new User(uid, siteUsername, accessToken, uuid, emailVerified,
+                        money, roleName, roleColor, banned, createdAt);
                 logger.info("Utilisateur authentifié: {}", currentUser.getUsername());
                 return currentUser;
             } else {
                 JsonObject err = null;
-                try { err = JsonParser.parseString(sb.toString()).getAsJsonObject(); } catch (Exception ignore) {}
+                try {
+                    err = JsonParser.parseString(sb.toString()).getAsJsonObject();
+                } catch (Exception ignore) {
+                }
                 String reason = err != null && err.has("reason") ? err.get("reason").getAsString() : "error";
-                if ("pending".equalsIgnoreCase(reason) || (err != null && err.has("message") && err.get("message").getAsString().toLowerCase().contains("2fa"))) {
+                if ("pending".equalsIgnoreCase(reason) || (err != null && err.has("message")
+                        && err.get("message").getAsString().toLowerCase().contains("2fa"))) {
                     throw new TwoFactorRequiredException("Deux facteurs requis");
                 }
                 throw new AuthenticationException("Échec authentification: " + sb);
@@ -126,9 +142,9 @@ public class AzAuthManager {
 
             // Essais d'endpoints potentiels (dépend de la config Azuriom)
             String[] candidates = new String[] {
-                base + "/api/users/by-email?email=" + encoded,
-                base + "/api/user/by-email?email=" + encoded,
-                base + "/api/users/resolve?email=" + encoded
+                    base + "/api/users/by-email?email=" + encoded,
+                    base + "/api/user/by-email?email=" + encoded,
+                    base + "/api/users/resolve?email=" + encoded
             };
 
             for (String urlStr : candidates) {
@@ -139,10 +155,12 @@ public class AzAuthManager {
                     conn.setReadTimeout(4000);
                     int code = conn.getResponseCode();
                     if (code == 200) {
-                        BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                        BufferedReader br = new BufferedReader(
+                                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                         StringBuilder sb = new StringBuilder();
                         String line;
-                        while ((line = br.readLine()) != null) sb.append(line);
+                        while ((line = br.readLine()) != null)
+                            sb.append(line);
                         br.close();
                         String body = sb.toString();
                         // Extraction naïve du champ username sans lib JSON
@@ -169,10 +187,13 @@ public class AzAuthManager {
             java.util.regex.Pattern p2 = java.util.regex.Pattern.compile("\"" + field + "\"\\s*:\\s*'(.*?)'",
                     java.util.regex.Pattern.CASE_INSENSITIVE);
             java.util.regex.Matcher m1 = p1.matcher(json);
-            if (m1.find()) return m1.group(1);
+            if (m1.find())
+                return m1.group(1);
             java.util.regex.Matcher m2 = p2.matcher(json);
-            if (m2.find()) return m2.group(1);
-        } catch (Exception ignored) {}
+            if (m2.find())
+                return m2.group(1);
+        } catch (Exception ignored) {
+        }
         return null;
     }
 
@@ -190,10 +211,21 @@ public class AzAuthManager {
         logger.info("Utilisateur déconnecté");
     }
 
-    public User getCurrentUser() { return currentUser; }
-    public String getAccessToken() { return accessToken; }
-    public void setAzuriomUrl(String url) { this.azuriomUrl = url; }
-    public String getAzuriomUrl() { return azuriomUrl; }
+    public User getCurrentUser() {
+        return currentUser;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public void setAzuriomUrl(String url) {
+        this.azuriomUrl = url;
+    }
+
+    public String getAzuriomUrl() {
+        return azuriomUrl;
+    }
 
     // Upload Azuriom skin via multipart/form-data
     public void uploadSkin(String accessToken, java.io.File skinPng) throws Exception {
@@ -219,7 +251,8 @@ public class AzAuthManager {
             try (java.io.InputStream fis = new java.io.FileInputStream(skinPng)) {
                 byte[] buf = new byte[8192];
                 int r;
-                while ((r = fis.read(buf)) != -1) os.write(buf, 0, r);
+                while ((r = fis.read(buf)) != -1)
+                    os.write(buf, 0, r);
             }
             os.write("\r\n".getBytes(utf8));
             // end
@@ -241,13 +274,16 @@ public class AzAuthManager {
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json");
             String payload = "{\"access_token\":\"" + token + "\"}";
-            try (OutputStream os = conn.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(payload.getBytes(StandardCharsets.UTF_8));
+            }
             int code = conn.getResponseCode();
             if (code == 200) {
                 this.accessToken = token;
                 return true;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return false;
     }
 }

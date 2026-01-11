@@ -32,14 +32,18 @@ public class NexariaLauncher {
                 System.setProperty("apple.awt.application.name", "Nexaria Launcher");
                 System.setProperty("com.apple.mrj.application.apple.menu.about.name", "Nexaria Launcher");
             }
-        } catch (Exception ignore) { }
+        } catch (Exception e) {
+            logger.warn("Erreur configuration OS", e);
+        }
 
         String currentVersion = LAUNCHER_VERSION_FALLBACK;
         try {
             currentVersion = LauncherConfig.getInstance().launcherVersion != null
-                ? LauncherConfig.getInstance().launcherVersion
-                : LAUNCHER_VERSION_FALLBACK;
-        } catch (Exception ignore) { }
+                    ? LauncherConfig.getInstance().launcherVersion
+                    : LAUNCHER_VERSION_FALLBACK;
+        } catch (Exception e) {
+            logger.warn("Erreur lecture version", e);
+        }
 
         logger.info("Démarrage du Nexaria Launcher v{}", currentVersion);
 
@@ -58,7 +62,8 @@ public class NexariaLauncher {
             // Afficher le splash screen de mise à jour si activé (sauf en mode dev)
             if (!isDevMode && config.isAutoUpdate() && config.githubRepo != null && !config.githubRepo.isEmpty()) {
                 try {
-                    String updateVersion = config.launcherVersion != null ? config.launcherVersion : LAUNCHER_VERSION_FALLBACK;
+                    String updateVersion = config.launcherVersion != null ? config.launcherVersion
+                            : LAUNCHER_VERSION_FALLBACK;
                     final UpdateManager updateManager = new UpdateManager(config.githubRepo, updateVersion);
                     CountDownLatch latch = new CountDownLatch(1);
 
@@ -72,7 +77,8 @@ public class NexariaLauncher {
                         }
                     });
 
-                    // Attendre que la vérif/erreur se termine ou qu'une installation redémarre (120s max)
+                    // Attendre que la vérif/erreur se termine ou qu'une installation redémarre
+                    // (120s max)
                     latch.await(120, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     logger.warn("Erreur lors de la vérification des mises à jour", e);
@@ -98,7 +104,8 @@ public class NexariaLauncher {
 
     public static String getVersion() {
         try {
-            return LauncherConfig.getInstance().launcherVersion != null ? LauncherConfig.getInstance().launcherVersion : LAUNCHER_VERSION_FALLBACK;
+            return LauncherConfig.getInstance().launcherVersion != null ? LauncherConfig.getInstance().launcherVersion
+                    : LAUNCHER_VERSION_FALLBACK;
         } catch (Exception e) {
             return LAUNCHER_VERSION_FALLBACK;
         }

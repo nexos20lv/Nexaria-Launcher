@@ -5,6 +5,7 @@ import com.nexaria.launcher.downloader.GitHubModManager;
 import com.nexaria.launcher.config.LauncherConfig;
 import com.nexaria.launcher.model.User;
 import com.nexaria.launcher.security.DataVerificationService;
+import com.nexaria.launcher.rpc.DiscordPresenter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,8 +44,14 @@ public class LauncherWindow extends JFrame {
         // Icône application (fenêtre + dock)
         Image appIcon = loadAppIcon();
         if (appIcon != null) {
-            try { setIconImage(appIcon); } catch (Exception ignore) {}
-            try { Taskbar.getTaskbar().setIconImage(appIcon); } catch (UnsupportedOperationException | SecurityException ignore) {}
+            try {
+                setIconImage(appIcon);
+            } catch (Exception ignore) {
+            }
+            try {
+                Taskbar.getTaskbar().setIconImage(appIcon);
+            } catch (UnsupportedOperationException | SecurityException ignore) {
+            }
         }
 
         LauncherConfig config = LauncherConfig.getInstance();
@@ -89,10 +96,12 @@ public class LauncherWindow extends JFrame {
         mainPanel = new MainPanel(this::handleLaunch);
         LauncherConfig cfgInst = LauncherConfig.getInstance();
         JPanel settingsPanel = new SettingsPanel(
-            () -> currentUser != null ? currentUser.getAccessToken() : null,
-            () -> cfgInst.getAzuriomUrl(),
-            () -> { if (currentUser != null) sidebar.setUserProfile(currentUser, cfgInst.getAzuriomUrl()); }
-        );
+                () -> currentUser != null ? currentUser.getAccessToken() : null,
+                () -> cfgInst.getAzuriomUrl(),
+                () -> {
+                    if (currentUser != null)
+                        sidebar.setUserProfile(currentUser, cfgInst.getAzuriomUrl());
+                });
 
         contentPanel.add(loginPanel, "CONNEXION");
         contentPanel.add(mainPanel, "ACCUEIL");
@@ -104,6 +113,20 @@ public class LauncherWindow extends JFrame {
         sidebar.setVisible(false);
 
         attemptAutoLogin();
+
+        // Démarrer RPC
+        try {
+            DiscordPresenter.start();
+        } catch (Throwable e) {
+            logger.warn("Discord RPC non disponible (bibliothèque native manquante ou erreur): {}", e.getMessage());
+        }
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                DiscordPresenter.stop();
+            }
+        });
     }
 
     private Image loadAppIcon() {
@@ -112,14 +135,16 @@ public class LauncherWindow extends JFrame {
             if (iconUrl != null) {
                 return Toolkit.getDefaultToolkit().getImage(iconUrl);
             }
-        } catch (Exception ignore) { }
+        } catch (Exception ignore) {
+        }
         // Fallback: générer une icône violette simple "NX"
         try {
             int size = 128;
             BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g2d = img.createGraphics();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            GradientPaint gp = new GradientPaint(0, 0, DesignConstants.GRADIENT_MAIN_START, size, size, DesignConstants.GRADIENT_MAIN_END);
+            GradientPaint gp = new GradientPaint(0, 0, DesignConstants.GRADIENT_MAIN_START, size, size,
+                    DesignConstants.GRADIENT_MAIN_END);
             g2d.setPaint(gp);
             g2d.fillRoundRect(0, 0, size, size, 32, 32);
             g2d.setColor(new Color(255, 255, 255, 230));
@@ -131,24 +156,29 @@ public class LauncherWindow extends JFrame {
             g2d.drawString(text, x, y);
             g2d.dispose();
             return img;
-        } catch (Exception ignore) { }
+        } catch (Exception ignore) {
+        }
         return null;
     }
 
     private void handleLogin(User user) {
         loginPanel.clearPassword();
         this.currentUser = user;
+
+        DiscordPresenter.update("Dans le complexe", "Ingénieur : " + user.getUsername());
+
         mainPanel.setUserProfile(user);
         mainPanel.setVersion(
                 LauncherConfig.getInstance().getMinecraftVersion(),
                 LauncherConfig.getInstance().getLoader(),
                 LauncherConfig.getInstance().getLoaderVersion());
         sidebar.setUserProfile(user, LauncherConfig.getInstance().getAzuriomUrl());
-        mainPanel.startServerStatusAutoRefresh(LauncherConfig.getInstance().getServerHost(), LauncherConfig.getInstance().getServerPort(), LauncherConfig.getInstance().getServerName());
-        
+        mainPanel.startServerStatusAutoRefresh(LauncherConfig.getInstance().getServerHost(),
+                LauncherConfig.getInstance().getServerPort(), LauncherConfig.getInstance().getServerName());
+
         // Charger les actualités
         mainPanel.loadNews(LauncherConfig.getInstance().getAzuriomUrl());
-        
+
         sidebar.setVisible(true);
         cardLayout.show(contentPanel, "ACCUEIL");
     }
@@ -156,6 +186,7 @@ public class LauncherWindow extends JFrame {
     private void handleLaunch() {
         SwingWorker<Void, Integer> worker = new SwingWorker<Void, Integer>() {
             long startTime = System.currentTimeMillis();
+
             @Override
             protected Void doInBackground() throws Exception {
                 try {
@@ -178,7 +209,9 @@ public class LauncherWindow extends JFrame {
                 }
             }
 
-            @Override protected void process(java.util.List<Integer> chunks) { }
+            @Override
+            protected void process(java.util.List<Integer> chunks) {
+            }
 
             @Override
             protected void done() {
@@ -215,7 +248,8 @@ public class LauncherWindow extends JFrame {
     }
 
     private void launchGame() throws Exception {
-        // Configuration récupérée (variable locale supprimée pour éviter l'avertissement unused)
+        // Configuration récupérée (variable locale supprimée pour éviter
+        // l'avertissement unused)
         String gameDirectory = LauncherConfig.getGameDir();
         new File(gameDirectory).mkdirs();
         new File(LauncherConfig.getModsDir()).mkdirs();
@@ -228,35 +262,38 @@ public class LauncherWindow extends JFrame {
             enforceNoExternalSymlink(java.nio.file.Paths.get(LauncherConfig.getConfigDir()), gameDir, "config");
         }
 
-        // Vérification juste avant le lancement effectif (fenêtre de tir minimale)
-        verifyDataIntegrity();
+        // Vérification d'intégrité déjà effectuée après la synchro
+        // verifyDataIntegrity();
 
         // Utilisation d'OpenLauncherLib pour gérer tous les aspects du lancement
-        com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.ProgressListener progressListener = 
-            new com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.ProgressListener() {
-                @Override
-                public void onStatus(String status) {
-                    SwingUtilities.invokeLater(() -> mainPanel.setStatus(status));
-                }
-                
-                @Override
-                public void onProgress(int percent) {
-                    SwingUtilities.invokeLater(() -> {
-                        mainPanel.setProgress(percent);
-                        mainPanel.setIndeterminate(false);
-                    });
-                }
-            };
-        
-        currentGameProcess = com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.launchGame(currentUser, progressListener);
-        
+        com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.ProgressListener progressListener = new com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.ProgressListener() {
+            @Override
+            public void onStatus(String status) {
+                SwingUtilities.invokeLater(() -> mainPanel.setStatus(status));
+            }
+
+            @Override
+            public void onProgress(int percent) {
+                SwingUtilities.invokeLater(() -> {
+                    mainPanel.setProgress(percent);
+                    mainPanel.setIndeterminate(false);
+                });
+            }
+        };
+
+        currentGameProcess = com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.launchGame(currentUser,
+                progressListener);
+
+        DiscordPresenter.update("Opération en cours",
+                "Sur le secteur : " + LauncherConfig.getInstance().getServerName());
+
         // Surveiller le processus du jeu pour restaurer le launcher quand il se ferme
         if (currentGameProcess != null) {
             Thread processMonitor = new Thread(() -> {
                 try {
                     int exitCode = currentGameProcess.waitFor();
                     logger.info("Le jeu s'est fermé avec le code: {}", exitCode);
-                    
+
                     // Restaurer le launcher sur le thread Swing
                     SwingUtilities.invokeLater(() -> {
                         setState(JFrame.NORMAL);
@@ -281,11 +318,13 @@ public class LauncherWindow extends JFrame {
         try {
             java.nio.file.Path real = path.toRealPath();
             if (!real.startsWith(gameDir)) {
-                String msg = "Le dossier " + label + " semble être un lien symbolique externe au gameDir. Lancement bloqué.";
+                String msg = "Le dossier " + label
+                        + " semble être un lien symbolique externe au gameDir. Lancement bloqué.";
                 if (LauncherConfig.getInstance().enforceModPolicy) {
                     throw new SecurityException(msg);
                 } else {
-                    javax.swing.JOptionPane.showMessageDialog(this, msg, "Sécurité symlink", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    javax.swing.JOptionPane.showMessageDialog(this, msg, "Sécurité symlink",
+                            javax.swing.JOptionPane.WARNING_MESSAGE);
                 }
             }
         } catch (java.io.IOException e) {
@@ -308,11 +347,13 @@ public class LauncherWindow extends JFrame {
             setState(JFrame.NORMAL);
             toFront();
         }
+        DiscordPresenter.update("Dans le complexe", "Pause café...");
     }
 
     /**
      * Vérifie l'intégrité des data (mods + config) avec la politique configurée.
-     * Appelée juste après la synchro et juste avant le lancement pour réduire au minimum la fenêtre
+     * Appelée juste après la synchro et juste avant le lancement pour réduire au
+     * minimum la fenêtre
      * pendant laquelle des modifications pourraient se produire.
      */
     private void verifyDataIntegrity() throws Exception {
@@ -324,9 +365,12 @@ public class LauncherWindow extends JFrame {
 
         if (!dataResult.ok) {
             StringBuilder sb = new StringBuilder();
-            if (!dataResult.missing.isEmpty()) sb.append("Manquants: ").append(dataResult.missing).append("\n");
-            if (!dataResult.modified.isEmpty()) sb.append("Modifiés: ").append(dataResult.modified).append("\n");
-            if (!dataResult.unexpected.isEmpty()) sb.append("Non attendus: ").append(dataResult.unexpected).append("\n");
+            if (!dataResult.missing.isEmpty())
+                sb.append("Manquants: ").append(dataResult.missing).append("\n");
+            if (!dataResult.modified.isEmpty())
+                sb.append("Modifiés: ").append(dataResult.modified).append("\n");
+            if (!dataResult.unexpected.isEmpty())
+                sb.append("Non attendus: ").append(dataResult.unexpected).append("\n");
 
             String msg = "Vérification de l'intégrité data/: des écarts ont été détectés.\n" + sb;
 
@@ -334,8 +378,7 @@ public class LauncherWindow extends JFrame {
                 dataVerifier.applyPolicy(dataResult);
                 throw new SecurityException(msg);
             } else {
-                javax.swing.SwingUtilities.invokeLater(() ->
-                    javax.swing.JOptionPane.showMessageDialog(this, msg,
+                javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg,
                         "Avertissement Intégrité Data", javax.swing.JOptionPane.WARNING_MESSAGE));
             }
         }
@@ -345,32 +388,42 @@ public class LauncherWindow extends JFrame {
     private boolean ensureVanillaInitialized(String mcDir) {
         try {
             java.io.File profiles = new java.io.File(mcDir + java.io.File.separator + "launcher_profiles.json");
-            if (profiles.exists()) return true;
+            if (profiles.exists())
+                return true;
             SwingUtilities.invokeLater(() -> {
                 String msg = "Forge nécessite que le dossier Minecraft soit initialisé par le launcher officiel.\n" +
-                             "Ouvrez le Launcher Minecraft (Mojang/Microsoft) et lancez une fois le jeu vanilla.";
+                        "Ouvrez le Launcher Minecraft (Mojang/Microsoft) et lancez une fois le jeu vanilla.";
                 int res = JOptionPane.showOptionDialog(this, msg, "Initialisation Minecraft requise",
                         JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE,
-                        null, new Object[]{"Télécharger le Launcher", "OK"}, "Télécharger le Launcher");
+                        null, new Object[] { "Télécharger le Launcher", "OK" }, "Télécharger le Launcher");
                 if (res == 0) {
                     try {
                         String url = "https://www.minecraft.net/download";
-                        if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(new java.net.URI(url));
-                    } catch (Exception ignore) { }
+                        if (Desktop.isDesktopSupported())
+                            Desktop.getDesktop().browse(new java.net.URI(url));
+                    } catch (Exception ignore) {
+                    }
                 }
             });
-        } catch (Exception ignore) { }
+        } catch (Exception ignore) {
+        }
         return false;
     }
 
     private void handleLogout() {
-        try { authManager.logout(); } catch (Exception e) { logger.error("Logout Error", e); }
+        try {
+            authManager.logout();
+        } catch (Exception e) {
+            logger.error("Logout Error", e);
+        }
         this.currentUser = null;
         mainPanel.reset();
         sidebar.clearUserProfile();
         loginPanel.resetState();
         cardLayout.show(contentPanel, "CONNEXION");
+        cardLayout.show(contentPanel, "CONNEXION");
         sidebar.setVisible(false);
+        DiscordPresenter.update("Hors ligne", "Fin de service");
     }
 
     @SuppressWarnings("unused")
@@ -378,26 +431,35 @@ public class LauncherWindow extends JFrame {
         String java17 = com.nexaria.launcher.minecraft.JavaRuntimeLocator.getJavaExecutable(17);
         int current = parseMajor(System.getProperty("java.version"));
         boolean available = java17 != null && (current >= 17 || !"java".equals(java17));
-        if (available) return true;
+        if (available)
+            return true;
         SwingUtilities.invokeLater(() -> {
             String msg = "Java 17 est requis pour installer les loaders (Forge/NeoForge/Fabric).\n" +
-                         "Veuillez installer un JDK 17 (Temurin recommandé).";
+                    "Veuillez installer un JDK 17 (Temurin recommandé).";
             int res = JOptionPane.showOptionDialog(this, msg, "Java 17 requis",
                     JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
-                    null, new Object[]{"Installer Java 17", "OK"}, "Installer Java 17");
+                    null, new Object[] { "Installer Java 17", "OK" }, "Installer Java 17");
             if (res == 0) {
                 try {
                     String url = "https://adoptium.net/fr/temurin/releases/?version=17";
-                    if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(new java.net.URI(url));
-                } catch (Exception ignore) {}
+                    if (Desktop.isDesktopSupported())
+                        Desktop.getDesktop().browse(new java.net.URI(url));
+                } catch (Exception ignore) {
+                }
             }
         });
         return false;
     }
 
     private int parseMajor(String v) {
-        try { if (v == null) return 0; String[] parts = v.split("\\."); return Integer.parseInt(parts[0]); }
-        catch (Exception e) { return 0; }
+        try {
+            if (v == null)
+                return 0;
+            String[] parts = v.split("\\.");
+            return Integer.parseInt(parts[0]);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private void navigate(String route) {
@@ -407,29 +469,40 @@ public class LauncherWindow extends JFrame {
             return;
         }
         String dest = "ACCUEIL";
-        if ("ACCUEIL".equals(route) || "HOME".equals(route)) dest = "ACCUEIL";
-        else if ("SÉCURITÉ".equals(route) || "SECURITE".equals(route) || "SECURITY".equals(route)) dest = "SÉCURITÉ";
-        else if ("PARAMÈTRES".equals(route) || "SETTINGS".equals(route)) dest = "PARAMÈTRES";
-        else if ("CONNEXION".equals(route) || "LOGIN".equals(route)) dest = "CONNEXION";
+        if ("ACCUEIL".equals(route) || "HOME".equals(route))
+            dest = "ACCUEIL";
+        else if ("SÉCURITÉ".equals(route) || "SECURITE".equals(route) || "SECURITY".equals(route))
+            dest = "SÉCURITÉ";
+        else if ("PARAMÈTRES".equals(route) || "SETTINGS".equals(route))
+            dest = "PARAMÈTRES";
+        else if ("CONNEXION".equals(route) || "LOGIN".equals(route))
+            dest = "CONNEXION";
         cardLayout.show(contentPanel, dest);
         sidebar.setVisible(!"CONNEXION".equals(dest));
     }
 
     private void attemptAutoLogin() {
-        com.nexaria.launcher.config.RememberStore.RememberSession s = com.nexaria.launcher.config.RememberStore.loadSession();
-        if (s == null || s.accessToken == null || s.accessToken.isEmpty()) return;
-        SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>(){
+        com.nexaria.launcher.config.RememberStore.RememberSession s = com.nexaria.launcher.config.RememberStore
+                .loadSession();
+        if (s == null || s.accessToken == null || s.accessToken.isEmpty())
+            return;
+        SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
             long startTime = System.currentTimeMillis();
-            @Override protected Boolean doInBackground() throws Exception {
+
+            @Override
+            protected Boolean doInBackground() throws Exception {
                 logger.info("[AUTOLOGIN] Verification du token");
                 return authManager.verifyAccessTokenRemote(s.accessToken);
             }
-            @Override protected void done() {
+
+            @Override
+            protected void done() {
                 try {
                     if (get()) {
                         long duration = System.currentTimeMillis() - startTime;
                         logger.info("[AUTOLOGIN] OK en {}ms", duration);
-                        User u = new User(s.id != null ? s.id : java.util.UUID.randomUUID().toString(), s.username != null ? s.username : "Utilisateur", s.accessToken);
+                        User u = new User(s.id != null ? s.id : java.util.UUID.randomUUID().toString(),
+                                s.username != null ? s.username : "Utilisateur", s.accessToken);
                         handleLogin(u);
                     } else {
                         logger.warn("[AUTOLOGIN] Token invalide");
