@@ -22,13 +22,20 @@ import java.nio.file.Files;
 import java.io.IOException;
 
 /**
- * Wrapper pour OpenLauncherLib qui gère le lancement de Minecraft avec Forge/Fabric/Vanilla
+ * Wrapper pour OpenLauncherLib qui gère le lancement de Minecraft avec
+ * Forge/Fabric/Vanilla
  */
 public class OpenLauncherLibLauncher {
     private static final Logger logger = LoggerFactory.getLogger(OpenLauncherLibLauncher.class);
+    private static String customJavaPath;
+
+    public static void setJavaPath(String path) {
+        customJavaPath = path;
+    }
 
     public interface ProgressListener {
         void onStatus(String status);
+
         void onProgress(int percent);
     }
 
@@ -38,13 +45,13 @@ public class OpenLauncherLibLauncher {
     public static Process launchGame(User user, ProgressListener progressListener) throws Exception {
         LauncherConfig cfg = LauncherConfig.getInstance();
         Path gameDir = Paths.get(cfg.gameDir);
-        
+
         String minecraftVersion = cfg.minecraftVersion;
         String loader = cfg.loader.toLowerCase();
         String loaderVersion = cfg.loaderVersion;
 
         logger.info("Lancement de Minecraft {} avec {} {}", minecraftVersion, loader, loaderVersion);
-        
+
         if (progressListener != null) {
             progressListener.onStatus("Préparation du lancement...");
             progressListener.onProgress(0);
@@ -106,50 +113,58 @@ public class OpenLauncherLibLauncher {
         };
 
         FlowUpdater.FlowUpdaterBuilder updaterBuilder = new FlowUpdater.FlowUpdaterBuilder()
-            .withVanillaVersion(vanillaVersion)
-            .withProgressCallback(callback);
+                .withVanillaVersion(vanillaVersion)
+                .withProgressCallback(callback);
 
         // Ajouter le loader si nécessaire
         if (loader.contains("forge")) {
-            if (progressListener != null) progressListener.onStatus("Configuration de Forge " + loaderVersion + "...");
-            
-            // FlowUpdater 1.9.x: ForgeVersion nécessite le format "minecraftVersion-forgeVersion"
-            String forgeFullVersion = loaderVersion.contains("-") ? loaderVersion : minecraftVersion + "-" + loaderVersion;
+            if (progressListener != null)
+                progressListener.onStatus("Configuration de Forge " + loaderVersion + "...");
+
+            // FlowUpdater 1.9.x: ForgeVersion nécessite le format
+            // "minecraftVersion-forgeVersion"
+            String forgeFullVersion = loaderVersion.contains("-") ? loaderVersion
+                    : minecraftVersion + "-" + loaderVersion;
             ForgeVersion forgeVersion = new ForgeVersionBuilder()
                     .withForgeVersion(forgeFullVersion)
                     .build();
             updaterBuilder.withModLoaderVersion(forgeVersion);
-            
+
             logger.info("Configuration Forge: version {}", forgeFullVersion);
-            
+
         } else if (loader.contains("fabric")) {
-            if (progressListener != null) progressListener.onStatus("Configuration de Fabric " + loaderVersion + "...");
-            
+            if (progressListener != null)
+                progressListener.onStatus("Configuration de Fabric " + loaderVersion + "...");
+
             // FlowUpdater 1.9.x: FabricVersion avec le nouveau FabricVersionBuilder
             FabricVersion fabricVersion = new FabricVersionBuilder()
                     .withFabricVersion(loaderVersion)
                     .build();
             updaterBuilder.withModLoaderVersion(fabricVersion);
-            
+
         } else if (loader.contains("neo")) {
-            if (progressListener != null) progressListener.onStatus("Configuration de NeoForge " + loaderVersion + "...");
+            if (progressListener != null)
+                progressListener.onStatus("Configuration de NeoForge " + loaderVersion + "...");
             // NeoForge n'est pas supporté par la version actuelle de FlowUpdater
-            throw new UnsupportedOperationException("NeoForge n'est pas encore supporté par OpenLauncherLib - utilisez Forge à la place");
+            throw new UnsupportedOperationException(
+                    "NeoForge n'est pas encore supporté par OpenLauncherLib - utilisez Forge à la place");
         }
 
-
         // Lancer l'updater
-        if (progressListener != null) progressListener.onStatus("Vérification des fichiers...");
-        
+        if (progressListener != null)
+            progressListener.onStatus("Vérification des fichiers...");
+
         FlowUpdater updater = updaterBuilder.build();
-        
+
         // IMPORTANT: update() installe Minecraft, le loader et toutes les bibliothèques
-        // Cette étape est CRITIQUE pour Forge - elle télécharge bootstraplauncher et securejarhandler
+        // Cette étape est CRITIQUE pour Forge - elle télécharge bootstraplauncher et
+        // securejarhandler
         logger.info("Démarrage de FlowUpdater.update() - Installation complète...");
         updater.update(gameDir);
         logger.info("FlowUpdater.update() terminé - Toutes les bibliothèques sont installées");
 
-        // Synchroniser les assets requis par OpenLauncherLib dans le dossier Minecraft global
+        // Synchroniser les assets requis par OpenLauncherLib dans le dossier Minecraft
+        // global
         try {
             Path mcAssets = Paths.get(MinecraftLocator.getMinecraftDir()).resolve("assets");
             Path localAssets = gameDir.resolve("assets");
@@ -164,39 +179,48 @@ public class OpenLauncherLibLauncher {
         }
 
         // Configuration du launcher - GameFolder pointe vers les bons répertoires
-        // Utiliser les dossiers du profil de jeu (FlowUpdater) plutôt que le dossier global Minecraft
-        
-        fr.theshark34.openlauncherlib.minecraft.AuthInfos authInfos = 
-            new fr.theshark34.openlauncherlib.minecraft.AuthInfos(
+        // Utiliser les dossiers du profil de jeu (FlowUpdater) plutôt que le dossier
+        // global Minecraft
+
+        fr.theshark34.openlauncherlib.minecraft.AuthInfos authInfos = new fr.theshark34.openlauncherlib.minecraft.AuthInfos(
                 user != null ? user.getUsername() : "Joueur",
                 user != null && user.getAccessToken() != null ? user.getAccessToken() : "0",
-                user != null && user.getId() != null ? user.getId() : java.util.UUID.randomUUID().toString()
-            );
-        
-        // Utiliser GameFolder.FLOW_UPDATER prédéfini (assets, libraries, natives, client.jar)
-        fr.theshark34.openlauncherlib.minecraft.GameFolder gameFolder = 
-            fr.theshark34.openlauncherlib.minecraft.GameFolder.FLOW_UPDATER;
-        
+                user != null && user.getId() != null ? user.getId() : java.util.UUID.randomUUID().toString());
+
+        // Utiliser GameFolder.FLOW_UPDATER prédéfini (assets, libraries, natives,
+        // client.jar)
+        fr.theshark34.openlauncherlib.minecraft.GameFolder gameFolder = fr.theshark34.openlauncherlib.minecraft.GameFolder.FLOW_UPDATER;
+
         NoFramework noFramework = new NoFramework(
                 gameDir,
                 authInfos,
-                gameFolder
-        );
+                gameFolder);
 
-        noFramework.getAdditionalVmArgs().add("-Xmx" + cfg.maxMemory + "M");
         noFramework.getAdditionalVmArgs().add("-Xms" + cfg.minMemory + "M");
-        
+
         // Fix LWJGL sur macOS
         if (System.getProperty("os.name").toLowerCase().contains("mac")) {
             noFramework.getAdditionalVmArgs().add("-XstartOnFirstThread");
         }
-        
+
         // Ajouter les arguments JVM personnalisés si présents (sanitisés)
         if (cfg.jvmArgs != null && !cfg.jvmArgs.trim().isEmpty()) {
             java.util.List<String> safeArgs = com.nexaria.launcher.security.JvmArgsSanitizer.sanitize(cfg.jvmArgs);
             noFramework.getAdditionalVmArgs().addAll(safeArgs);
         }
-        
+
+        // Configuration du chemin Java personnalisé via le callback
+        if (customJavaPath != null) {
+            noFramework.setLastCallback(launcher -> {
+                launcher.setLaunchingEvent(pb -> {
+                    java.util.List<String> command = pb.command(); // Assuming command is retrieved from ProcessBuilder
+                    command.set(0, customJavaPath);
+                    pb.command(command);
+                    logger.info("Java Path remplacé par: {}", customJavaPath);
+                });
+            });
+        }
+
         // Anti-cheat: durcissement JVM minimal
         try {
             noFramework.getAdditionalVmArgs().addAll(new AntiCheatService().getJvmHardeningArgs());
@@ -220,18 +244,18 @@ public class OpenLauncherLibLauncher {
         Process gameProcess = noFramework.launch(
                 minecraftVersion,
                 loaderVersion != null && !loaderVersion.isEmpty() ? loaderVersion : null,
-                loader.contains("forge") ? NoFramework.ModLoader.FORGE : 
-                loader.contains("fabric") ? NoFramework.ModLoader.FABRIC :
-                loader.contains("neo") ? NoFramework.ModLoader.NEO_FORGE : 
-                NoFramework.ModLoader.VANILLA
-        );
+                loader.contains("forge") ? NoFramework.ModLoader.FORGE
+                        : loader.contains("fabric") ? NoFramework.ModLoader.FABRIC
+                                : loader.contains("neo") ? NoFramework.ModLoader.NEO_FORGE
+                                        : NoFramework.ModLoader.VANILLA);
 
         logger.info("Minecraft lancé avec succès (PID: {})", gameProcess.pid());
         return gameProcess;
     }
 
     private static void syncAllAssets(Path sourceAssets, Path targetAssets) throws IOException {
-        if (!Files.exists(sourceAssets)) return;
+        if (!Files.exists(sourceAssets))
+            return;
         Files.createDirectories(targetAssets);
         copyRecursive(sourceAssets, targetAssets);
         logger.info("Assets synchronisés vers {}", targetAssets);

@@ -76,7 +76,8 @@ public class MinecraftServerPing {
             // Read response
             readVarInt(in); // packet length
             int packetId = readVarInt(in);
-            if (packetId != 0x00) throw new RuntimeException("Invalid packet id");
+            if (packetId != 0x00)
+                throw new RuntimeException("Invalid packet id");
             int jsonLen = readVarInt(in);
             byte[] jsonBytes = new byte[Math.max(jsonLen, 0)];
             in.readFully(jsonBytes);
@@ -101,6 +102,26 @@ public class MinecraftServerPing {
                 }
             }
 
+            String description = "";
+            if (root.has("description")) {
+                if (root.get("description").isJsonPrimitive()) {
+                    description = root.get("description").getAsString();
+                } else {
+                    description = root.get("description").getAsJsonObject().get("text").getAsString();
+                }
+            }
+
+            java.util.List<String> playerList = new java.util.ArrayList<>();
+            if (players != null && players.has("sample")) {
+                com.google.gson.JsonArray sample = players.getAsJsonArray("sample");
+                for (com.google.gson.JsonElement e : sample) {
+                    JsonObject p = e.getAsJsonObject();
+                    if (p.has("name")) {
+                        playerList.add(p.get("name").getAsString());
+                    }
+                }
+            }
+
             ServerStatusInfo info = new ServerStatusInfo();
             info.name = name != null ? name : host;
             info.online = true;
@@ -108,6 +129,8 @@ public class MinecraftServerPing {
             info.playersMax = max;
             info.pingMs = pingMs;
             info.favicon = icon;
+            info.description = description;
+            info.playerList = playerList;
             return info;
         } catch (Exception e) {
             ServerStatusInfo info = new ServerStatusInfo();
@@ -117,6 +140,8 @@ public class MinecraftServerPing {
             info.playersMax = -1;
             info.pingMs = -1;
             info.favicon = null;
+            info.description = "Serveur inaccessible";
+            info.playerList = new java.util.ArrayList<>();
             return info;
         }
     }

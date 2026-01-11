@@ -281,6 +281,59 @@ public class LauncherWindow extends JFrame {
             }
         };
 
+        if (com.nexaria.launcher.java.JavaManager.getJavaHome() == null
+                && !com.nexaria.launcher.java.JavaManager.isSystemJavaValid()) {
+            logger.info("Java 17 manquant, demarrage du telechargement...");
+            JDialog dialog = new JDialog(this, "Téléchargement de Java", true);
+            dialog.setSize(400, 100);
+            dialog.setLocationRelativeTo(this);
+            dialog.setLayout(new BorderLayout());
+
+            JProgressBar pb = new JProgressBar(0, 100);
+            pb.setStringPainted(true);
+            pb.setString("Préparation...");
+            dialog.add(pb, BorderLayout.CENTER);
+
+            SwingWorker<Void, Void> downloadWorker = new SwingWorker<Void, Void>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    com.nexaria.launcher.java.JavaManager.downloadJava((status, percent) -> {
+                        SwingUtilities.invokeLater(() -> {
+                            pb.setString(status);
+                            if (percent >= 0)
+                                pb.setValue(percent);
+                            else
+                                pb.setIndeterminate(true);
+                        });
+                    });
+                    return null;
+                }
+
+                @Override
+                protected void done() {
+                    dialog.dispose();
+                }
+            };
+            downloadWorker.execute();
+            dialog.setVisible(true);
+        }
+
+        // Vérifier et configurer Java
+        File javaExec = com.nexaria.launcher.java.JavaManager.getJavaExecutable();
+        if (javaExec != null) {
+            logger.info("Utilisation de Java personnalisé: {}", javaExec.getAbsolutePath());
+            // OpenLauncherLib utilise properties ou args, on doit voir comment lui passer
+            // le java.
+            // En fait, launchGame utilise params, mais n'accepte pas directement le path
+            // java en argument simple ici
+            // car launchGame est une abstraction de OpenLauncherLibLauncher.
+            // On doit modifier OpenLauncherLibLauncher.launchGame pour accepter javaPath ou
+            // le configurer.
+            // Pour l'instant on suppose que OpenLauncherLibLauncher lit une config ou on le
+            // modifie.
+            com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.setJavaPath(javaExec.getAbsolutePath());
+        }
+
         currentGameProcess = com.nexaria.launcher.minecraft.OpenLauncherLibLauncher.launchGame(currentUser,
                 progressListener);
 
@@ -289,6 +342,10 @@ public class LauncherWindow extends JFrame {
 
         // Surveiller le processus du jeu pour restaurer le launcher quand il se ferme
         if (currentGameProcess != null) {
+            // Rediriger la sortie du jeu vers la console
+            inheritIO(currentGameProcess.getInputStream(), "[GAME]");
+            inheritIO(currentGameProcess.getErrorStream(), "[GAME ERROR]");
+
             Thread processMonitor = new Thread(() -> {
                 try {
                     int exitCode = currentGameProcess.waitFor();
@@ -513,5 +570,17 @@ public class LauncherWindow extends JFrame {
             }
         };
         worker.execute();
+    }
+
+    private void inheritIO(final java.io.InputStream src, final String prefix) {
+        new Thread(() -> {
+            try (java.util.Scanner sc = new java.util.Scanner(src)) {
+                while (sc.hasNextLine()) {
+                    String line = sc.nextLine();
+                    System.out.println(prefix + " " + line);
+                }
+            } catch (Exception ignored) {
+            }
+        }, "Game-Output-Pipe").start();
     }
 }
