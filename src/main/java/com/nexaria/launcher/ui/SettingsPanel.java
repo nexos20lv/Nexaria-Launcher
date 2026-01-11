@@ -1,6 +1,7 @@
 package com.nexaria.launcher.ui;
 
 import com.nexaria.launcher.config.LauncherConfig;
+import com.nexaria.launcher.downloader.GitHubModManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,8 +38,8 @@ public class SettingsPanel extends JPanel {
     private JTextField gameDirField;
 
     public SettingsPanel(java.util.function.Supplier<String> accessTokenSupplier,
-                         java.util.function.Supplier<String> azuriomUrlSupplier,
-                         Runnable onSkinChanged) {
+            java.util.function.Supplier<String> azuriomUrlSupplier,
+            Runnable onSkinChanged) {
         this.accessTokenSupplier = accessTokenSupplier;
         this.azuriomUrlSupplier = azuriomUrlSupplier;
         this.onSkinChanged = onSkinChanged;
@@ -56,9 +57,19 @@ public class SettingsPanel extends JPanel {
         tabs.setBackground(new Color(0, 0, 0, 0));
         tabs.setFocusable(false);
         tabs.setUI(new BasicTabbedPaneUI() {
-            @Override protected void paintFocusIndicator(Graphics g, int tp, Rectangle[] rects, int ti, Rectangle iconRect, Rectangle textRect, boolean isSelected) {}
-            @Override protected void paintTabBorder(Graphics g, int tp, int ti, int tx, int ty, int tw, int th, boolean isSelected) {}
-            @Override protected void paintContentBorder(Graphics g, int tp, int si) {}
+            @Override
+            protected void paintFocusIndicator(Graphics g, int tp, Rectangle[] rects, int ti, Rectangle iconRect,
+                    Rectangle textRect, boolean isSelected) {
+            }
+
+            @Override
+            protected void paintTabBorder(Graphics g, int tp, int ti, int tx, int ty, int tw, int th,
+                    boolean isSelected) {
+            }
+
+            @Override
+            protected void paintContentBorder(Graphics g, int tp, int si) {
+            }
         });
 
         // Onglet Général (basics)
@@ -85,7 +96,7 @@ public class SettingsPanel extends JPanel {
         tabs.addTab("Dossiers", wrapInScroll(createFoldersTab()));
         tabs.addTab("Diagnostics", wrapInScroll(createDiagnosticsTab()));
 
-        Icon[] tabIcons = new Icon[]{
+        Icon[] tabIcons = new Icon[] {
                 FontIcon.of(FontAwesomeSolid.COG, 14, DesignConstants.TEXT_SECONDARY),
                 FontIcon.of(FontAwesomeSolid.USER, 14, DesignConstants.TEXT_SECONDARY),
                 FontIcon.of(FontAwesomeSolid.MEMORY, 14, DesignConstants.TEXT_SECONDARY),
@@ -125,7 +136,8 @@ public class SettingsPanel extends JPanel {
                 lbl.setBackground(selected ? new Color(60, 40, 90, 200) : new Color(0, 0, 0, 0));
                 lbl.setForeground(selected ? DesignConstants.PURPLE_ACCENT : DesignConstants.TEXT_SECONDARY);
                 lbl.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, selected ? 2 : 1, 0, selected ? DesignConstants.PURPLE_ACCENT : new Color(255, 255, 255, 30)),
+                        BorderFactory.createMatteBorder(0, 0, selected ? 2 : 1, 0,
+                                selected ? DesignConstants.PURPLE_ACCENT : new Color(255, 255, 255, 30)),
                         BorderFactory.createEmptyBorder(8, 14, 8, 14)));
                 lbl.setOpaque(true);
             }
@@ -143,7 +155,6 @@ public class SettingsPanel extends JPanel {
     private JPanel createAccountTab() {
         JPanel p = createTabBase("Compte & Sécurité");
         p.add(Box.createVerticalStrut(20));
-
 
         rememberDefault = new JCheckBox("Se souvenir de moi par défaut");
         rememberDefault.setOpaque(false);
@@ -240,7 +251,7 @@ public class SettingsPanel extends JPanel {
         rateLabel.setFont(DesignConstants.FONT_REGULAR.deriveFont(12f));
         rateLabel.setIcon(FontIcon.of(FontAwesomeSolid.DOWNLOAD, 14, DesignConstants.TEXT_SECONDARY));
         rateSpinner = new JSpinner(new SpinnerNumberModel(cfg.downloadRateLimitKBps, 0, 102400, 64));
-        ((JSpinner.DefaultEditor)rateSpinner.getEditor()).getTextField().setPreferredSize(new Dimension(80, 28));
+        ((JSpinner.DefaultEditor) rateSpinner.getEditor()).getTextField().setPreferredSize(new Dimension(80, 28));
         ratePanel.add(rateLabel);
         ratePanel.add(rateSpinner);
         ratePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -259,14 +270,16 @@ public class SettingsPanel extends JPanel {
         gameDirField = new JTextField(LauncherConfig.getGameDir());
         gameDirField.setPreferredSize(new Dimension(360, 32));
         gameDirField.setMaximumSize(new Dimension(500, 32));
-        ModernButton chooseDirBtn = new ModernButton("PARCOURIR", DesignConstants.PURPLE_ACCENT, DesignConstants.PURPLE_ACCENT_DARK, false);
+        ModernButton chooseDirBtn = new ModernButton("PARCOURIR", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, false);
         chooseDirBtn.setIcon(FontIcon.of(FontAwesomeSolid.FOLDER_OPEN, 16, DesignConstants.TEXT_PRIMARY));
         chooseDirBtn.addActionListener(e -> {
             JFileChooser fc = new JFileChooser(LauncherConfig.getGameDir());
             fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
             if (fc.showOpenDialog(SettingsPanel.this) == JFileChooser.APPROVE_OPTION) {
                 File dir = fc.getSelectedFile();
-                if (dir != null) gameDirField.setText(dir.getAbsolutePath());
+                if (dir != null)
+                    gameDirField.setText(dir.getAbsolutePath());
             }
         });
         JPanel pathPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -281,34 +294,74 @@ public class SettingsPanel extends JPanel {
         p.add(Box.createVerticalStrut(10));
         JPanel cachePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         cachePanel.setOpaque(false);
-        ModernButton clearCacheBtn = new ModernButton("VIDER CACHE", DesignConstants.PURPLE_ACCENT, DesignConstants.PURPLE_ACCENT_DARK, false);
+        ModernButton clearCacheBtn = new ModernButton("VIDER CACHE", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, false);
         clearCacheBtn.setIcon(FontIcon.of(FontAwesomeSolid.TRASH, 16, DesignConstants.TEXT_PRIMARY));
         clearCacheBtn.addActionListener(e -> {
-            int res = JOptionPane.showConfirmDialog(SettingsPanel.this, "Vider le cache?", "Confirmation", JOptionPane.YES_NO_OPTION);
+            int res = JOptionPane.showConfirmDialog(SettingsPanel.this, "Vider le cache?", "Confirmation",
+                    JOptionPane.YES_NO_OPTION);
             if (res == JOptionPane.YES_OPTION) {
                 try {
                     deleteRecursive(new File(LauncherConfig.getCacheDir()));
                     JOptionPane.showMessageDialog(SettingsPanel.this, "Cache vidé.");
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(SettingsPanel.this, "Échec du vidage du cache.", "Erreur", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(SettingsPanel.this, "Échec du vidage du cache.", "Erreur",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
-        ModernButton resetDataBtn = new ModernButton("RÉINIT. DONNÉES", DesignConstants.PURPLE_ACCENT, DesignConstants.PURPLE_ACCENT_DARK, false);
+        ModernButton resetDataBtn = new ModernButton("RÉINIT. DONNÉES", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, false);
         resetDataBtn.setIcon(FontIcon.of(FontAwesomeSolid.BROOM, 16, DesignConstants.TEXT_PRIMARY));
         resetDataBtn.addActionListener(e -> {
-            int res = JOptionPane.showConfirmDialog(SettingsPanel.this, "Réinitialiser toutes les données?", "Zone dangereuse", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            int res = JOptionPane.showConfirmDialog(SettingsPanel.this, "Réinitialiser toutes les données?",
+                    "Zone dangereuse", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
             if (res == JOptionPane.YES_OPTION) {
                 try {
                     deleteRecursive(new File(LauncherConfig.getDataFolder()));
                     JOptionPane.showMessageDialog(SettingsPanel.this, "Données réinitialisées.");
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(SettingsPanel.this, "Échec de la réinitialisation.", "Erreur", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(SettingsPanel.this, "Échec de la réinitialisation.", "Erreur",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
+
+        ModernButton repairBtn = new ModernButton("RÉPARER LE JEU", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK,
+                false);
+        repairBtn.setIcon(FontIcon.of(FontAwesomeSolid.TOOLS, 16, DesignConstants.TEXT_PRIMARY));
+        repairBtn.addActionListener(e -> {
+            int res = JOptionPane.showConfirmDialog(SettingsPanel.this,
+                    "Ceci va forcer la re-synchronisation de tous les fichiers du jeu.\nContinuer ?",
+                    "Réparation", JOptionPane.YES_NO_OPTION);
+            if (res == JOptionPane.YES_OPTION) {
+                SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+                    @Override
+                    protected Void doInBackground() throws Exception {
+                        new GitHubModManager(null).syncAllData();
+                        return null;
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            get();
+                            JOptionPane.showMessageDialog(SettingsPanel.this, "Jeu réparé avec succès !");
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(SettingsPanel.this,
+                                    "Erreur durant la réparation: " + ex.getMessage(), "Erreur",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                };
+                worker.execute();
+            }
+        });
+
         cachePanel.add(clearCacheBtn);
         cachePanel.add(resetDataBtn);
+        cachePanel.add(repairBtn);
         cachePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         p.add(cachePanel);
 
@@ -324,7 +377,8 @@ public class SettingsPanel extends JPanel {
         p.add(Box.createVerticalStrut(10));
         JPanel diagPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         diagPanel.setOpaque(false);
-        ModernButton exportLogsBtn = new ModernButton("EXPORTER LOGS", DesignConstants.PURPLE_ACCENT, DesignConstants.PURPLE_ACCENT_DARK, false);
+        ModernButton exportLogsBtn = new ModernButton("EXPORTER LOGS", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, false);
         exportLogsBtn.setIcon(FontIcon.of(FontAwesomeSolid.FILE_ARCHIVE, 16, DesignConstants.TEXT_PRIMARY));
         exportLogsBtn.addActionListener(e -> {
             try {
@@ -332,10 +386,12 @@ public class SettingsPanel extends JPanel {
                 zipLogs(zip);
                 JOptionPane.showMessageDialog(SettingsPanel.this, "Logs exportés: " + zip.getAbsolutePath());
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(SettingsPanel.this, "Échec export logs.", "Erreur", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(SettingsPanel.this, "Échec export logs.", "Erreur",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
-        ModernButton testConnBtn = new ModernButton("TESTER CONNECTIVITÉ", DesignConstants.PURPLE_ACCENT, DesignConstants.PURPLE_ACCENT_DARK, false);
+        ModernButton testConnBtn = new ModernButton("TESTER CONNECTIVITÉ", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, false);
         testConnBtn.setIcon(FontIcon.of(FontAwesomeSolid.WIFI, 16, DesignConstants.TEXT_PRIMARY));
         testConnBtn.addActionListener(e -> testConnectivity());
         diagPanel.add(exportLogsBtn);
@@ -380,29 +436,37 @@ public class SettingsPanel extends JPanel {
         chooser.setDialogTitle("Sélectionner un skin PNG");
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
-            if (file == null || !file.exists()) return;
+            if (file == null || !file.exists())
+                return;
             if (!file.getName().toLowerCase().endsWith(".png")) {
                 JOptionPane.showMessageDialog(this, "Doit être un PNG.", "Erreur", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
                 long startTime = System.currentTimeMillis();
-                @Override protected Void doInBackground() throws Exception {
+
+                @Override
+                protected Void doInBackground() throws Exception {
                     logger.info("[SKIN] Upload de: {}", file.getName());
                     com.nexaria.launcher.auth.AzAuthManager authMgr = new com.nexaria.launcher.auth.AzAuthManager(url);
                     authMgr.uploadSkin(token, file);
                     return null;
                 }
-                @Override protected void done() {
+
+                @Override
+                protected void done() {
                     try {
                         get();
                         long duration = System.currentTimeMillis() - startTime;
                         logger.info("[SKIN] OK en {}ms", duration);
-                        JOptionPane.showMessageDialog(SettingsPanel.this, "Skin mis à jour!", "Succès", JOptionPane.INFORMATION_MESSAGE);
-                        if (onSkinChanged != null) onSkinChanged.run();
+                        JOptionPane.showMessageDialog(SettingsPanel.this, "Skin mis à jour!", "Succès",
+                                JOptionPane.INFORMATION_MESSAGE);
+                        if (onSkinChanged != null)
+                            onSkinChanged.run();
                     } catch (Exception ex) {
                         logger.error("[SKIN] ERREUR: {}", ex.getMessage());
-                        JOptionPane.showMessageDialog(SettingsPanel.this, "Échec mise à jour.", "Erreur", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(SettingsPanel.this, "Échec mise à jour.", "Erreur",
+                                JOptionPane.ERROR_MESSAGE);
                     }
                 }
             };
@@ -410,14 +474,19 @@ public class SettingsPanel extends JPanel {
         }
     }
 
-
     private void deleteRecursive(File f) {
-        if (f == null || !f.exists()) return;
+        if (f == null || !f.exists())
+            return;
         if (f.isDirectory()) {
             File[] kids = f.listFiles();
-            if (kids != null) for (File k : kids) deleteRecursive(k);
+            if (kids != null)
+                for (File k : kids)
+                    deleteRecursive(k);
         }
-        try { f.delete(); } catch (Exception ignore) {}
+        try {
+            f.delete();
+        } catch (Exception ignore) {
+        }
     }
 
     private void zipLogs(File zipFile) throws Exception {
@@ -433,7 +502,8 @@ public class SettingsPanel extends JPanel {
                     try (FileInputStream in = new FileInputStream(f)) {
                         byte[] buf = new byte[8192];
                         int r;
-                        while ((r = in.read(buf)) != -1) zos.write(buf, 0, r);
+                        while ((r = in.read(buf)) != -1)
+                            zos.write(buf, 0, r);
                     }
                     zos.closeEntry();
                 }
@@ -444,9 +514,11 @@ public class SettingsPanel extends JPanel {
     }
 
     private void testConnectivity() {
-        SwingWorker<Void, String> worker = new SwingWorker<Void, String>(){
+        SwingWorker<Void, String> worker = new SwingWorker<Void, String>() {
             long startTime = System.currentTimeMillis();
-            @Override protected Void doInBackground() throws Exception {
+
+            @Override
+            protected Void doInBackground() throws Exception {
                 logger.info("[CONNECTIVITY] Test debut");
                 String host = LauncherConfig.getInstance().getServerHost();
                 int port = LauncherConfig.getInstance().getServerPort();
@@ -461,7 +533,8 @@ public class SettingsPanel extends JPanel {
 
                 String az = LauncherConfig.getInstance().getAzuriomUrl();
                 try {
-                    java.net.HttpURLConnection conn = (java.net.HttpURLConnection) java.net.URI.create(az).toURL().openConnection();
+                    java.net.HttpURLConnection conn = (java.net.HttpURLConnection) java.net.URI.create(az).toURL()
+                            .openConnection();
                     conn.setRequestMethod("HEAD");
                     conn.setConnectTimeout(3000);
                     conn.connect();
@@ -475,22 +548,31 @@ public class SettingsPanel extends JPanel {
                 logger.info("[CONNECTIVITY] Test termine en {}ms", duration);
                 return null;
             }
-            @Override protected void process(java.util.List<String> msgs) {
-                if (!msgs.isEmpty()) JOptionPane.showMessageDialog(SettingsPanel.this, String.join("\n", msgs));
+
+            @Override
+            protected void process(java.util.List<String> msgs) {
+                if (!msgs.isEmpty())
+                    JOptionPane.showMessageDialog(SettingsPanel.this, String.join("\n", msgs));
             }
         };
         worker.execute();
     }
 
     public LauncherConfig getUpdatedConfig() {
-        if (ramSlider != null) cfg.setMaxMemory(ramSlider.getValue());
-        if (autoUpdate != null) cfg.setAutoUpdate(autoUpdate.isSelected());
-        if (debugMode != null) cfg.setDebugMode(debugMode.isSelected());
-        if (rateSpinner != null) cfg.setDownloadRateLimitKBps((Integer) rateSpinner.getValue());
-        if (rememberDefault != null) cfg.setRememberMeDefault(rememberDefault.isSelected());
+        if (ramSlider != null)
+            cfg.setMaxMemory(ramSlider.getValue());
+        if (autoUpdate != null)
+            cfg.setAutoUpdate(autoUpdate.isSelected());
+        if (debugMode != null)
+            cfg.setDebugMode(debugMode.isSelected());
+        if (rateSpinner != null)
+            cfg.setDownloadRateLimitKBps((Integer) rateSpinner.getValue());
+        if (rememberDefault != null)
+            cfg.setRememberMeDefault(rememberDefault.isSelected());
         if (gameDirField != null) {
             String newDir = gameDirField.getText().trim();
-            if (!newDir.isEmpty()) cfg.setGameDir(newDir);
+            if (!newDir.isEmpty())
+                cfg.setGameDir(newDir);
         }
         return cfg;
     }
