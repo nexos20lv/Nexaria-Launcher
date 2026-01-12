@@ -40,6 +40,7 @@ wget https://github.com/nexos20lv/Nexaria-Launcher/releases/latest/download/nexa
 
 ## Problèmes fréquents
 - "java n'est pas reconnu" : ajoutez le dossier Java 21 dans PATH ou relancez la session.
+- Le jeu ne se lance pas (SecurityException) : Fermez les logiciels de triche ou de débogage (Cheat Engine, Process Hacker, etc.) car l'Anti-Cheat empêche le lancement.
 - macOS bloque l'ouverture : clic droit > Ouvrir (une fois), ou `chmod +x` inutile pour un JAR.
 - UnsupportedClassVersionError : installez Java 21 et relancez.
 

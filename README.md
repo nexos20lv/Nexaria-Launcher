@@ -13,7 +13,10 @@ Launcher Minecraft avec authentification Azuriom, synchronisation automatique de
 - Manifest unifié `data-manifest.json` (SHA-256) généré au build
 - Double vérification d'intégrité (après synchro et juste avant lancement), politique strict/warn
 - Quarantaine automatique des fichiers inattendus/modifiés
-- Authentification Azuriom + auto-login, anti-cheat basique
+- Authentification Azuriom + auto-login, support 2FA (double facteur)
+- Anti-Cheat client (détection processus interdits, hardening JVM)
+- Galerie de screenshots intégrée avec visualisation et gestion
+- Console de débogage avec export de logs (.zip)
 - UI Swing avec FlatLaf, news RSS, statut serveur, minimisation automatique pendant le jeu
 
 ---
@@ -86,14 +89,15 @@ minMemory: 1024
 maxMemory: 4096
 jvmArgs: -XX:+UseG1GC -XX:MaxGCPauseMillis=200
 
-serverHost: eclozionmc.ovh
-serverPort: 25565
-serverName: EclozionMC
+serverHost: 151.240.30.3
+serverPort: 25545
+serverName: Nexaria
 
 autoUpdate: true
 debugMode: false
 minimizeOnLaunch: true
 enforceModPolicy: true
+bannedProcessesCsv: cheatengine.exe, processhacker.exe, x64dbg.exe, x32dbg.exe, ida64.exe, ida.exe, ollydbg.exe, wireshark.exe, fiddler.exe
 ```
 
 ---
