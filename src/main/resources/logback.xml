@@ -23,5 +23,5 @@
         <appender-ref ref="FILE" />
     </root>
 
-    <logger name="com.nexaria" level="DEBUG"/>
+    <logger name="com.nexaria" level="INFO"/>
 </configuration>

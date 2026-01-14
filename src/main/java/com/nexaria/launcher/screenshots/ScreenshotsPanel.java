@@ -2,37 +2,89 @@ package com.nexaria.launcher.screenshots;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.datatransfer.StringSelection;
+
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.*;
+import javax.imageio.ImageIO;
 import java.util.ArrayList;
 import java.util.List;
+
+import java.util.stream.Collectors;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.swing.FontIcon;
 import com.nexaria.launcher.ui.DesignConstants;
 import com.nexaria.launcher.ui.ModernButton;
+import com.nexaria.launcher.config.LauncherConfig;
+import com.nexaria.launcher.util.ImageSelection;
 
 /**
- * Panel pour afficher la galerie de screenshots
+ * Panel pour afficher la galerie de screenshots avec pagination (3x3)
  */
 public class ScreenshotsPanel extends JPanel {
-    private JPanel gridPanel;
-    private List<ScreenshotCard> cards;
+    private static final String VIEW_GRID = "GRID";
+    private static final String VIEW_DETAIL = "DETAIL";
+    private static final int ITEMS_PER_PAGE = 9;
+
+    private CardLayout cardLayout;
+    private JPanel mainContainer;
+
+    // Grid View
+    private JPanel gridViewPanel; // Container global de la vue grille
+    private JPanel gridContent; // La grille 3x3
+    private JLabel pageIndicator;
+    private ModernButton prevBtn;
+    private ModernButton nextBtn;
+
+    // Data
+    private List<File> allScreenshots;
+    private int currentPage = 0;
+
+    // Detail View
+    private JPanel detailPanel;
+    private JLabel detailImageLabel;
+    private File currentDetailFile;
+
     private Path screenshotsDir;
     private WatchService watchService;
     private Thread watchThread;
 
     public ScreenshotsPanel() {
-        this.cards = new ArrayList<>();
-        this.screenshotsDir = Paths.get("game/screenshots");
+        this.allScreenshots = new ArrayList<>();
+        this.screenshotsDir = Paths.get(LauncherConfig.getGameDir(), "screenshots");
 
         setOpaque(false);
         setLayout(new BorderLayout());
 
+        cardLayout = new CardLayout();
+        mainContainer = new JPanel(cardLayout);
+        mainContainer.setOpaque(false);
+
+        initGridView();
+        initDetailView();
+
+        mainContainer.add(gridViewPanel, VIEW_GRID);
+        mainContainer.add(detailPanel, VIEW_DETAIL);
+
+        add(mainContainer, BorderLayout.CENTER);
+
+        // Charger les screenshots
+        loadScreenshots();
+
+        // Démarrer la surveillance du dossier
+        startWatching();
+    }
+
+    private void initGridView() {
+        gridViewPanel = new JPanel(new BorderLayout());
+        gridViewPanel.setOpaque(false);
+
         // Header
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        header.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        header.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(255, 255, 255, 30)),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
 
         JLabel title = new JLabel("Galerie de Screenshots");
         title.setFont(DesignConstants.FONT_HEADER.deriveFont(20f));
@@ -46,70 +98,240 @@ public class ScreenshotsPanel extends JPanel {
         refreshBtn.addActionListener(e -> loadScreenshots());
         header.add(refreshBtn, BorderLayout.EAST);
 
-        add(header, BorderLayout.NORTH);
+        gridViewPanel.add(header, BorderLayout.NORTH);
 
-        // Grille de screenshots
-        gridPanel = new JPanel();
-        gridPanel.setOpaque(false);
-        gridPanel.setLayout(new GridLayout(0, 4, 15, 15)); // 4 colonnes
-        gridPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // Grille content (3x3 fixe)
+        gridContent = new JPanel(new GridLayout(3, 3, 15, 15));
+        gridContent.setOpaque(false);
+        gridContent.setBorder(BorderFactory.createEmptyBorder(15, 15, 0, 15));
 
-        JScrollPane scrollPane = new JScrollPane(gridPanel);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(null);
-        add(scrollPane, BorderLayout.CENTER);
+        gridViewPanel.add(gridContent, BorderLayout.CENTER);
 
-        // Charger les screenshots
-        loadScreenshots();
+        // Pagination controls
+        JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        paginationPanel.setOpaque(false);
+        paginationPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
 
-        // Démarrer la surveillance du dossier
-        startWatching();
+        prevBtn = new ModernButton("Précédent", new Color(60, 60, 70), new Color(40, 40, 50), true);
+        prevBtn.setIcon(FontIcon.of(FontAwesomeSolid.CHEVRON_LEFT, 12, Color.WHITE));
+        prevBtn.addActionListener(e -> prevPage());
+        paginationPanel.add(prevBtn);
+
+        pageIndicator = new JLabel("Page 1 / 1");
+        pageIndicator.setForeground(Color.WHITE);
+        pageIndicator.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
+        paginationPanel.add(pageIndicator);
+
+        nextBtn = new ModernButton("Suivant", new Color(60, 60, 70), new Color(40, 40, 50), true);
+        nextBtn.setIcon(FontIcon.of(FontAwesomeSolid.CHEVRON_RIGHT, 12, Color.WHITE));
+        nextBtn.setHorizontalTextPosition(SwingConstants.LEFT);
+        nextBtn.addActionListener(e -> nextPage());
+        paginationPanel.add(nextBtn);
+
+        gridViewPanel.add(paginationPanel, BorderLayout.SOUTH);
+    }
+
+    private void initDetailView() {
+        detailPanel = new JPanel(new BorderLayout());
+        detailPanel.setOpaque(false);
+
+        // Image display area
+        detailImageLabel = new JLabel();
+        detailImageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        detailPanel.add(detailImageLabel, BorderLayout.CENTER);
+
+        // Toolbar
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        toolbar.setBackground(new Color(30, 20, 40, 200));
+
+        // Back Button
+        ModernButton backBtn = new ModernButton("RETOUR", new Color(100, 100, 100), new Color(80, 80, 80), true);
+        backBtn.setIcon(FontIcon.of(FontAwesomeSolid.ARROW_LEFT, 14, DesignConstants.TEXT_PRIMARY));
+        backBtn.addActionListener(e -> showGrid());
+        toolbar.add(backBtn);
+
+        // Actions
+        ModernButton copyBtn = new ModernButton("COPIER IMAGE", new Color(60, 120, 180), new Color(40, 100, 160), true);
+        copyBtn.setIcon(FontIcon.of(FontAwesomeSolid.COPY, 14, DesignConstants.TEXT_PRIMARY));
+        copyBtn.addActionListener(e -> copyCurrentToClipboard());
+        toolbar.add(copyBtn);
+
+        ModernButton folderBtn = new ModernButton("DOSSIER", DesignConstants.PURPLE_ACCENT,
+                DesignConstants.PURPLE_ACCENT_DARK, true);
+        folderBtn.setIcon(FontIcon.of(FontAwesomeSolid.FOLDER_OPEN, 14, DesignConstants.TEXT_PRIMARY));
+        folderBtn.addActionListener(e -> openCurrentFolder());
+        toolbar.add(folderBtn);
+
+        ModernButton deleteBtn = new ModernButton("SUPPRIMER", new Color(200, 60, 60), new Color(160, 40, 40), true);
+        deleteBtn.setIcon(FontIcon.of(FontAwesomeSolid.TRASH, 14, DesignConstants.TEXT_PRIMARY));
+        deleteBtn.addActionListener(e -> deleteCurrent());
+        toolbar.add(deleteBtn);
+
+        detailPanel.add(toolbar, BorderLayout.SOUTH);
+    }
+
+    private void showGrid() {
+        cardLayout.show(mainContainer, VIEW_GRID);
+        currentDetailFile = null;
+        detailImageLabel.setIcon(null); // Clear memory
+    }
+
+    private void showDetail(File file) {
+        currentDetailFile = file;
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                BufferedImage img = ImageIO.read(file);
+                if (img != null) {
+                    // Fit to container logic (simplified)
+                    int maxWidth = getWidth() - 40;
+                    int maxHeight = getHeight() - 100;
+                    if (maxWidth <= 0)
+                        maxWidth = 800;
+                    if (maxHeight <= 0)
+                        maxHeight = 600;
+
+                    Image scaled = getScaledImage(img, maxWidth, maxHeight);
+                    detailImageLabel.setIcon(new ImageIcon(scaled));
+                }
+            } catch (Exception e) {
+                detailImageLabel.setText("Erreur de chargement");
+            }
+        });
+
+        cardLayout.show(mainContainer, VIEW_DETAIL);
+    }
+
+    private Image getScaledImage(BufferedImage src, int w, int h) {
+        double ratio = Math.min((double) w / src.getWidth(), (double) h / src.getHeight());
+        if (ratio >= 1.0)
+            return src;
+        int newW = (int) (src.getWidth() * ratio);
+        int newH = (int) (src.getHeight() * ratio);
+        return src.getScaledInstance(newW, newH, Image.SCALE_SMOOTH);
     }
 
     private void loadScreenshots() {
-        gridPanel.removeAll();
-        cards.clear();
-
         try {
-            // Créer le dossier s'il n'existe pas
             Files.createDirectories(screenshotsDir);
 
-            // Lister tous les fichiers PNG
-            Files.list(screenshotsDir)
+            // Reload list from disk
+            allScreenshots = Files.list(screenshotsDir)
                     .filter(path -> path.toString().toLowerCase().endsWith(".png"))
-                    .sorted((a, b) -> {
-                        try {
-                            return Files.getLastModifiedTime(b).compareTo(Files.getLastModifiedTime(a));
-                        } catch (Exception e) {
-                            return 0;
-                        }
-                    })
-                    .forEach(path -> {
-                        File file = path.toFile();
-                        ScreenshotCard card = new ScreenshotCard(
-                                file,
-                                () -> viewScreenshot(file),
-                                null, // Plus de partage Discord
-                                () -> deleteScreenshot(file));
-                        cards.add(card);
-                        gridPanel.add(card);
-                    });
+                    .map(Path::toFile)
+                    .sorted((a, b) -> Long.compare(b.lastModified(), a.lastModified()))
+                    .collect(Collectors.toList());
 
-            if (cards.isEmpty()) {
-                JLabel noScreenshots = new JLabel("Aucun screenshot trouvé");
-                noScreenshots.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
-                noScreenshots.setForeground(new Color(255, 255, 255, 120));
-                noScreenshots.setHorizontalAlignment(SwingConstants.CENTER);
-                gridPanel.add(noScreenshots);
+            // Reset to page 0 if out of bounds or just fresh load
+            if (currentPage * ITEMS_PER_PAGE >= allScreenshots.size()) {
+                currentPage = 0;
             }
+
+            refreshGrid();
 
         } catch (Exception e) {
             System.err.println("[ScreenshotsPanel] Erreur chargement: " + e.getMessage());
+            allScreenshots.clear();
+            refreshGrid();
+        }
+    }
+
+    private void refreshGrid() {
+        gridContent.removeAll();
+
+        int totalItems = allScreenshots.size();
+        int totalPages = (int) Math.ceil((double) totalItems / ITEMS_PER_PAGE);
+        if (totalPages == 0)
+            totalPages = 1;
+
+        if (currentPage >= totalPages)
+            currentPage = totalPages - 1;
+        if (currentPage < 0)
+            currentPage = 0;
+
+        pageIndicator.setText("Page " + (currentPage + 1) + " / " + totalPages);
+
+        prevBtn.setEnabled(currentPage > 0);
+        nextBtn.setEnabled(currentPage < totalPages - 1);
+
+        if (allScreenshots.isEmpty()) {
+            JLabel noScreenshots = new JLabel("Aucun screenshot trouvé");
+            noScreenshots.setFont(DesignConstants.FONT_REGULAR.deriveFont(14f));
+            noScreenshots.setForeground(new Color(255, 255, 255, 120));
+            noScreenshots.setHorizontalAlignment(SwingConstants.CENTER);
+            gridContent.add(noScreenshots); // Will take 1st cell
+            // Fill rest with empty to keep grid shape if needed, but GridLayout handles it
+            // ok
+        } else {
+            int start = currentPage * ITEMS_PER_PAGE;
+            int end = Math.min(start + ITEMS_PER_PAGE, totalItems);
+
+            for (int i = start; i < end; i++) {
+                File file = allScreenshots.get(i);
+                ScreenshotCard card = new ScreenshotCard(
+                        file,
+                        () -> showDetail(file),
+                        null,
+                        () -> deleteScreenshot(file));
+                gridContent.add(card);
+            }
         }
 
-        gridPanel.revalidate();
-        gridPanel.repaint();
+        gridContent.revalidate();
+        gridContent.repaint();
+    }
+
+    private void prevPage() {
+        if (currentPage > 0) {
+            currentPage--;
+            refreshGrid();
+        }
+    }
+
+    private void nextPage() {
+        int totalPages = (int) Math.ceil((double) allScreenshots.size() / ITEMS_PER_PAGE);
+        if (currentPage < totalPages - 1) {
+            currentPage++;
+            refreshGrid();
+        }
+    }
+
+    private void copyCurrentToClipboard() {
+        if (currentDetailFile == null)
+            return;
+        try {
+            Image img = ImageIO.read(currentDetailFile);
+            ImageSelection trans = new ImageSelection(img);
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(trans, null);
+            JOptionPane.showMessageDialog(this, "Image copiée !", "Succès", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Erreur copie: " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void openCurrentFolder() {
+        if (currentDetailFile == null)
+            return;
+        try {
+            Desktop.getDesktop().open(currentDetailFile.getParentFile());
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Erreur ouverture dossier", "Erreur", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void deleteCurrent() {
+        if (currentDetailFile == null)
+            return;
+        int choice = JOptionPane.showConfirmDialog(this, "Supprimer ce screenshot ?", "Confirmation",
+                JOptionPane.YES_NO_OPTION);
+        if (choice == JOptionPane.YES_OPTION) {
+            if (currentDetailFile.delete()) {
+                showGrid();
+                loadScreenshots();
+            } else {
+                JOptionPane.showMessageDialog(this, "Erreur suppression", "Erreur", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private void startWatching() {
@@ -124,7 +346,12 @@ public class ScreenshotsPanel extends JPanel {
                     try {
                         WatchKey key = watchService.take();
                         Thread.sleep(500); // Debounce
-                        SwingUtilities.invokeLater(() -> loadScreenshots());
+                        SwingUtilities.invokeLater(() -> {
+                            // Only reload if we are in grid view
+                            if (currentDetailFile == null) {
+                                loadScreenshots();
+                            }
+                        });
                         key.reset();
                     } catch (InterruptedException e) {
                         break;
@@ -139,87 +366,7 @@ public class ScreenshotsPanel extends JPanel {
         }
     }
 
-    private void viewScreenshot(File file) {
-        // Créer une fenêtre lightbox pour afficher le screenshot en grand
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Screenshot", true);
-        dialog.setLayout(new BorderLayout());
-
-        try {
-            ImageIcon icon = new ImageIcon(file.getAbsolutePath());
-
-            // Redimensionner si trop grand
-            int maxWidth = 1200;
-            int maxHeight = 800;
-            if (icon.getIconWidth() > maxWidth || icon.getIconHeight() > maxHeight) {
-                Image img = icon.getImage();
-                double ratio = Math.min((double) maxWidth / icon.getIconWidth(),
-                        (double) maxHeight / icon.getIconHeight());
-                int newWidth = (int) (icon.getIconWidth() * ratio);
-                int newHeight = (int) (icon.getIconHeight() * ratio);
-                icon = new ImageIcon(img.getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH));
-            }
-
-            JLabel imageLabel = new JLabel(icon);
-            imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            dialog.add(imageLabel, BorderLayout.CENTER);
-
-            // Boutons d'action
-            JPanel buttons = new JPanel(new FlowLayout());
-            buttons.setBackground(new Color(30, 20, 40));
-
-            ModernButton copyBtn = new ModernButton("COPIER CHEMIN", new Color(60, 120, 180),
-                    new Color(40, 100, 160), true);
-            copyBtn.setIcon(FontIcon.of(FontAwesomeSolid.COPY, 14, DesignConstants.TEXT_PRIMARY));
-            copyBtn.addActionListener(e -> {
-                Toolkit.getDefaultToolkit().getSystemClipboard()
-                        .setContents(new StringSelection(file.getAbsolutePath()), null);
-                JOptionPane.showMessageDialog(
-                        dialog,
-                        "Chemin copié dans le presse-papier !",
-                        "Succès",
-                        JOptionPane.INFORMATION_MESSAGE);
-            });
-            buttons.add(copyBtn);
-
-            ModernButton openFolderBtn = new ModernButton("OUVRIR DOSSIER", DesignConstants.PURPLE_ACCENT,
-                    DesignConstants.PURPLE_ACCENT_DARK, true);
-            openFolderBtn.setIcon(FontIcon.of(FontAwesomeSolid.FOLDER_OPEN, 14, DesignConstants.TEXT_PRIMARY));
-            openFolderBtn.addActionListener(e -> {
-                try {
-                    Desktop.getDesktop().open(file.getParentFile());
-                    dialog.dispose();
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(
-                            dialog,
-                            "Impossible d'ouvrir le dossier: " + ex.getMessage(),
-                            "Erreur",
-                            JOptionPane.ERROR_MESSAGE);
-                }
-            });
-            buttons.add(openFolderBtn);
-
-            ModernButton deleteBtn = new ModernButton("SUPPRIMER", new Color(200, 60, 60),
-                    new Color(160, 40, 40), true);
-            deleteBtn.setIcon(FontIcon.of(FontAwesomeSolid.TRASH, 14, DesignConstants.TEXT_PRIMARY));
-            deleteBtn.addActionListener(e -> {
-                deleteScreenshot(file);
-                dialog.dispose();
-            });
-            buttons.add(deleteBtn);
-
-            dialog.add(buttons, BorderLayout.SOUTH);
-
-        } catch (Exception e) {
-            JLabel error = new JLabel("Erreur de chargement");
-            error.setHorizontalAlignment(SwingConstants.CENTER);
-            dialog.add(error, BorderLayout.CENTER);
-        }
-
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
-    }
-
+    // Kept for compatibility with ScreenshotCard calls if needed
     private void deleteScreenshot(File file) {
         int choice = JOptionPane.showConfirmDialog(
                 this,
@@ -231,17 +378,6 @@ public class ScreenshotsPanel extends JPanel {
         if (choice == JOptionPane.YES_OPTION) {
             if (file.delete()) {
                 loadScreenshots();
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Screenshot supprimé",
-                        "Succès",
-                        JOptionPane.INFORMATION_MESSAGE);
-            } else {
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Impossible de supprimer le fichier",
-                        "Erreur",
-                        JOptionPane.ERROR_MESSAGE);
             }
         }
     }

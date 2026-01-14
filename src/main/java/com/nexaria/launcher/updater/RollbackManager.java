@@ -2,7 +2,6 @@ package com.nexaria.launcher.updater;
 
 import com.nexaria.launcher.logging.LoggingService;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,7 +9,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
+
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -20,7 +19,7 @@ import java.util.stream.Stream;
  */
 public class RollbackManager {
     private static final LoggingService logger = LoggingService.getLogger(RollbackManager.class);
-    
+
     private static final String BACKUP_DIR_NAME = "backups";
     private static final String CRASH_MARKER_FILE = ".crash_detected";
     private static final int MAX_BACKUPS = 5;
@@ -31,7 +30,7 @@ public class RollbackManager {
     public RollbackManager(Path launcherDir) {
         this.launcherDir = launcherDir;
         this.backupDir = launcherDir.resolve(BACKUP_DIR_NAME);
-        
+
         try {
             Files.createDirectories(backupDir);
         } catch (IOException e) {
@@ -43,7 +42,7 @@ public class RollbackManager {
      * Sauvegarde le JAR actuel avant une mise à jour.
      * 
      * @param currentJar Chemin du JAR actuel
-     * @param version Version actuelle
+     * @param version    Version actuelle
      * @return true si la sauvegarde a réussi
      */
     public boolean backupCurrentVersion(Path currentJar, String version) {
@@ -120,7 +119,7 @@ public class RollbackManager {
         logger.warn("Marking crash for version: {} - Reason: {}", version, reason);
 
         Path crashMarker = launcherDir.resolve(CRASH_MARKER_FILE);
-        
+
         try {
             String crashInfo = String.format("Crash detected at: %s%nVersion: %s%nReason: %s%n",
                     Instant.now(), version, reason);
@@ -138,7 +137,7 @@ public class RollbackManager {
      */
     public void clearCrashMarker() {
         Path crashMarker = launcherDir.resolve(CRASH_MARKER_FILE);
-        
+
         try {
             if (Files.exists(crashMarker)) {
                 Files.delete(crashMarker);
@@ -183,7 +182,8 @@ public class RollbackManager {
     }
 
     /**
-     * Liste toutes les sauvegardes disponibles, triées par date (plus récent en premier).
+     * Liste toutes les sauvegardes disponibles, triées par date (plus récent en
+     * premier).
      */
     private List<Path> findAllBackups() throws IOException {
         List<Path> backups = new ArrayList<>();
@@ -194,15 +194,15 @@ public class RollbackManager {
 
         try (Stream<Path> files = Files.list(backupDir)) {
             backups.addAll(files
-                 .filter(p -> p.getFileName().toString().endsWith(".jar"))
-                 .sorted((p1, p2) -> {
-                     try {
-                         return Files.getLastModifiedTime(p2).compareTo(Files.getLastModifiedTime(p1));
-                     } catch (IOException e) {
-                         return 0;
-                     }
-                 })
-                 .toList());
+                    .filter(p -> p.getFileName().toString().endsWith(".jar"))
+                    .sorted((p1, p2) -> {
+                        try {
+                            return Files.getLastModifiedTime(p2).compareTo(Files.getLastModifiedTime(p1));
+                        } catch (IOException e) {
+                            return 0;
+                        }
+                    })
+                    .toList());
         }
 
         return backups;

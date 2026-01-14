@@ -1,7 +1,7 @@
 package com.nexaria.launcher;
 
 import com.nexaria.launcher.config.LauncherConfig;
-import com.nexaria.launcher.downloader.GitHubModManager;
+import com.nexaria.launcher.services.update.UpdateService;
 import com.nexaria.launcher.ui.LauncherWindow;
 import com.nexaria.launcher.updater.UpdateManager;
 import org.slf4j.Logger;
@@ -62,7 +62,7 @@ public class LauncherApp {
             
             // Synchroniser data/ complet (mods + config)
             try {
-                GitHubModManager modManager = new GitHubModManager(null);
+                UpdateService modManager = new UpdateService(null);
                 modManager.syncAllData();
             } catch (Exception e) {
                 logger.warn("Erreur lors de la synchronisation de data/", e);

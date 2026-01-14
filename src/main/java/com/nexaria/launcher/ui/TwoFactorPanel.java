@@ -1,6 +1,6 @@
 package com.nexaria.launcher.ui;
 
-import com.nexaria.launcher.auth.AzAuthManager;
+import com.nexaria.launcher.services.auth.AzAuthManager;
 import com.nexaria.launcher.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

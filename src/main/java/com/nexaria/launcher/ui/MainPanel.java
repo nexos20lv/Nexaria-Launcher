@@ -191,7 +191,7 @@ public class MainPanel extends JPanel {
             @Override
             protected com.nexaria.launcher.model.ServerStatusInfo doInBackground() throws Exception {
                 logger.info("[SERVEUR] Ping vers {}:{}", host, port);
-                return com.nexaria.launcher.downloader.MinecraftServerPing.ping(host, port, name);
+                return com.nexaria.launcher.services.update.MinecraftServerPing.ping(host, port, name);
             }
 
             @Override

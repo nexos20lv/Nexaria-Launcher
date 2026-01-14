@@ -11,15 +11,11 @@ import java.awt.event.MouseEvent;
 import java.net.URI;
 
 public class NewsCard extends JPanel {
-    private final RSSFeedParser.NewsItem newsItem;
     private boolean isHovered = false;
-    private Color currentBorderColor = new Color(255, 255, 255, 30);
-    private int borderWidth = 1;
     private static final int CORNER_RADIUS = 15;
 
     public NewsCard(RSSFeedParser.NewsItem item) {
         super();
-        this.newsItem = item;
         setOpaque(false);
         setLayout(new BorderLayout(10, 10));
         setPreferredSize(new Dimension(320, 160));
@@ -126,16 +122,12 @@ public class NewsCard extends JPanel {
             @Override
             public void mouseEntered(MouseEvent e) {
                 isHovered = true;
-                currentBorderColor = DesignConstants.PURPLE_ACCENT;
-                borderWidth = 2;
                 repaint();
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
                 isHovered = false;
-                currentBorderColor = new Color(255, 255, 255, 30);
-                borderWidth = 1;
                 repaint();
             }
         });

@@ -44,6 +44,7 @@ public class LauncherConfig {
     public String serverHost;
     public int serverPort;
     public String serverName;
+    public boolean forceRepair;
 
     // Répertoires
     // Dossier de données runtime (AppData selon l'OS)
@@ -106,6 +107,7 @@ public class LauncherConfig {
             instance.serverHost = "151.240.30.3";
             instance.serverPort = 25545;
             instance.serverName = "Nexaria";
+            instance.forceRepair = false;
 
             // Initialiser le dossier de données runtime (AppData selon OS)
             instance.dataFolder = computeAppDataDir();
@@ -289,6 +291,10 @@ public class LauncherConfig {
 
     public void setRememberMeDefault(boolean v) {
         this.rememberMeDefault = v;
+    }
+
+    public void setForceRepair(boolean v) {
+        this.forceRepair = v;
     }
 
     public void saveConfig() {

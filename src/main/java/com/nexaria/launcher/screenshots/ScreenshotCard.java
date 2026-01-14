@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;
+import com.nexaria.launcher.ui.DesignConstants;
 
 /**
  * Carte pour afficher un screenshot avec miniature et actions
@@ -23,8 +24,8 @@ public class ScreenshotCard extends JPanel {
         this.onShare = onShare;
         this.onDelete = onDelete;
 
-        setPreferredSize(new Dimension(200, 200));
-        setMaximumSize(new Dimension(200, 200));
+        setPreferredSize(new Dimension(240, 170)); // Format paysage plus large
+        setMaximumSize(new Dimension(240, 170));
         setOpaque(false);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
@@ -58,8 +59,8 @@ public class ScreenshotCard extends JPanel {
         new Thread(() -> {
             try {
                 BufferedImage original = ImageIO.read(screenshotFile);
-                // Créer une miniature 180x180
-                thumbnail = createThumbnail(original, 180);
+                // Créer une miniature ~220px de large
+                thumbnail = createThumbnail(original, 220, 130);
                 SwingUtilities.invokeLater(() -> repaint());
             } catch (Exception e) {
                 System.err.println("[ScreenshotCard] Erreur chargement: " + e.getMessage());
@@ -67,35 +68,23 @@ public class ScreenshotCard extends JPanel {
         }).start();
     }
 
-    private BufferedImage createThumbnail(BufferedImage original, int size) {
-        int width = original.getWidth();
-        int height = original.getHeight();
-
-        // Calculer les dimensions pour garder le ratio
-        double ratio = (double) width / height;
-        int thumbWidth, thumbHeight;
-
-        if (ratio > 1) {
-            thumbWidth = size;
-            thumbHeight = (int) (size / ratio);
-        } else {
-            thumbHeight = size;
-            thumbWidth = (int) (size * ratio);
-        }
-
-        BufferedImage thumb = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+    private BufferedImage createThumbnail(BufferedImage original, int targetW, int targetH) {
+        BufferedImage thumb = new BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = thumb.createGraphics();
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Fond noir
-        g2.setColor(Color.BLACK);
-        g2.fillRect(0, 0, size, size);
+        // Resize "cover" style (remplir tout)
+        double ratioW = (double) targetW / original.getWidth();
+        double ratioH = (double) targetH / original.getHeight();
+        double ratio = Math.max(ratioW, ratioH);
 
-        // Centrer l'image
-        int x = (size - thumbWidth) / 2;
-        int y = (size - thumbHeight) / 2;
-        g2.drawImage(original, x, y, thumbWidth, thumbHeight, null);
+        int w = (int) (original.getWidth() * ratio);
+        int h = (int) (original.getHeight() * ratio);
+        int x = (targetW - w) / 2;
+        int y = (targetH - h) / 2;
+
+        g2.drawImage(original, x, y, w, h, null);
         g2.dispose();
 
         return thumb;
@@ -112,39 +101,51 @@ public class ScreenshotCard extends JPanel {
 
         // Fond avec glassmorphism
         if (hovered) {
-            g2.setColor(new Color(60, 40, 80, 200));
+            g2.setColor(new Color(70, 50, 90, 220));
         } else {
             g2.setColor(new Color(40, 30, 50, 180));
         }
-        g2.fillRoundRect(0, 0, width, height, 15, 15);
+        g2.fillRoundRect(0, 0, width, height, 12, 12);
 
         // Bordure
-        g2.setColor(hovered ? new Color(170, 80, 255, 150) : new Color(255, 255, 255, 50));
-        g2.setStroke(new BasicStroke(2f));
-        g2.drawRoundRect(1, 1, width - 2, height - 2, 15, 15);
+        g2.setColor(hovered ? new Color(170, 80, 255, 180) : new Color(255, 255, 255, 40));
+        g2.setStroke(new BasicStroke(hovered ? 1.5f : 1f));
+        g2.drawRoundRect(0, 0, width - 1, height - 1, 12, 12);
 
         // Dessiner la miniature
+        int thumbX = 10;
+        int thumbY = 10;
+        int thumbW = width - 20;
+        int thumbH = height - 40; // Espace pour le texte en bas
+
+        // Zone image
+        Shape oldClip = g2.getClip();
+        g2.setClip(new java.awt.geom.RoundRectangle2D.Float(thumbX, thumbY, thumbW, thumbH, 8, 8));
+
         if (thumbnail != null) {
-            int thumbX = (width - thumbnail.getWidth()) / 2;
-            int thumbY = 10;
-            g2.drawImage(thumbnail, thumbX, thumbY, null);
+            g2.drawImage(thumbnail, thumbX, thumbY, thumbW, thumbH, null);
         } else {
             // Placeholder
-            g2.setColor(new Color(255, 255, 255, 50));
-            g2.fillRoundRect(10, 10, width - 20, 140, 10, 10);
-            g2.setColor(new Color(255, 255, 255, 100));
-            g2.setFont(new Font("Arial", Font.PLAIN, 12));
-            g2.drawString("Chargement...", 50, 85);
+            g2.setColor(new Color(255, 255, 255, 20));
+            g2.fillRect(thumbX, thumbY, thumbW, thumbH);
         }
+        g2.setClip(oldClip);
 
         // Nom du fichier
         g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Arial", Font.BOLD, 11));
+        g2.setFont(DesignConstants.FONT_REGULAR.deriveFont(11f));
         String name = screenshotFile.getName();
-        if (name.length() > 25) {
-            name = name.substring(0, 22) + "...";
+
+        // Truncate name logic
+        FontMetrics fm = g2.getFontMetrics();
+        if (fm.stringWidth(name) > width - 25) {
+            while (fm.stringWidth(name + "...") > width - 25 && name.length() > 0) {
+                name = name.substring(0, name.length() - 1);
+            }
+            name += "...";
         }
-        g2.drawString(name, 10, height - 10);
+
+        g2.drawString(name, 12, height - 12);
 
         g2.dispose();
     }

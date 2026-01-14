@@ -171,7 +171,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.nexaria.launcher.NexariaLauncher</mainClass>
+                                    <mainClass>com.nexaria.launcher.core.NexariaLauncherMain</mainClass>
                                 </transformer>
                                 <!-- Fusionner les services pour Ikonli (META-INF/services) -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>

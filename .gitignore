@@ -10,7 +10,3 @@ dependency-reduced-pom.xml
 .idea/
 *.iml
 .vscode/
-
-# Data synchronisée par le launcher (ne pas versionner)
-data/mods/
-data/config/

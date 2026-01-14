@@ -109,35 +109,20 @@ public class AccountCard extends JPanel {
     }
 
     private void loadAvatar(JLabel avatarLabel) {
-        new Thread(() -> {
-            try {
-                // Utiliser la même API que la sidebar
-                String base = azuriomUrl != null ? azuriomUrl.replaceAll("/+$", "") : "";
-                String url = base + "/api/skin-api/avatars/face/" + session.username;
+        // Utiliser la même API que la sidebar
+        String base = azuriomUrl != null ? azuriomUrl.replaceAll("/+$", "") : "";
+        String url = base + "/api/skin-api/avatars/face/" + session.username;
 
-                System.out.println("[AccountCard] Chargement avatar pour: " + session.username);
-
-                // Utiliser le cache
-                BufferedImage cachedImage = com.nexaria.launcher.cache.ImageCache.getInstance().get(url);
-
-                if (cachedImage != null && cachedImage.getWidth() > 0 && cachedImage.getHeight() > 0) {
-                    System.out.println(
-                            "[AccountCard] Avatar chargé: " + cachedImage.getWidth() + "x" + cachedImage.getHeight());
-                    BufferedImage realAvatar = createRoundedAvatar(cachedImage, 60);
-                    SwingUtilities.invokeLater(() -> {
-                        avatarLabel.setIcon(new ImageIcon(realAvatar));
-                        System.out.println("[AccountCard] Avatar affiché pour: " + session.username);
-                    });
-                } else {
-                    System.err.println("[AccountCard] Image invalide pour " + session.username);
-                }
-            } catch (Exception e) {
-                // Garder l'avatar par défaut en cas d'erreur
-                System.err.println(
-                        "[AccountCard] Erreur chargement avatar pour " + session.username + ": " + e.getMessage());
-                e.printStackTrace();
-            }
-        }).start();
+        // Appel asynchrone via ImageCache
+        com.nexaria.launcher.services.cache.ImageCache.getInstance().get(url)
+                .thenAccept(cachedImage -> {
+                    if (cachedImage != null && cachedImage.getWidth() > 0 && cachedImage.getHeight() > 0) {
+                        BufferedImage realAvatar = createRoundedAvatar(cachedImage, 60);
+                        SwingUtilities.invokeLater(() -> {
+                            avatarLabel.setIcon(new ImageIcon(realAvatar));
+                        });
+                    }
+                });
     }
 
     private BufferedImage createRoundedAvatar(Image img, int size) {

@@ -1,8 +1,8 @@
 package com.nexaria.launcher.ui;
 
 import com.nexaria.launcher.config.LauncherConfig;
-import com.nexaria.launcher.security.AntiCheatService;
-import com.nexaria.launcher.security.DataVerificationService;
+import com.nexaria.launcher.services.security.AntiCheatService;
+import com.nexaria.launcher.services.security.DataVerificationService;
 
 import javax.swing.*;
 import java.awt.*;

@@ -1,10 +1,10 @@
 package com.nexaria.launcher.ui;
 
-import com.nexaria.launcher.auth.AzAuthManager;
-import com.nexaria.launcher.downloader.GitHubModManager;
+import com.nexaria.launcher.services.auth.AzAuthManager;
+import com.nexaria.launcher.services.update.UpdateService;
 import com.nexaria.launcher.config.LauncherConfig;
 import com.nexaria.launcher.model.User;
-import com.nexaria.launcher.security.DataVerificationService;
+import com.nexaria.launcher.services.security.DataVerificationService;
 import com.nexaria.launcher.rpc.DiscordPresenter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +21,7 @@ public class LauncherWindow extends JFrame {
     private static final Logger logger = LoggerFactory.getLogger(LauncherWindow.class);
 
     private AzAuthManager authManager;
-    private GitHubModManager modManager;
+    private UpdateService modManager;
     private LoginPanel loginPanel;
     private MainPanel mainPanel;
     private Sidebar sidebar;
@@ -56,7 +56,7 @@ public class LauncherWindow extends JFrame {
 
         LauncherConfig config = LauncherConfig.getInstance();
         this.authManager = new AzAuthManager(config.getAzuriomUrl());
-        this.modManager = new GitHubModManager(null);
+        this.modManager = new UpdateService(null);
 
         // Layered Pane for Background + Particles + UI
         JLayeredPane layeredPane = new JLayeredPane();
@@ -91,7 +91,7 @@ public class LauncherWindow extends JFrame {
                 // Créer un utilisateur temporaire ou valider le token
                 try {
                     // Tenter de rafraichir/valider le profil avec le token stocké
-                    com.nexaria.launcher.auth.AzAuthManager authManager = new com.nexaria.launcher.auth.AzAuthManager(
+                    com.nexaria.launcher.services.auth.AzAuthManager authManager = new com.nexaria.launcher.services.auth.AzAuthManager(
                             LauncherConfig.getInstance().getAzuriomUrl());
                     User user = authManager.verify(session.accessToken);
                     // Update session timestamp (move to top)
@@ -130,7 +130,7 @@ public class LauncherWindow extends JFrame {
                     // Callback switch account since SettingsPanel mimics Sidebar logic here
                     if (session != null && session.accessToken != null) {
                         try {
-                            com.nexaria.launcher.auth.AzAuthManager am = new com.nexaria.launcher.auth.AzAuthManager(
+                            com.nexaria.launcher.services.auth.AzAuthManager am = new com.nexaria.launcher.services.auth.AzAuthManager(
                                     LauncherConfig.getInstance().getAzuriomUrl());
                             User user = am.verify(session.accessToken);
                             com.nexaria.launcher.config.RememberStore.saveSession(user.getId(), user.getUsername(),
@@ -352,45 +352,43 @@ public class LauncherWindow extends JFrame {
             }
         };
 
-        if (com.nexaria.launcher.java.JavaManager.getJavaHome() == null
-                && !com.nexaria.launcher.java.JavaManager.isSystemJavaValid()) {
+        if (com.nexaria.launcher.services.java.JavaManager.getJavaHome() == null
+                && !com.nexaria.launcher.services.java.JavaManager.isSystemJavaValid()) {
             logger.info("Java 17 manquant, demarrage du telechargement...");
-            JDialog dialog = new JDialog(this, "Téléchargement de Java", true);
-            dialog.setSize(400, 100);
-            dialog.setLocationRelativeTo(this);
-            dialog.setLayout(new BorderLayout());
 
-            JProgressBar pb = new JProgressBar(0, 100);
-            pb.setStringPainted(true);
-            pb.setString("Préparation...");
-            dialog.add(pb, BorderLayout.CENTER);
+            SwingUtilities.invokeLater(() -> {
+                mainPanel.setStatus("Téléchargement de Java 17...");
+                mainPanel.setButtonsEnabled(false);
+                mainPanel.setProgress(0);
+                mainPanel.setIndeterminate(false);
+            });
 
-            SwingWorker<Void, Void> downloadWorker = new SwingWorker<Void, Void>() {
-                @Override
-                protected Void doInBackground() throws Exception {
-                    com.nexaria.launcher.java.JavaManager.downloadJava((status, percent) -> {
-                        SwingUtilities.invokeLater(() -> {
-                            pb.setString(status);
-                            if (percent >= 0)
-                                pb.setValue(percent);
-                            else
-                                pb.setIndeterminate(true);
-                        });
+            try {
+                com.nexaria.launcher.services.java.JavaManager.downloadJava((status, percent) -> {
+                    SwingUtilities.invokeLater(() -> {
+                        mainPanel.setStatus(status);
+                        if (percent >= 0) {
+                            mainPanel.setProgress(percent);
+                            mainPanel.setIndeterminate(false);
+                        } else {
+                            mainPanel.setIndeterminate(true);
+                        }
                     });
-                    return null;
-                }
-
-                @Override
-                protected void done() {
-                    dialog.dispose();
-                }
-            };
-            downloadWorker.execute();
-            dialog.setVisible(true);
+                });
+            } catch (Exception e) {
+                logger.error("Erreur lors du téléchargement de Java", e);
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this,
+                            "Erreur lors du téléchargement de Java:\n" + e.getMessage(),
+                            "Erreur Java",
+                            JOptionPane.ERROR_MESSAGE);
+                });
+                throw e; // Propager pour arrêter le lancement
+            }
         }
 
         // Vérifier et configurer Java
-        File javaExec = com.nexaria.launcher.java.JavaManager.getJavaExecutable();
+        File javaExec = com.nexaria.launcher.services.java.JavaManager.getJavaExecutable();
         if (javaExec != null) {
             logger.info("Utilisation de Java personnalisé: {}", javaExec.getAbsolutePath());
             // OpenLauncherLib utilise properties ou args, on doit voir comment lui passer

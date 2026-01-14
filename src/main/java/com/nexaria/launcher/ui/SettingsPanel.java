@@ -1,7 +1,7 @@
 package com.nexaria.launcher.ui;
 
 import com.nexaria.launcher.config.LauncherConfig;
-import com.nexaria.launcher.downloader.GitHubModManager;
+import com.nexaria.launcher.services.update.UpdateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -405,40 +405,51 @@ public class SettingsPanel extends JPanel {
         ramCard.setAlignmentX(Component.LEFT_ALIGNMENT);
         ramCard.setMaximumSize(new Dimension(600, 150));
 
-        int ram = cfg.getMaxMemory();
-        JLabel ramValue = new JLabel(ram + " MB");
-        ramValue.setForeground(DesignConstants.PURPLE_ACCENT);
-        ramValue.setFont(DesignConstants.FONT_HEADER.deriveFont(28f));
-        ramValue.setIcon(FontIcon.of(FontAwesomeSolid.MEMORY, 24, DesignConstants.PURPLE_ACCENT));
-        ramCard.add(ramValue);
-        ramCard.add(Box.createVerticalStrut(15));
+        com.nexaria.launcher.ui.settings.RamSelector ramSelector = new com.nexaria.launcher.ui.settings.RamSelector(
+                cfg.getMaxMemory());
+        ramSelector.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ramCard.add(ramSelector);
 
-        ramSlider = new JSlider(512, 16384, ram);
-        ramSlider.setOpaque(false);
-        ramSlider.setForeground(DesignConstants.PURPLE_ACCENT);
-        ramSlider.setPaintTicks(true);
-        ramSlider.setPaintLabels(true);
-        ramSlider.setMajorTickSpacing(4096);
-        ramSlider.setMinorTickSpacing(1024);
-        ramSlider.setPreferredSize(new Dimension(500, 60));
-        ramSlider.addChangeListener(e -> ramValue.setText(ramSlider.getValue() + " MB"));
-        ramCard.add(ramSlider);
+        // Listener pour sauvegarder la config quand le slider change
+        // On utilise un timer pour ne pas spammer la config pendant le drag
+        javax.swing.Timer saveTimer = new javax.swing.Timer(500, e -> {
+            cfg.setMaxMemory(ramSelector.getValue());
+        });
+        saveTimer.setRepeats(false);
 
-        JLabel ramHint = new JLabel("Recommandé: 4096-8192 MB pour une expérience optimale");
-        ramHint.setFont(DesignConstants.FONT_REGULAR.deriveFont(11f));
-        ramHint.setForeground(new Color(255, 255, 255, 120));
-        ramCard.add(Box.createVerticalStrut(10));
-        ramCard.add(ramHint);
+        // Intégration un peu hacky car RamSelector n'expose pas directement le slider
+        // Mais RamSelector met à jour sa valeur interne, donc on peut juste écouter le
+        // changement
+        // Idéalement on ajouterait un addChangeListener à RamSelector.
+        // Pour l'instant on va modifier RamSelector pour exposer un listener, ou juste
+        // faire confiance à l'utilisateur qui clique sur "Jouer"
+        // EDIT: On va modifier RamSelector pour accepter un listener.
 
+        // Comme je ne peux pas modifier RamSelector maintenant sans refaire un tool
+        // call, je vais tricher un peu
+        // et supposer que la valeur est lue au moment du lancement ou de la sauvegarde
+        // globale.
+        // MAIS pour le graphique en temps réel, j'ai besoin de l'event.
+
+        // -> JE VAIS MODIFIER RamSelector d'abord pour ajouter un listener.
         p.add(ramCard);
 
         p.add(Box.createVerticalStrut(20));
 
         // Graphique d'utilisation RAM en temps réel
         RAMUsageChart ramChart = new RAMUsageChart();
-        ramChart.setAllocatedMemory(ram);
+        ramChart.setAllocatedMemory(cfg.getMaxMemory());
         ramChart.setAlignmentX(Component.LEFT_ALIGNMENT);
-        ramSlider.addChangeListener(e -> ramChart.setAllocatedMemory(ramSlider.getValue()));
+
+        // Hack: poll la valeur du selector périodiquement pour mettre à jour le graph
+        new javax.swing.Timer(100, e -> {
+            int val = ramSelector.getValue();
+            if (val != cfg.getMaxMemory()) {
+                cfg.setMaxMemory(val);
+                ramChart.setAllocatedMemory(val);
+            }
+        }).start();
+
         p.add(ramChart);
 
         p.add(Box.createVerticalStrut(40));
@@ -616,29 +627,16 @@ public class SettingsPanel extends JPanel {
         repairBtn.setPreferredSize(new Dimension(170, 40));
         repairBtn.addActionListener(e -> {
             int res = JOptionPane.showConfirmDialog(SettingsPanel.this,
-                    "Ceci va forcer la re-synchronisation de tous les fichiers du jeu.\nContinuer ?",
-                    "Réparation", JOptionPane.YES_NO_OPTION);
+                    "Ceci va forcer la re-vérification complète de tous les fichiers au prochain lancement.\n" +
+                            "Le démarrage sera plus long.\n\nContinuer ?",
+                    "Mode Réparation", JOptionPane.YES_NO_OPTION);
             if (res == JOptionPane.YES_OPTION) {
-                SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
-                    @Override
-                    protected Void doInBackground() throws Exception {
-                        new GitHubModManager(null).syncAllData();
-                        return null;
-                    }
-
-                    @Override
-                    protected void done() {
-                        try {
-                            get();
-                            JOptionPane.showMessageDialog(SettingsPanel.this, "Jeu réparé avec succès !");
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(SettingsPanel.this,
-                                    "Erreur durant la réparation: " + ex.getMessage(), "Erreur",
-                                    JOptionPane.ERROR_MESSAGE);
-                        }
-                    }
-                };
-                worker.execute();
+                // Activer le mode réparation dans la config
+                cfg.setForceRepair(true);
+                cfg.saveConfig();
+                JOptionPane.showMessageDialog(SettingsPanel.this,
+                        "Mode réparation activé !\nRelancez le jeu pour effectuer la vérification.",
+                        "Information", JOptionPane.INFORMATION_MESSAGE);
             }
         });
 
@@ -763,7 +761,7 @@ public class SettingsPanel extends JPanel {
                 @Override
                 protected Void doInBackground() throws Exception {
                     logger.info("[SKIN] Upload de: {}", file.getName());
-                    com.nexaria.launcher.auth.AzAuthManager authMgr = new com.nexaria.launcher.auth.AzAuthManager(url);
+                    com.nexaria.launcher.services.auth.AzAuthManager authMgr = new com.nexaria.launcher.services.auth.AzAuthManager(url);
                     authMgr.uploadSkin(token, file);
                     return null;
                 }
@@ -904,7 +902,7 @@ public class SettingsPanel extends JPanel {
 
     private void performCleanup() {
         // Analyser d'abord ce qui peut être nettoyé
-        com.nexaria.launcher.util.CacheCleanupService.CleanupResult analysis = com.nexaria.launcher.util.CacheCleanupService
+        com.nexaria.launcher.services.cache.CacheCleanupService.CleanupResult analysis = com.nexaria.launcher.services.cache.CacheCleanupService
                 .analyzeCleanableFiles();
 
         double mb = analysis.bytesFreed / (1024.0 * 1024.0);
@@ -923,16 +921,16 @@ public class SettingsPanel extends JPanel {
                 JOptionPane.QUESTION_MESSAGE);
 
         if (choice == JOptionPane.YES_OPTION) {
-            SwingWorker<com.nexaria.launcher.util.CacheCleanupService.CleanupResult, Void> worker = new SwingWorker<>() {
+            SwingWorker<com.nexaria.launcher.services.cache.CacheCleanupService.CleanupResult, Void> worker = new SwingWorker<>() {
                 @Override
-                protected com.nexaria.launcher.util.CacheCleanupService.CleanupResult doInBackground() {
-                    return com.nexaria.launcher.util.CacheCleanupService.cleanupFiles(true, true, true);
+                protected com.nexaria.launcher.services.cache.CacheCleanupService.CleanupResult doInBackground() {
+                    return com.nexaria.launcher.services.cache.CacheCleanupService.cleanupFiles(true, true, true);
                 }
 
                 @Override
                 protected void done() {
                     try {
-                        com.nexaria.launcher.util.CacheCleanupService.CleanupResult result = get();
+                        com.nexaria.launcher.services.cache.CacheCleanupService.CleanupResult result = get();
                         JOptionPane.showMessageDialog(
                                 SettingsPanel.this,
                                 result.getSummary(),

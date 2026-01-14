@@ -14,7 +14,7 @@ import fr.flowarg.flowupdater.versions.fabric.FabricVersionBuilder;
 import fr.flowarg.openlauncherlib.NoFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.nexaria.launcher.security.AntiCheatService;
+import com.nexaria.launcher.services.security.AntiCheatService;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -205,7 +205,7 @@ public class OpenLauncherLibLauncher {
 
         // Ajouter les arguments JVM personnalisés si présents (sanitisés)
         if (cfg.jvmArgs != null && !cfg.jvmArgs.trim().isEmpty()) {
-            java.util.List<String> safeArgs = com.nexaria.launcher.security.JvmArgsSanitizer.sanitize(cfg.jvmArgs);
+            java.util.List<String> safeArgs = com.nexaria.launcher.services.security.JvmArgsSanitizer.sanitize(cfg.jvmArgs);
             noFramework.getAdditionalVmArgs().addAll(safeArgs);
         }
 
@@ -231,6 +231,9 @@ public class OpenLauncherLibLauncher {
         } catch (Exception e) {
             logger.warn("Echec application durcissement JVM anti-cheat", e);
         }
+
+        // Fix WARNING: Use --enable-native-access=voicechat
+        noFramework.getAdditionalVmArgs().add("--enable-native-access=voicechat");
 
         logger.info("Arguments JVM: {}", noFramework.getAdditionalVmArgs());
 

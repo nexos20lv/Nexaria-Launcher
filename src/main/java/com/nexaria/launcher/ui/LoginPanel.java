@@ -1,8 +1,8 @@
 package com.nexaria.launcher.ui;
 
 import com.nexaria.launcher.model.User;
-import com.nexaria.launcher.auth.AzAuthManager;
-import com.nexaria.launcher.auth.AuthenticationException;
+import com.nexaria.launcher.services.auth.AzAuthManager;
+import com.nexaria.launcher.services.auth.AuthenticationException;
 import com.nexaria.launcher.config.LauncherConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -213,7 +213,7 @@ public class LoginPanel extends JPanel {
                     loginCallback.accept(user);
                 } catch (Exception e) {
                     Throwable cause = e.getCause();
-                    if (cause instanceof com.nexaria.launcher.auth.TwoFactorRequiredException) {
+                    if (cause instanceof com.nexaria.launcher.services.auth.TwoFactorRequiredException) {
                         logger.info("[LOGIN] 2FA requis pour: {}", u);
                         showTwoFactor(u, p);
                     } else {
