@@ -6,7 +6,7 @@
 
     <groupId>com.nexaria</groupId>
     <artifactId>nexaria-launcher</artifactId>
-    <version>1.0.23</version>
+    <version>1.0.24</version>
     <name>Nexaria Launcher</name>
 
     <properties>
