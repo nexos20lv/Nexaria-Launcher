@@ -248,6 +248,13 @@ public class LauncherWindow extends JFrame {
         if (contentPanel.getComponent(2) instanceof SettingsPanel) {
             ((SettingsPanel) contentPanel.getComponent(2)).refreshUserProfile();
         }
+        // Correct fix: Iterate to find SettingsPanel regardless of index
+        for (Component comp : contentPanel.getComponents()) {
+            if (comp instanceof SettingsPanel) {
+                ((SettingsPanel) comp).refreshUserProfile();
+                break;
+            }
+        }
 
         sidebar.setVisible(true);
         sidebar.setActive("ACCUEIL");
