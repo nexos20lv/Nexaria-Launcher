@@ -103,7 +103,7 @@ public class LauncherConfig {
             instance.downloadRateLimitKBps = 0;
             instance.downloadMirrorBase = "";
             instance.rememberMeDefault = true;
-            instance.launcherVersion = "1.0.22";
+            instance.launcherVersion = "1.0.23";
             instance.serverHost = "151.240.30.3";
             instance.serverPort = 25545;
             instance.serverName = "Nexaria";
