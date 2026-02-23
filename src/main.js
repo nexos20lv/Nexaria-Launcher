@@ -138,9 +138,8 @@ ipcMain.handle('game:download', async (_, { version }) => {
     }
 })
 
-// ── Settings IPC ──────────────────────────────────────────
 ipcMain.handle('settings:get', () => {
-    return store.get('settings', {
+    const savedSettings = store.get('settings', {
         ram: 2048,
         javaPath: '',
         gameDir: '',
@@ -150,6 +149,17 @@ ipcMain.handle('settings:get', () => {
         serverVersion: '1.21.1',
         azuriomUrl: 'https://nexaria.netlib.re',
     })
+
+    // Ajout des versions système pour la section "À propos"
+    const versions = {
+        app: app.getVersion(),
+        electron: process.versions.electron,
+        chrome: process.versions.chrome,
+        node: process.versions.node,
+        os: process.platform
+    }
+
+    return { ...savedSettings, versions }
 })
 
 ipcMain.handle('settings:set', (_, settings) => {

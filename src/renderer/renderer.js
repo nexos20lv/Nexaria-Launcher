@@ -396,6 +396,17 @@ function applySettings(s) {
 
     const serverVersionEl = $('#server-version')
     if (serverVersionEl) serverVersionEl.textContent = `Survie Communautaire ${s.serverVersion || '1.21.1'}`
+
+    // ── NOUVEAU : Versions dynamiques ──
+    if (s.versions) {
+        const appVersionEl = $('#about-app-version')
+        const electronVersionEl = $('#about-electron-version')
+        const osVersionEl = $('#about-os-version')
+
+        if (appVersionEl) appVersionEl.textContent = s.versions.app
+        if (electronVersionEl) electronVersionEl.textContent = s.versions.electron
+        if (osVersionEl) osVersionEl.textContent = s.versions.os === 'darwin' ? 'macOS' : s.versions.os
+    }
 }
 
 async function saveSettings() {
