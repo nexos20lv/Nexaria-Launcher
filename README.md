@@ -1,0 +1,74 @@
+# Nexaria Launcher
+
+Nexaria Launcher est un launcher Minecraft premium, moderne et sécurisé, conçu avec **Electron.js**. Il offre une interface élégante (inspirée de Nexaria) et des fonctionnalités avancées pour une expérience de jeu fluide.
+
+![Nexaria Launcher](src/renderer/images/preview.png) *(Note: ajouter une capture d'écran ici)*
+
+## ✨ Fonctionnalités
+
+- **Interface Moderne** : Design sombre avec accents violets Nexaria, coins arrondis (12px), et animations fluides (pulse, glow).
+- **Multi-Comptes** : Gestion simplifiée de plusieurs comptes avec authentification via l'API Azuriom.
+- **Synchronisation Stricte (Anti-Triche)** : Le launcher vérifie et nettoie automatiquement les dossiers `mods`, `config`, etc., pour garantir l'intégrité du jeu.
+- **Téléchargement Intelligent** : Télécharge uniquement les fichiers manquants ou mis à jour depuis un serveur de fichiers PHP dédié.
+- **Compatibilité Totale** : Support de Fabric, Forge, NeoForge et Vanilla (Minecraft 1.21.1+).
+- **Statut en Direct** : Affichage en temps réel du statut du serveur et du nombre de joueurs connectés.
+
+## 🚀 Installation & Développement
+
+### Prérequis
+- [Node.js](https://nodejs.org/) (version 18+)
+- [Java 21](https://www.oracle.com/java/technologies/downloads/) (pour Minecraft 1.21+)
+
+### Installation
+1. Clonez le dépôt :
+   ```bash
+   git clone https://github.com/votre-compte/nexaria-launcher.git
+   cd nexaria-launcher
+   ```
+2. Installez les dépendances :
+   ```bash
+   npm install
+   ```
+
+### Lancement
+Pour lancer le launcher en mode développement :
+```bash
+npm start
+```
+
+## ⚙️ Configuration
+
+### Launcher
+La configuration principale se fait dans les fichiers `src/launcher/` :
+- `auth.js` : Modifiez `AZURIOM_URL` pour pointer vers votre site.
+- `downloader.js` : Modifiez `DEFAULT_FILE_SERVER_URL` pour votre serveur de fichiers.
+- `server.js` : Modifiez `MC_HOST` et `MC_PORT` pour votre serveur Minecraft.
+
+### Serveur de fichiers (PHP)
+Le dossier `php-server/` doit être déployé sur un hébergement web. 
+1. Uploadez le contenu de `php-server/`.
+2. Configurez `config.php` avec vos versions de Minecraft et de loader.
+3. Placez vos fichiers (mods, config) dans le dossier `files/`. Le manifest se génère automatiquement !
+
+## 🏗️ Structure du Projet
+
+```text
+Nexaria Launcher/
+├── package.json        # Configuration Node.js et Electron
+├── php-server/         # Backend du serveur de fichiers (PHP)
+└── src/
+    ├── main.js         # Processus principal Electron
+    ├── preload.js      # Pont entre Electron et le Front-end
+    ├── launcher/       # Logique métier (Auth, Game, Download)
+    └── renderer/       # Interface utilisateur (HTML, CSS, JS)
+```
+
+## 🛠️ Build (Production)
+
+Pour créer un exécutable (.exe, .dmg, .AppImage) :
+```bash
+npm run build
+```
+
+## 📄 Licence
+Ce projet est distribué sous licence MIT. Voir `LICENSE` pour plus de détails.

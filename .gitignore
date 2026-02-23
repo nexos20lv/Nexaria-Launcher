@@ -1,0 +1,27 @@
+# Electron
+node_modules/
+dist/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Settings & Local Data
+/Users/pierre/Library/Application Support/.nexaria/
+.nexaria/
+config.json
+
+# Tooling
+.vscode/
+.idea/
+.gemini/
+.agent/
+
+# Temp files
+*.tmp
+*.bak

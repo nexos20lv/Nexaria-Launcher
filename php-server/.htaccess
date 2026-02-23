@@ -1,0 +1,22 @@
+Options -Indexes
+
+# Routage vers index.php pour manifest.json et info.json
+RewriteEngine On
+RewriteBase /
+
+# Autoriser l'accès direct aux fichiers dans /files/
+RewriteCond %{REQUEST_URI} ^/files/ [NC]
+RewriteRule ^ - [L]
+
+# Rediriger manifest.json et info.json vers index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(manifest\.json|info\.json|manifest|info)$ index.php [L,QSA]
+
+# Cache pour les fichiers JAR/ZIP (1 semaine)
+<FilesMatch "\.(jar|zip)$">
+    Header set Cache-Control "max-age=604800, public"
+</FilesMatch>
+
+# CORS global
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, HEAD"
