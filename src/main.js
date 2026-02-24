@@ -80,25 +80,69 @@ app.whenReady().then(() => {
     createSplashWindow()
     createWindow()
 
-    autoUpdater.checkForUpdatesAndNotify()
     initRPC()
 
-    // Simulation de temps de chargement des ressources/plugins
-    setTimeout(() => {
+    let updateInProgress = false
+
+    autoUpdater.on('checking-for-update', () => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.webContents.send('splash:status', 'RECHERCHE DE MISES À JOUR...')
+        }
+    })
+
+    autoUpdater.on('update-available', () => {
+        updateInProgress = true
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.webContents.send('splash:status', 'MISE À JOUR TROUVÉE...')
+        }
+    })
+
+    autoUpdater.on('update-not-available', () => {
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.webContents.send('splash:status', 'VÉRIFICATION SYSTÈME...')
         }
-    }, 1500)
+        finishSplash()
+    })
 
-    // Afficher la page principale après le temps du splash
-    setTimeout(() => {
+    autoUpdater.on('error', (err) => {
+        log.error('Erreur de mise à jour:', err)
+        finishSplash()
+    })
+
+    autoUpdater.on('download-progress', (progressObj) => {
         if (splashWindow && !splashWindow.isDestroyed()) {
-            splashWindow.close()
+            splashWindow.webContents.send('splash:status', `TÉLÉCHARGEMENT... ${Math.round(progressObj.percent)}%`)
         }
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.show()
+    })
+
+    autoUpdater.on('update-downloaded', () => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.webContents.send('splash:status', 'REDÉMARRAGE...')
         }
-    }, 4500)
+        setTimeout(() => autoUpdater.quitAndInstall(), 1000)
+    })
+
+    // Lancement de la vérification
+    if (app.isPackaged) {
+        autoUpdater.checkForUpdatesAndNotify()
+    } else {
+        // En mode développement, on skip l'auto-updater car il ne se lance pas
+        log.info("Mode développement détecté : saut de la recherche de mise à jour.")
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.webContents.send('splash:status', 'VÉRIFICATION SYSTÈME (DEV)...')
+        }
+        finishSplash()
+    }
+
+    function finishSplash() {
+        // Afficher la page principale après un léger délai pour la lisibilité
+        setTimeout(() => {
+            if (!updateInProgress) {
+                if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close()
+                if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
+            }
+        }, 1500)
+    }
 
     // Periodic check every 60 minutes
     setInterval(() => {

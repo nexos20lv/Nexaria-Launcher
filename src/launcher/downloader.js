@@ -196,30 +196,29 @@ async function downloadGame(version, onProgress) {
         percent: 0,
     })
 
-    for (let i = 0; i < toDownload.length; i++) {
-        const file = toDownload[i]
-        const dest = path.join(gameDir, file.path)
+    const CONCURRENCY = 5
+    let completed = 0
 
-        onProgress({
-            type: 'file',
-            file: path.basename(file.path),
-            current: i + 1,
-            total: toDownload.length,
-            percent: Math.round((i / toDownload.length) * 100),
-            message: `${path.basename(file.path)}`,
-        })
+    for (let i = 0; i < toDownload.length; i += CONCURRENCY) {
+        const batch = toDownload.slice(i, i + CONCURRENCY)
 
-        await downloadFile(file.url, dest, (pct) => {
-            const overall = ((i + pct) / toDownload.length) * 100
+        await Promise.all(batch.map(async (file) => {
+            const dest = path.join(gameDir, file.path)
+
+            await downloadFile(file.url, dest, null) // On ignore le pct par fichier pour éviter de spammer l'UI en parallèle
+
+            completed++
+            const overallPct = Math.round((completed / toDownload.length) * 100)
+
             onProgress({
                 type: 'file',
                 file: path.basename(file.path),
-                current: i + 1,
+                current: completed,
                 total: toDownload.length,
-                percent: Math.round(overall),
-                message: `${path.basename(file.path)} — ${Math.round(pct * 100)}%`,
+                percent: overallPct,
+                message: `Téléchargement : ${completed}/${toDownload.length} (${overallPct}%) - ${path.basename(file.path)}`,
             })
-        })
+        }))
     }
 
     // ── NOUVEAU : Nettoyage anti-triche ──
