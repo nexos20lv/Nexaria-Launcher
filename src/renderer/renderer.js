@@ -30,6 +30,10 @@ function showView(viewId) {
     if (navBtn) navBtn.classList.add('active')
 
     state.currentView = viewId
+
+    if (viewId === 'mods') {
+        renderMods()
+    }
 }
 
 // ── Toast notifications ──────────────────────────────────
@@ -792,6 +796,112 @@ async function init() {
             btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>Réparer`
         }
     })
+
+    // Crash Log handler
+    if (window.nexaria.onGameCrashed) {
+        window.nexaria.onGameCrashed(async (crashLog) => {
+            const modal = $('#modal-crash')
+            const textArea = $('#crash-log-text')
+            if (modal && textArea) {
+                textArea.value = crashLog
+                modal.style.display = 'flex'
+                showView('console') // Show console behind the modal to make it clear the game stopped
+            }
+        })
+    }
+
+    const btnCopyCrash = $('#btn-copy-crash')
+    if (btnCopyCrash) {
+        btnCopyCrash.addEventListener('click', () => {
+            const textArea = $('#crash-log-text')
+            if (textArea) {
+                navigator.clipboard.writeText(textArea.value).then(() => {
+                    showToast("Rapport copié dans le presse-papiers !", "success")
+                }).catch(err => {
+                    showToast("Erreur lors de la copie", "error")
+                })
+            }
+        })
+    }
+}
+
+// ── Mods Optionnels ──────────────────────────────────────
+async function renderMods() {
+    const list = $('#mods-list')
+    if (!list) return
+
+    list.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 24px;">Chargement des mods...</div>'
+
+    try {
+        const mods = await window.nexaria.getOptionalMods()
+        list.innerHTML = ''
+
+        if (!mods || mods.length === 0) {
+            list.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 24px;">Aucun mod optionnel disponible.</div>'
+            return
+        }
+
+        mods.forEach(mod => {
+            const card = document.createElement('div')
+            card.style.cssText = `
+                background: var(--bg-panel);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-md);
+                padding: 20px 24px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 24px;
+                transition: transform 0.2s;
+            `
+
+            const info = document.createElement('div')
+            info.innerHTML = `
+                <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">${mod.name}</div>
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">${mod.description}</div>
+            `
+
+            const actionContainer = document.createElement('div')
+            const btn = document.createElement('button')
+            btn.className = mod.installed ? 'btn-cancel' : 'btn-play'
+            btn.style.width = '140px'
+            btn.style.padding = '10px 0'
+            btn.style.fontSize = '12px'
+            btn.innerHTML = mod.installed ? 'Désinstaller' : 'Installer'
+
+            btn.addEventListener('click', async () => {
+                if (state.isLaunching) {
+                    showToast("Impossible de modifier les mods avec le jeu en cours de lancement.", "error")
+                    return
+                }
+
+                btn.disabled = true
+                btn.innerHTML = 'En cours...'
+                try {
+                    const res = await window.nexaria.toggleOptionalMod({ modId: mod.id })
+                    if (res.status === 'success') {
+                        showToast(res.installed ? `${mod.name} a été installé !` : `${mod.name} a été supprimé.`, 'success')
+                        renderMods()
+                    } else {
+                        showToast(`Erreur : ${res.message}`, 'error')
+                        btn.disabled = false
+                        btn.innerHTML = mod.installed ? 'Désinstaller' : 'Installer'
+                    }
+                } catch (e) {
+                    showToast(`Erreur de connexion`, 'error')
+                    btn.disabled = false
+                    btn.innerHTML = mod.installed ? 'Désinstaller' : 'Installer'
+                }
+            })
+
+            actionContainer.appendChild(btn)
+            card.appendChild(info)
+            card.appendChild(actionContainer)
+            list.appendChild(card)
+        })
+    } catch (e) {
+        list.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 24px;">Erreur lors du chargement des mods.</div>'
+    }
 }
 
 // Start when DOM is ready

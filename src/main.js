@@ -380,6 +380,21 @@ ipcMain.handle('news:fetch', async () => {
     }
 })
 
+// ── Mods Optionnels IPC ───────────────────────────────────
+ipcMain.handle('mods:getOptional', async () => {
+    const { getModsStatus } = require('./launcher/mods')
+    return getModsStatus()
+})
+
+ipcMain.handle('mods:toggle', async (_, { modId }) => {
+    const { toggleMod } = require('./launcher/mods')
+    try {
+        return await toggleMod(modId)
+    } catch (err) {
+        return { status: 'error', message: err.message }
+    }
+})
+
 // ── External links ────────────────────────────────────────
 ipcMain.on('open:url', (_, url) => {
     shell.openExternal(url)

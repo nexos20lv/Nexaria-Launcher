@@ -22,9 +22,11 @@ contextBridge.exposeInMainWorld('nexaria', {
     repairGame: (data) => ipcRenderer.invoke('game:repair', data),
     onGameProgress: (cb) => ipcRenderer.on('game:progress', (_, data) => cb(data)),
     onGameLaunched: (cb) => ipcRenderer.on('game:launched', (_, data) => cb(data)),
+    onGameCrashed: (cb) => ipcRenderer.on('game:crashed', (_, data) => cb(data)),
     removeGameListeners: () => {
         ipcRenderer.removeAllListeners('game:progress')
         ipcRenderer.removeAllListeners('game:launched')
+        ipcRenderer.removeAllListeners('game:crashed')
     },
 
     // Settings
@@ -47,4 +49,8 @@ contextBridge.exposeInMainWorld('nexaria', {
     selectSkinFile: () => ipcRenderer.invoke('skin:selectFile'),
     uploadSkin: (data) => ipcRenderer.invoke('skin:uploadSkin', data),
     uploadCape: (data) => ipcRenderer.invoke('skin:uploadCape', data),
+
+    // Mods Optionnels
+    getOptionalMods: () => ipcRenderer.invoke('mods:getOptional'),
+    toggleOptionalMod: (data) => ipcRenderer.invoke('mods:toggle', data),
 })

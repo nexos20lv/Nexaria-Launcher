@@ -1,0 +1,23 @@
+[
+  {
+    "id": "iris",
+    "name": "Iris Shaders",
+    "description": "Permet d'utiliser des shaders optifine sur Fabric pour des graphismes magnifiques.",
+    "fileName": "iris-1.7.0.jar",
+    "url": "https://cdn.modrinth.com/data/YL57xq9U/versions/8UeBsv7j/iris-1.7.0%2Bmc1.21.jar"
+  },
+  {
+    "id": "xaeros",
+    "name": "Xaero's Minimap",
+    "description": "Ajoute une mini-carte pratique avec un radar d'entités et de joueurs.",
+    "fileName": "Xaeros_Minimap_24.3.0_Fabric_1.21.jar",
+    "url": "https://cdn.modrinth.com/data/1bokaNcj/versions/u7r2a0Qk/Xaeros_Minimap_24.3.0_Fabric_1.21.jar"
+  },
+  {
+    "id": "replaymod",
+    "name": "ReplayMod",
+    "description": "Permet d'enregistrer, de rejouer et de partager vos meilleures parties en cinématique.",
+    "fileName": "replaymod-1.21-2.6.17.jar",
+    "url": "https://cdn.modrinth.com/data/AANobbMI/versions/j99o5uU9/replaymod-1.21-2.6.17.jar"
+  }
+]

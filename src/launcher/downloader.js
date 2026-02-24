@@ -74,6 +74,23 @@ async function fetchManifest() {
 }
 
 /**
+ * Récupère la liste des mods optionnels depuis le serveur
+ * GET /optional_mods.json
+ */
+async function fetchOptionalMods() {
+    const fetch = require('node-fetch')
+    const url = getFileServerUrl()
+    if (!url) return []
+    try {
+        const res = await fetch(`${url}/optional_mods.json`, { timeout: 5000 })
+        if (!res.ok) return []
+        return await res.json()
+    } catch {
+        return []
+    }
+}
+
+/**
  * Calcul SHA1 d'un fichier local
  */
 function sha1File(filePath) {
@@ -234,6 +251,11 @@ async function downloadGame(version, onProgress) {
 async function cleanupGameFiles(gameDir, manifest) {
     const allowed = new Set(manifest.map(f => path.normalize(f.path)))
 
+    // On ignore les mods optionnels de la suppression
+    const { getOptionalModFileNames } = require('./mods')
+    const optionalMods = getOptionalModFileNames()
+    optionalMods.forEach(f => allowed.add(path.normalize(path.join('mods', f))))
+
     // Dossiers critiques à surveiller
     const criticalDirs = ['mods', 'config', 'resourcepacks', 'loader']
 
@@ -274,4 +296,4 @@ function getAllFiles(dirPath, arrayOfFiles) {
     return arrayOfFiles
 }
 
-module.exports = { downloadGame, fetchServerInfo, getGameDir, getFileServerUrl, downloadFile }
+module.exports = { downloadGame, fetchServerInfo, getGameDir, getFileServerUrl, downloadFile, fetchOptionalMods }

@@ -115,6 +115,12 @@ async function launchGame({ account, settings, mainWindow }) {
 
     launcher.on('close', (code) => {
         mainWindow.webContents.send('game:launched', { status: 'closed', code })
+        if (code !== 0) {
+            const crashLog = getLatestCrashLog(gameDir)
+            if (crashLog) {
+                mainWindow.webContents.send('game:crashed', crashLog)
+            }
+        }
     })
 
     // Lancement effectif
@@ -220,6 +226,37 @@ async function ensureFabricJson(gameDir, mcVersion, loaderVersion) {
     } catch (err) {
         throw new Error(`Impossible d'installer Fabric automatiquement : ${err.message}`)
     }
+}
+
+/**
+ * Retrieves the latest crash report or log
+ */
+function getLatestCrashLog(gameDir) {
+    try {
+        const crashDir = path.join(gameDir, 'crash-reports')
+        if (fs.existsSync(crashDir)) {
+            const files = fs.readdirSync(crashDir)
+                .filter(f => f.endsWith('.txt'))
+                .map(f => ({ name: f, time: fs.statSync(path.join(crashDir, f)).mtime.getTime() }))
+                .sort((a, b) => b.time - a.time)
+
+            if (files.length > 0) {
+                const latest = path.join(crashDir, files[0].name)
+                return fs.readFileSync(latest, 'utf8')
+            }
+        }
+        // Fallback to latest.log
+        const latestLog = path.join(gameDir, 'logs', 'latest.log')
+        if (fs.existsSync(latestLog)) {
+            const content = fs.readFileSync(latestLog, 'utf8')
+            // Return last 150 lines just to give context without freezing the UI
+            return "--- LATEST LOG ---\n" + content.toString().split('\n').slice(-150).join('\n')
+        }
+    } catch (err) {
+        console.error('Failed to read crash log:', err)
+        return `Impossible de lire le rapport de plantage : ${err.message}`
+    }
+    return 'Le jeu s\'est fermé anormalement, mais aucun rapport de plantage n\'a été trouvé.'
 }
 
 module.exports = { launchGame, downloadGame }
