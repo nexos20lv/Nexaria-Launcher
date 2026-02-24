@@ -73,8 +73,9 @@
       ]
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico"
     }
