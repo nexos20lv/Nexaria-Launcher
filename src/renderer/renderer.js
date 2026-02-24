@@ -119,14 +119,12 @@ async function enterMainView() {
     ]).catch(console.error)
 }
 
-function getAvatarUrl(uuid, username, size = 64) {
-    // Use Azuriom skin API (works with offline/custom UUIDs)
-    const azuriomUrl = window._azuriomUrl || ''
-    if (azuriomUrl && uuid) {
-        return `${azuriomUrl}/api/auth/skin/${encodeURIComponent(uuid)}/face?size=${size}`
+function getAvatarUrl(uuid, username, size = 64, type = 'face') {
+    const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.netlib.re'
+    if (username) {
+        return `${azuriomUrl}/api/skin-api/avatars/${type}/${encodeURIComponent(username)}?size=${size}`
     }
-    // Fallback: minotar (uses username, works without UUID)
-    if (username) return `https://minotar.net/avatar/${encodeURIComponent(username)}/${size}`
+    // Fallback simple
     return `https://minotar.net/avatar/steve/${size}`
 }
 
@@ -196,14 +194,25 @@ function updatePlayerCard(account) {
     if (roleEl) roleEl.textContent = account.role?.name ? `Compte ${account.role.name}` : 'Compte Joueur'
 
     if (avatarEl) {
-        avatarEl.src = getAvatarUrl(account.uuid, account.username, 64)
+        // Ajouter un cache buster basé sur le timestamp global pour forcer le rafraîchissement
+        const v = window._avatarVersion || Date.now()
+        let url = getAvatarUrl(account.uuid, account.username, 64, 'face')
+        avatarEl.src = url + (url.includes('?') ? '&' : '?') + `v=${v}`
+
         avatarEl.onerror = () => {
-            // Final fallback: minotar with username
-            if (account.username) {
-                avatarEl.src = `https://minotar.net/avatar/${encodeURIComponent(account.username)}/64`
-            }
+            avatarEl.src = `https://minotar.net/avatar/${encodeURIComponent(account.username)}/64?v=${v}`
             avatarEl.onerror = null
         }
+    }
+
+    // Mettre à jour la grande preview du skin dans l'onglet Personnalisation
+    const largePreview = $('#skin-large-preview')
+    if (largePreview && account.username) {
+        // Utilisation du plugin Skin3D Viewer d'Azuriom
+        const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.netlib.re'
+        const v = window._avatarVersion || Date.now()
+        // On contourne le cache de l'iframe en passant un paramètre bidon à l'URL s'il le faut
+        largePreview.src = `${azuriomUrl}/skin3d/3d-api/skin-api/${encodeURIComponent(account.username)}?zoom=false`
     }
 }
 
@@ -227,7 +236,7 @@ async function refreshServerStatus() {
                 if (status.sample && status.sample.length > 0) {
                     playersListEl.innerHTML = status.sample.map(p => `
                         <div style="display: flex; align-items: center; gap: 8px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px;">
-                            <img src="${getAvatarUrl(p.id, p.name, 24)}" style="width: 24px; height: 24px; border-radius: 4px;" onerror="this.src='https://minotar.net/avatar/${encodeURIComponent(p.name)}/24';"/>
+                            <img src="${getAvatarUrl(p.id, p.name, 24, 'face')}" style="width: 24px; height: 24px; border-radius: 4px;" onerror="this.src='https://minotar.net/avatar/${encodeURIComponent(p.name)}/24';"/>
                             <span style="font-size: 12px; font-weight: 600;">${parseMinecraftColors(p.name)}</span>
                         </div>
                     `).join('')
@@ -300,7 +309,7 @@ function renderAccounts() {
     list.innerHTML = state.accounts.map(acc => `
     <div class="account-item ${state.currentAccount?.uuid === acc.uuid ? 'active' : ''}" data-uuid="${acc.uuid}">
       <img class="account-avatar"
-        src="${getAvatarUrl(acc.uuid, acc.username, 36)}"
+        src="${getAvatarUrl(acc.uuid, acc.username, 36, 'face')}"
         onerror="this.src='https://minotar.net/avatar/${encodeURIComponent(acc.username || 'steve')}/36';this.onerror=null;"
         alt="${escapeHtml(acc.username)}" />
       <div class="account-info">
@@ -618,6 +627,57 @@ async function init() {
 
     // Azuriom Vote link
     $('#btn-vote')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.netlib.re/vote'))
+
+    // Customization (Skins/Capes)
+    $('#btn-change-skin')?.addEventListener('click', async () => {
+        if (!state.currentAccount) return
+        const file = await window.nexaria.selectSkinFile()
+        if (!file) return
+
+        const btn = $('#btn-change-skin')
+        btn.disabled = true
+        showToast('Envoi du skin en cours...', 'info')
+
+        try {
+            const res = await window.nexaria.uploadSkin({ accessToken: state.currentAccount.accessToken, filePath: file })
+            if (res.status === 'success') {
+                showToast('Skin mis à jour !', 'success')
+                // Forcer le rafraîchissement de l'avatar
+                window._avatarVersion = Date.now()
+                updatePlayerCard(state.currentAccount)
+                renderAccounts()
+            } else {
+                showToast(res.message, 'error')
+            }
+        } catch (e) {
+            showToast('Erreur lors de l\'envoi', 'error')
+        } finally {
+            btn.disabled = false
+        }
+    })
+
+    $('#btn-change-cape')?.addEventListener('click', async () => {
+        if (!state.currentAccount) return
+        const file = await window.nexaria.selectSkinFile()
+        if (!file) return
+
+        const btn = $('#btn-change-cape')
+        btn.disabled = true
+        showToast('Envoi de la cape en cours...', 'info')
+
+        try {
+            const res = await window.nexaria.uploadCape({ accessToken: state.currentAccount.accessToken, filePath: file })
+            if (res.status === 'success') {
+                showToast('Cape mise à jour !', 'success')
+            } else {
+                showToast(res.message, 'error')
+            }
+        } catch (e) {
+            showToast('Erreur lors de l\'envoi', 'error')
+        } finally {
+            btn.disabled = false
+        }
+    })
 
     // Login
     $('#btn-login')?.addEventListener('click', handleLogin)

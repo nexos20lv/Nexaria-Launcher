@@ -1,14 +1,14 @@
 // ============================================================
 // Nexaria Launcher - Main Process
 // ============================================================
-const { app, BrowserWindow, ipcMain, shell, safeStorage } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const log = require('electron-log')
 log.transports.file.level = 'info'
 autoUpdater.logger = log
 const path = require('path')
 const Store = require('electron-store')
-const { authenticate, verify, logout } = require('./launcher/auth')
+const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./launcher/auth')
 const { launchGame, downloadGame } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
@@ -325,6 +325,35 @@ ipcMain.handle('settings:get', () => {
 ipcMain.handle('settings:set', (_, settings) => {
     store.set('settings', { ...store.get('settings', {}), ...settings })
     return { status: 'success' }
+})
+
+// ── Skins & Capes IPC ─────────────────────────────────────
+ipcMain.handle('skin:selectFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        title: 'Sélectionner une image (.png)',
+        filters: [{ name: 'Images', extensions: ['png'] }],
+        properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    return filePaths[0]
+})
+
+ipcMain.handle('skin:uploadSkin', async (_, { accessToken, filePath }) => {
+    try {
+        return await uploadSkin(accessToken, filePath)
+    } catch (err) {
+        log.error('Erreur upload skin:', err)
+        return { status: 'error', message: err.message }
+    }
+})
+
+ipcMain.handle('skin:uploadCape', async (_, { accessToken, filePath }) => {
+    try {
+        return await uploadCape(accessToken, filePath)
+    } catch (err) {
+        log.error('Erreur upload cape:', err)
+        return { status: 'error', message: err.message }
+    }
 })
 
 // ── Server Status IPC ─────────────────────────────────────

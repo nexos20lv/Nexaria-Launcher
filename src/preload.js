@@ -42,5 +42,9 @@ contextBridge.exposeInMainWorld('nexaria', {
 
     // Logic Console
     onGameLog: (cb) => ipcRenderer.on('game:log', (event, data) => cb(data)),
-    removeGameListeners: () => ipcRenderer.removeAllListeners('game:progress'),
+
+    // Skins & Capes
+    selectSkinFile: () => ipcRenderer.invoke('skin:selectFile'),
+    uploadSkin: (data) => ipcRenderer.invoke('skin:uploadSkin', data),
+    uploadCape: (data) => ipcRenderer.invoke('skin:uploadCape', data),
 })

@@ -2,6 +2,8 @@
 // Nexaria Launcher - Azuriom Auth Wrapper
 // ============================================================
 const fetch = require('node-fetch')
+const FormData = require('form-data')
+const fs = require('fs')
 
 // CONFIGURE: Set your Azuriom site URL here
 const AZURIOM_URL = 'https://nexaria.netlib.re'
@@ -87,4 +89,52 @@ async function logout(accessToken) {
     })
 }
 
-module.exports = { authenticate, verify, logout, AZURIOM_URL }
+/**
+ * Upload a skin to Azuriom Skin API
+ * POST /api/skin-api/skins
+ */
+async function uploadSkin(accessToken, filePath) {
+    const form = new FormData()
+    form.append('access_token', accessToken)
+    form.append('skin', fs.createReadStream(filePath))
+
+    const res = await fetch(`${AZURIOM_URL}/api/skin-api/skins`, {
+        method: 'POST',
+        headers: form.getHeaders(),
+        body: form,
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+        return { status: 'error', message: data.message || 'Erreur lors de l\'envoi du skin' }
+    }
+
+    return { status: 'success', message: data.message || 'Skin mis à jour avec succès' }
+}
+
+/**
+ * Upload a cape to Azuriom Skin API
+ * POST /api/skin-api/capes
+ */
+async function uploadCape(accessToken, filePath) {
+    const form = new FormData()
+    form.append('access_token', accessToken)
+    form.append('cape', fs.createReadStream(filePath))
+
+    const res = await fetch(`${AZURIOM_URL}/api/skin-api/capes`, {
+        method: 'POST',
+        headers: form.getHeaders(),
+        body: form,
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+        return { status: 'error', message: data.message || 'Erreur lors de l\'envoi de la cape' }
+    }
+
+    return { status: 'success', message: data.message || 'Cape mise à jour avec succès' }
+}
+
+module.exports = { authenticate, verify, logout, uploadSkin, uploadCape, AZURIOM_URL }
