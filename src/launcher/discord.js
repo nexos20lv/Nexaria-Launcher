@@ -32,4 +32,13 @@ function setActivity(details, state = 'Prêt à jouer') {
     })
 }
 
-module.exports = { initRPC, setActivity }
+function destroyRPC() {
+    if (client) {
+        client.destroy().catch(err => {
+            log.warn('Error destroying Discord RPC:', err.message)
+        })
+        client = null
+    }
+}
+
+module.exports = { initRPC, setActivity, destroyRPC }

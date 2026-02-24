@@ -12,7 +12,7 @@ const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./laun
 const { launchGame, downloadGame } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
-const { initRPC, setActivity } = require('./launcher/discord')
+const { initRPC, setActivity, destroyRPC } = require('./launcher/discord')
 log.info('Discord RPC module loaded:', typeof initRPC)
 autoUpdater.autoDownload = true
 
@@ -121,6 +121,7 @@ app.whenReady().then(() => {
         }
         setTimeout(() => {
             setImmediate(() => {
+                destroyRPC()
                 app.removeAllListeners('window-all-closed')
                 if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy()
                 if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy()
@@ -156,6 +157,11 @@ app.whenReady().then(() => {
         autoUpdater.checkForUpdatesAndNotify()
     }, 60 * 60 * 1000)
 })
+
+app.on('before-quit', () => {
+    destroyRPC()
+})
+
 app.on('window-all-closed', () => app.quit())
 
 // ── Window Controls ───────────────────────────────────────
@@ -381,6 +387,7 @@ ipcMain.on('open:url', (_, url) => {
 
 ipcMain.on('update:quitAndInstall', () => {
     setImmediate(() => {
+        destroyRPC()
         app.removeAllListeners('window-all-closed')
         if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy()
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy()
