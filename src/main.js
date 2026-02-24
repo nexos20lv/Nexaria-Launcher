@@ -122,6 +122,8 @@ app.whenReady().then(() => {
         setTimeout(() => {
             setImmediate(() => {
                 app.removeAllListeners('window-all-closed')
+                if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy()
+                if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy()
                 autoUpdater.quitAndInstall(false, true)
             })
         }, 1500)
@@ -351,6 +353,8 @@ ipcMain.on('open:url', (_, url) => {
 ipcMain.on('update:quitAndInstall', () => {
     setImmediate(() => {
         app.removeAllListeners('window-all-closed')
+        if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy()
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy()
         autoUpdater.quitAndInstall(false, true)
     })
 })
