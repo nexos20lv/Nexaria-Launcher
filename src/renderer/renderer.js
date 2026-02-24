@@ -111,11 +111,12 @@ async function enterMainView() {
         updatePlayerCard(state.currentAccount)
     }
 
-    await Promise.all([
+    // Run async tasks in background without blocking UI
+    Promise.all([
         refreshServerStatus(),
         loadAccounts(),
         loadNews(),
-    ])
+    ]).catch(console.error)
 }
 
 function getAvatarUrl(uuid, username, size = 64) {
@@ -129,13 +130,71 @@ function getAvatarUrl(uuid, username, size = 64) {
     return `https://minotar.net/avatar/steve/${size}`
 }
 
+function parseMinecraftColors(text) {
+    if (!text) return ''
+
+    // First escape HTML to prevent XSS
+    let html = escapeHtml(text)
+
+    // Hex colors &#RRGGBB or <#RRGGBB>
+    html = html.replace(/(&#|&lt;#)([0-9a-fA-F]{6})(&gt;)?/g, '<span style="color: #$2">')
+
+    const colors = {
+        '0': '#000000', '1': '#0000AA', '2': '#00AA00', '3': '#00AAAA',
+        '4': '#AA0000', '5': '#AA00AA', '6': '#FFAA00', '7': '#AAAAAA',
+        '8': '#555555', '9': '#5555FF', 'a': '#55FF55', 'b': '#55FFFF',
+        'c': '#FF5555', 'd': '#FF55FF', 'e': '#FFFF55', 'f': '#FFFFFF'
+    }
+
+    const formats = {
+        'l': 'font-weight: bold;',
+        'm': 'text-decoration: line-through;',
+        'n': 'text-decoration: underline;',
+        'o': 'font-style: italic;'
+    }
+
+    let result = ''
+    let spanCount = 0
+
+    // Match §code or &code (excluding &amp; etc)
+    const regex = /(?:§|&)(?![a-z]+;)([0-9a-fk-orx])/gi
+    let lastIndex = 0
+    let match
+
+    while ((match = regex.exec(html)) !== null) {
+        result += html.substring(lastIndex, match.index)
+        lastIndex = regex.lastIndex
+
+        const code = match[1].toLowerCase()
+
+        if (code === 'r') {
+            result += '</span>'.repeat(spanCount)
+            spanCount = 0
+        } else if (colors[code]) {
+            result += '</span>'.repeat(spanCount)
+            spanCount = 0
+            result += `<span style="color: ${colors[code]};">`
+            spanCount++
+        } else if (formats[code]) {
+            result += `<span style="${formats[code]}">`
+            spanCount++
+        }
+    }
+
+    result += html.substring(lastIndex)
+    result += '</span>'.repeat(spanCount)
+
+    return result
+}
+
 function updatePlayerCard(account) {
     const nameEl = $('#player-name')
     const roleEl = $('#player-role')
     const avatarEl = $('#player-avatar')
 
     if (nameEl) nameEl.textContent = account.username
-    if (roleEl) roleEl.textContent = account.role?.name ? `Compte ${account.role.name}` : 'Compte Premium'
+    if (roleEl) roleEl.textContent = account.role?.name ? `Compte ${account.role.name}` : 'Compte Joueur'
+
     if (avatarEl) {
         avatarEl.src = getAvatarUrl(account.uuid, account.username, 64)
         avatarEl.onerror = () => {
@@ -153,6 +212,7 @@ async function refreshServerStatus() {
     const dot = $('#status-dot')
     const text = $('#status-text')
     const playersEl = $('#players-count')
+    const playersListEl = $('#players-list')
 
     try {
         const status = await window.nexaria.getServerStatus()
@@ -162,14 +222,31 @@ async function refreshServerStatus() {
             dot?.classList.remove('offline')
             if (text) text.textContent = 'Serveur en ligne'
             if (playersEl) playersEl.textContent = `${status.players} Joueur${status.players !== 1 ? 's' : ''}`
+
+            if (playersListEl) {
+                if (status.sample && status.sample.length > 0) {
+                    playersListEl.innerHTML = status.sample.map(p => `
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px;">
+                            <img src="${getAvatarUrl(p.id, p.name, 24)}" style="width: 24px; height: 24px; border-radius: 4px;" onerror="this.src='https://minotar.net/avatar/${encodeURIComponent(p.name)}/24';"/>
+                            <span style="font-size: 12px; font-weight: 600;">${parseMinecraftColors(p.name)}</span>
+                        </div>
+                    `).join('')
+                } else if (status.players > 0) {
+                    playersListEl.innerHTML = `<p style="color:var(--text-muted);font-size:11px;text-align:center;">Liste privée ou indisponible</p>`
+                } else {
+                    playersListEl.innerHTML = `<p style="color:var(--text-muted);font-size:11px;text-align:center;">Aucun joueur</p>`
+                }
+            }
         } else {
             dot?.classList.add('offline')
             dot?.classList.remove('online')
             if (text) text.textContent = 'Serveur hors ligne'
             if (playersEl) playersEl.textContent = '0 Joueur'
+            if (playersListEl) playersListEl.innerHTML = `<p style="color:var(--text-muted);font-size:11px;text-align:center;">Hors ligne</p>`
         }
     } catch {
         if (text) text.textContent = 'Statut inconnu'
+        if (playersListEl) playersListEl.innerHTML = `<p style="color:var(--text-muted);font-size:11px;text-align:center;">Erreur</p>`
     }
 }
 
@@ -521,6 +598,15 @@ async function init() {
                 showView('login')
                 return
             }
+
+            // Map integration lazy load
+            if (view === 'map') {
+                const mapFrame = $('#map-frame')
+                if (mapFrame && mapFrame.src === 'about:blank') {
+                    mapFrame.src = 'https://map.nexaria.netlib.re'
+                }
+            }
+
             showView(view)
         })
     })
@@ -529,6 +615,9 @@ async function init() {
     $('#btn-website')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.netlib.re'))
     $('#btn-discord')?.addEventListener('click', () => window.nexaria.openUrl('https://discord.gg/rwRAj5SbRH'))
     $('#btn-youtube')?.addEventListener('click', () => window.nexaria.openUrl('https://www.youtube.com/@nexos20'))
+
+    // Azuriom Vote link
+    $('#btn-vote')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.netlib.re/vote'))
 
     // Login
     $('#btn-login')?.addEventListener('click', handleLogin)
@@ -584,19 +673,25 @@ async function init() {
     $('#profile-easy')?.addEventListener('click', () => selectProfile('easy'))
     $('#profile-gamer')?.addEventListener('click', () => selectProfile('gamer'))
 
-    // Try to auto-login with last account
+    // Start at login view by default to render UI immediately
+    showView('login')
+
+    // Try to auto-login with last account in the background
     const lastAccount = await window.nexaria.getLastAccount()
     if (lastAccount) {
-        const verify = await window.nexaria.verify({ accessToken: lastAccount.accessToken })
-        if (verify.status === 'success') {
-            state.currentAccount = { ...verify.user, accessToken: verify.accessToken }
-            await enterMainView()
-            return
+        setLoginLoading(true)
+        try {
+            const verify = await window.nexaria.verify({ accessToken: lastAccount.accessToken })
+            if (verify.status === 'success') {
+                state.currentAccount = { ...verify.user, accessToken: verify.accessToken }
+                await enterMainView()
+            }
+        } catch (e) {
+            console.error('Auto-login failed', e)
+        } finally {
+            setLoginLoading(false)
         }
     }
-
-    // Start at login view
-    showView('login')
 
     // console log events from game
     window.nexaria.onGameLog((data) => {
@@ -608,6 +703,35 @@ async function init() {
 
     // Refresh server status every 30s
     setInterval(refreshServerStatus, 30000)
+
+    // Repair game
+    $('#btn-repair')?.addEventListener('click', async () => {
+        const btn = $('#btn-repair')
+        if (!btn || btn.disabled) return
+
+        if (!confirm('Voulez-vous vraiment forcer la réparation du jeu ? Cela supprimera les caches de version, mais cela conservera vos mondes, ressources et paramètres de mods.')) {
+            return
+        }
+
+        btn.disabled = true
+        btn.innerHTML = 'En cours...'
+        showToast('Réparation en cours...', 'info')
+
+        try {
+            const version = state.settings?.serverVersion || '1.21.11'
+            const result = await window.nexaria.repairGame({ version })
+            if (result.status === 'success') {
+                showToast('Jeu réparé avec succès ! Lancez le jeu pour re-télécharger.', 'success')
+            } else {
+                showToast(`Erreur: ${result.message}`, 'error')
+            }
+        } catch (e) {
+            showToast(`Erreur: ${e.message}`, 'error')
+        } finally {
+            btn.disabled = false
+            btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>Réparer`
+        }
+    })
 }
 
 // Start when DOM is ready

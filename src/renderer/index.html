@@ -63,6 +63,13 @@
           </svg>
           <span class="sidebar-tooltip">Console</span>
         </button>
+        <button class="sidebar-btn" id="nav-map" data-view="map" title="Carte du Monde (Dynmap)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          <span class="sidebar-tooltip">Carte du Monde</span>
+        </button>
       </div>
       <div class="sidebar-social">
         <button class="sidebar-btn sidebar-social-btn" id="btn-website" title="Site Web">
@@ -98,11 +105,9 @@
       <!-- ────────────────────────────────── -->
       <section class="view active" id="view-login">
         <div class="login-panel">
-          <div class="login-logo">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#8A2BE2" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+          <div class="login-logo" style="text-align: center;">
+            <img src="../../assets/icon.png" alt="Nexaria Logo"
+              style="width: 80px; height: 80px; margin: 0 auto 12px; display: block;" />
             <h1 class="login-brand">NEXARIA</h1>
           </div>
 
@@ -193,15 +198,24 @@
               </div>
               <div class="player-info">
                 <div class="player-name" id="player-name">Joueur</div>
-                <div class="player-role" id="player-role">Membre</div>
+                <div class="player-role" id="player-role">Joueur</div>
               </div>
-              <button class="btn-logout" id="btn-logout" title="Se déconnecter">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              </button>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <button class="btn-logout" id="btn-vote" title="Voter pour le serveur"
+                  style="background: var(--accent-dim); color: var(--text-primary);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                </button>
+                <button class="btn-logout" id="btn-logout" title="Se déconnecter">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <!-- Play button -->
@@ -237,13 +251,27 @@
                 </svg>
                 Dernières Actualités
               </div>
-              <div class="panel-content" id="news-list">
+              <div class="panel-content" id="news-list" style="max-height: 150px;">
                 <div class="news-skeleton">
                   <div class="skeleton-line"></div>
                   <div class="skeleton-line skeleton-line--short"></div>
-                  <div class="skeleton-line"></div>
-                  <div class="skeleton-line skeleton-line--short"></div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Players panel -->
+            <div class="panel panel--players">
+              <div class="panel-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                Joueurs En Ligne
+              </div>
+              <div class="panel-content" id="players-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <p style="color:var(--text-muted);font-size:11px;text-align:center;">Vérification...</p>
               </div>
             </div>
 
@@ -369,6 +397,23 @@
                 <div class="about-row"><span>Electron</span><span id="about-electron-version">-</span></div>
                 <div class="about-row"><span>Système</span><span id="about-os-version">-</span></div>
               </div>
+
+              <div class="settings-row"
+                style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+                <div class="settings-label">
+                  <span>Réparer le jeu</span>
+                  <small>Forcer la vérification / retéléchargement en cas de crash</small>
+                </div>
+                <button class="btn-profile" id="btn-repair"
+                  style="color: var(--red); border-color: rgba(239, 68, 68, 0.3);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;">
+                    <path
+                      d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                  </svg>
+                  Réparer
+                </button>
+              </div>
             </div>
 
           </div>
@@ -401,6 +446,29 @@
           </div>
           <div class="console-output" id="console-output">
             <div class="console-line info">Initialisation de la console...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────── -->
+      <!--            MAP VIEW                 -->
+      <!-- ────────────────────────────────── -->
+      <section class="view" id="view-map" style="background: transparent;">
+        <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+          <div class="console-header"
+            style="flex-shrink: 0; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 16px;">
+            <div class="console-title" style="color: var(--accent);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width: 18px; margin-right: 8px;">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              Carte du Monde
+            </div>
+          </div>
+          <div style="flex: 1; overflow: hidden; position: relative; background: var(--bg-primary);">
+            <iframe id="map-frame" src="about:blank"
+              style="position: absolute; top: -4px; left: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; outline: none;"></iframe>
           </div>
         </div>
       </section>

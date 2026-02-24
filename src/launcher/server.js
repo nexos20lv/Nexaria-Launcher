@@ -129,6 +129,7 @@ function getServerStatus(host = MC_HOST, port = MC_PORT, timeoutMs = 5000) {
                     max: json.players?.max ?? 0,
                     motd: extractMotd(json.description),
                     version: json.version?.name ?? '',
+                    sample: json.players?.sample || []
                 })
             } catch {
                 // Paquet incomplet, on attend plus de données

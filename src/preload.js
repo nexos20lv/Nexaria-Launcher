@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('nexaria', {
     // Game
     launchGame: (data) => ipcRenderer.invoke('game:launch', data),
     downloadGame: (data) => ipcRenderer.invoke('game:download', data),
+    repairGame: (data) => ipcRenderer.invoke('game:repair', data),
     onGameProgress: (cb) => ipcRenderer.on('game:progress', (_, data) => cb(data)),
     onGameLaunched: (cb) => ipcRenderer.on('game:launched', (_, data) => cb(data)),
     removeGameListeners: () => {

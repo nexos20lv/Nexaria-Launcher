@@ -282,6 +282,20 @@ ipcMain.handle('game:download', async (_, { version }) => {
     }
 })
 
+ipcMain.handle('game:repair', async (_, { version }) => {
+    try {
+        const { repairGame } = require('./launcher/repair')
+        const storeSettings = store.get('settings', {})
+        const gameDir = storeSettings.gameDir || require('./launcher/downloader').getGameDir()
+
+        await repairGame({ gameDir, version: version || storeSettings.serverVersion || '1.21.11' })
+        return { status: 'success' }
+    } catch (err) {
+        log.error('Repair error:', err)
+        return { status: 'error', message: err.message }
+    }
+})
+
 ipcMain.handle('settings:get', () => {
     const savedSettings = store.get('settings', {
         ram: 2048,
