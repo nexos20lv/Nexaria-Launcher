@@ -2,7 +2,7 @@
 
 Nexaria Launcher est un launcher Minecraft premium, moderne et sécurisé, conçu avec **Electron.js**. Il offre une interface élégante (inspirée de Nexaria) et des fonctionnalités avancées pour une expérience de jeu fluide.
 
-![Nexaria Launcher](src/renderer/images/preview.png) *(Note: ajouter une capture d'écran ici)*
+![Nexaria Launcher](assets/preview.png)
 
 ## ✨ Fonctionnalités
 
