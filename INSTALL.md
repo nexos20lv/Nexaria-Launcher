@@ -22,7 +22,7 @@ Choisissez votre plateforme ci-dessous pour les instructions détaillées.
 2. Ouvrez le `.dmg` et faites glisser le launcher dans votre dossier **Applications**.
 3. **Étape Cruciale :** Ouvrez votre **Terminal** et tapez la commande suivante :
    ```bash
-   xattr -cr "/Applications/Nexaria Launcher.app"
+   xattr -cr "/Applications/NexariaLauncher.app"
    ```
 4. Vous pouvez maintenant lancer l'application normalement depuis votre Launchpad ou dossier Applications.
 

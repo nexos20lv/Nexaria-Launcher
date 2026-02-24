@@ -1,6 +1,6 @@
 {
   "name": "nexaria-launcher",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Nexaria Minecraft Launcher",
   "main": "src/main.js",
   "scripts": {
@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "fr.nexaria.launcher",
-    "productName": "Nexaria Launcher",
+    "productName": "NexariaLauncher",
     "copyright": "Copyright © 2024 Nexaria",
     "directories": {
       "output": "dist"

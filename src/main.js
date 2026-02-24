@@ -14,6 +14,7 @@ const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
 const { initRPC, setActivity } = require('./launcher/discord')
 log.info('Discord RPC module loaded:', typeof initRPC)
+autoUpdater.autoDownload = true
 
 // ── Config & persistent store ─────────────────────────────
 const store = new Store({
@@ -58,6 +59,11 @@ app.whenReady().then(() => {
     createWindow()
     autoUpdater.checkForUpdatesAndNotify()
     initRPC()
+
+    // Periodic check every 60 minutes
+    setInterval(() => {
+        autoUpdater.checkForUpdatesAndNotify()
+    }, 60 * 60 * 1000)
 })
 app.on('window-all-closed', () => app.quit())
 
