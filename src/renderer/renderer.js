@@ -228,7 +228,7 @@ function renderAccounts() {
         alt="${escapeHtml(acc.username)}" />
       <div class="account-info">
         <div class="account-name">${escapeHtml(acc.username)}</div>
-        <div class="account-type">Compte Premium</div>
+        <div class="account-type">${acc.role?.name ? `Compte ${acc.role.name}` : 'Compte Premium'}</div>
       </div>
       <button class="account-delete" data-uuid="${acc.uuid}" title="Supprimer ce compte">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
