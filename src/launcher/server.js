@@ -84,7 +84,7 @@ function getServerStatus(host = MC_HOST, port = MC_PORT, timeoutMs = 5000) {
 
             const handshake = buildPacket(
                 0x00,
-                writeVarInt(767),      // Protocol version 1.21.1 = 767
+                writeVarInt(767),      // Protocol version 1.21.11 = 767
                 writeString(host),     // Hostname
                 portBuf,               // Port
                 writeVarInt(1),        // Next state: Status

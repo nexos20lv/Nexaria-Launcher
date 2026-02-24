@@ -310,7 +310,7 @@ async function handlePlay() {
     if (progressContainer) progressContainer.style.display = 'block'
 
     const settings = state.settings || {}
-    const version = settings.serverVersion || '1.21.1'
+    const version = settings.serverVersion || '1.21.11'
 
     // Listen for progress
     window.nexaria.onGameProgress((progress) => {
@@ -431,10 +431,10 @@ function applySettings(s) {
     else $('#profile-easy')?.classList.add('active')
 
     const mcVersionEl = $('#about-mc-version')
-    if (mcVersionEl) mcVersionEl.textContent = s.serverVersion || '1.21.1'
+    if (mcVersionEl) mcVersionEl.textContent = s.serverVersion || '1.21.11'
 
     const serverVersionEl = $('#server-version')
-    if (serverVersionEl) serverVersionEl.textContent = `Survie Communautaire ${s.serverVersion || '1.21.1'}`
+    if (serverVersionEl) serverVersionEl.textContent = `Survie Communautaire ${s.serverVersion || '1.21.11'}`
 
     // ── NOUVEAU : Versions dynamiques ──
     if (s.versions) {

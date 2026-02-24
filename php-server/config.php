@@ -6,7 +6,7 @@
 return [
 
     // ── Minecraft ──────────────────────────────────────────
-    'mc_version' => '1.21.1', // Version de Minecraft
+    'mc_version' => '1.21.11', // Version de Minecraft
 
     // ── Loader (fabric / forge / neoforge / quilt / none) ─
     'loader' => 'fabric', // Type de loader

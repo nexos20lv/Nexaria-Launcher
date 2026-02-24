@@ -27,7 +27,7 @@ async function launchGame({ account, settings, mainWindow }) {
     })
 
     const info = await fetchServerInfo()
-    const version = info?.mc_version || settings.serverVersion || '1.21.1'
+    const version = info?.mc_version || settings.serverVersion || '1.21.11'
     const loader = info?.loader || 'vanilla'
     const loaderVersion = info?.loader_version || ''
 
