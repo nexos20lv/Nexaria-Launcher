@@ -7,12 +7,15 @@ Nexaria Launcher est un launcher Minecraft premium, moderne et sécurisé, conç
 ## ✨ Fonctionnalités
 
 - **Interface Moderne** : Design sombre avec accents violets Nexaria, coins arrondis (12px), et animations fluides (pulse, glow).
-- **Multi-Comptes** : Gestion simplifiée de plusieurs comptes avec authentification via l'API Azuriom.
-- **Mises à jour Silencieuses** : Le launcher se met à jour, s'installe et redémarre automatiquement de manière transparente.
-- **Java Auto-Installer** : Détecte, télécharge et installe automatiquement le JRE 21 nécessaire au jeu.
-- **Statut en Direct** : Affichage en temps réel du statut du serveur et du nombre de joueurs connectés.
-- **Discord Rich Presence** : Affiche votre activité de jeu sur Discord.
-- **Console de Logs** : Accès direct aux journaux du jeu pour le support technique.
+- **Multi-Comptes** : Gestion simplifiée de plusieurs comptes avec authentification sécurisée via Azuriom.
+- **Sécurité Mail** : Restriction de connexion aux utilisateurs ayant validé leur adresse email pour plus de sécurité.
+- **Mods Optionnels** : Menu dédié pour installer/désinstaller des mods (Iris, Xaero, ReplayMod) configurables via un fichier JSON distant.
+- **Personnalisation (Skin API)** : Changez votre skin et votre cape directement depuis le launcher grâce à l'intégration Azuriom Skin API.
+- **Exportateur de Crashs** : Détection automatique des plantages avec affichage du rapport et bouton de copie rapide pour le support.
+- **Mises à jour Silencieuses** : Le launcher se met à jour, s'installe et redémarre automatiquement.
+- **Java Auto-Installer** : Détecte et installe le JRE 21 nécessaire de manière transparente.
+- **Discord Rich Presence** : Affiche votre activité de jeu sur Discord avec statut en temps réel.
+- **Statut Serveur** : Visualisation en direct de l'état du serveur et des joueurs en ligne.
 
 ## 🚀 Installation
 
@@ -48,7 +51,9 @@ La configuration principale se fait dans les fichiers `src/launcher/` :
 Le dossier `php-server/` doit être déployé sur un hébergement web. 
 1. Uploadez le contenu de `php-server/`.
 2. Configurez `config.php` avec vos versions de Minecraft et de loader.
-3. Placez vos fichiers (mods, config) dans le dossier `files/`. Le manifest se génère automatiquement !
+3. Placez vos fichiers (mods, config) dans le dossier `files/`.
+4. Configurez vos **mods optionnels** dans `optional_mods.json` (Iris, Minimap, etc.) avec leurs liens de téléchargement.
+Le manifest se génère automatiquement !
 
 ## 🏗️ Structure du Projet
 

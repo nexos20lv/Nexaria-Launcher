@@ -10,6 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' asset: https: data:; frame-src https:;">
 </head>
 
 <body>
@@ -76,6 +78,15 @@
               d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
           </svg>
           <span class="sidebar-tooltip">Personnalisation</span>
+        </button>
+        <!-- 5. Screenshots (Capture) -->
+        <button class="sidebar-btn" id="nav-screenshots" data-view="screenshots" title="Captures d'Écran">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span class="sidebar-tooltip">Captures d'Écran</span>
         </button>
         <!-- Séparateur visuel bas - Tools -->
         <div style="width: 24px; height: 1px; background: var(--border); margin: 8px 0;"></div>
@@ -200,6 +211,10 @@
               <div class="server-status-badge" id="server-badge">
                 <span class="status-dot" id="status-dot"></span>
                 <span id="status-text">Vérification...</span>
+              </div>
+              <div class="server-players" id="btn-show-players" style="cursor: pointer;">
+                <span class="status-dot online" id="status-dot"></span>
+                <span id="players-count">Chargement...</span>
               </div>
               <div class="server-details">
                 <div class="server-name">Nexaria</div>
@@ -406,41 +421,80 @@
                   <span class="toggle-slider"></span>
                 </label>
               </div>
+
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span>Arguments JVM</span>
+                  <small>Utilisateurs avancés uniquement (ex: -Dsun.java2d.opengl=true)</small>
+                </div>
+                <input type="text" class="text-input" id="setting-jvm-args" placeholder="-XX:+UseG1GC" />
+              </div>
             </div>
 
             <div class="settings-section">
               <h3 class="settings-section-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path
-                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.73 3.34a2 2 0 0 1 2-2.16h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9c1.1 1.913 2.47 3.596 4.09 5.09l1.27-1.27a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                    d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                 </svg>
-                À propos
+                Dépannage
               </h3>
-              <div class="about-info">
-                <div class="about-row"><span>Version Launcher</span><span id="about-app-version">1.0.0</span></div>
-                <div class="about-row"><span>Minecraft</span><span id="about-mc-version">1.21.11</span></div>
-                <div class="about-row"><span>Electron</span><span id="about-electron-version">-</span></div>
-                <div class="about-row"><span>Système</span><span id="about-os-version">-</span></div>
-              </div>
 
-              <div class="settings-row"
-                style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+              <div class="settings-row">
                 <div class="settings-label">
                   <span>Réparer le jeu</span>
-                  <small>Forcer la vérification / retéléchargement en cas de crash</small>
+                  <small>Vérifie et télécharge les fichiers manquants</small>
                 </div>
-                <button class="btn-profile" id="btn-repair"
-                  style="color: var(--red); border-color: rgba(239, 68, 68, 0.3);">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;">
-                    <path
-                      d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                  </svg>
-                  Réparer
-                </button>
+                <button class="settings-btn" id="btn-repair" style="border-color: var(--accent);">Réparer</button>
+              </div>
+
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span>Vider le cache</span>
+                  <small>Supprime les bibliothèques et versions (fixe 90% des crashs)</small>
+                </div>
+                <button class="settings-btn" id="btn-clear-cache" style="border-color: var(--red);">Vider</button>
+              </div>
+
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span>Réinitialisation Totale</span>
+                  <small style="color:var(--red)">Efface tout (comptes, réglages)</small>
+                </div>
+                <button class="settings-btn" id="btn-reset-settings"
+                  style="background: var(--red); color: white;">Reset</button>
               </div>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────── -->
+      <!--          SCREENSHOTS VIEW           -->
+      <!-- ────────────────────────────────── -->
+      <section class="view" id="view-screenshots" style="background: transparent;">
+        <div
+          style="padding: 48px; max-width: 1000px; margin: 0 auto; width: 100%; height: 100%; display: flex; flex-direction: column;">
+          <div style="margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h2
+                style="font-size: 28px; margin-bottom: 8px; color: var(--text-primary); text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+                Captures d'Écran</h2>
+              <p style="color: var(--text-muted); font-size: 14px;">Gérez vos souvenirs de Nexaria directement ici.</p>
+            </div>
+            <button class="settings-btn" id="btn-open-screenshots-folder" style="padding: 10px 24px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+              DOSSIER
+            </button>
+          </div>
+
+          <div id="screenshots-grid"
+            style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; padding-bottom: 40px; padding-right: 12px;">
+            <!-- Rempli dynamiquement -->
           </div>
         </div>
       </section>
@@ -546,6 +600,21 @@
             </div>
           </div>
           <div style="flex: 1; overflow: hidden; position: relative; background: var(--bg-primary);">
+            <div id="map-offline"
+              style="display: none; position: absolute; inset: 0; background: var(--bg-primary); z-index: 5; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px;">
+              <div
+                style="width: 80px; height: 80px; background: var(--bg-panel); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; border: 2px solid var(--border);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"
+                  style="width: 40px; height: 40px;">
+                  <path d="M1 1l22 22M2 6h20M5 11h14M8 16h8M11 21h2" />
+                </svg>
+              </div>
+              <h2 style="font-size: 24px; color: var(--text-primary); margin-bottom: 8px;">Carte Hors-Ligne</h2>
+              <p style="color: var(--text-muted); font-size: 14px; max-width: 400px; line-height: 1.6;">La carte
+                interactive rencontre un problème de connexion (502 Bad Gateway) ou le serveur est en maintenance.</p>
+              <button class="settings-btn" id="btn-retry-map"
+                style="margin-top: 24px; border-color: var(--accent);">Réessayer la connexion</button>
+            </div>
             <iframe id="map-frame" src="about:blank"
               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; outline: none;"></iframe>
           </div>
@@ -580,6 +649,20 @@
               <span class="btn-play-text" style="font-size: 13px;">COPIER LE RAPPORT</span>
               <div class="btn-play-glow"></div>
             </button>
+          </div>
+        </div>
+      </div>
+      <!-- PLAYERS LIST MODAL -->
+      <div id="modal-players" class="modal"
+        style="display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+        <div class="modal-content"
+          style="background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-lg); max-width: 450px; width: 90%; max-height: 80vh; padding: 32px; display: flex; flex-direction: column; backdrop-filter: blur(20px);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h3 style="font-size: 20px; font-weight: 800; letter-spacing: 1px;">Joueurs en ligne</h3>
+            <button id="btn-close-players" style="color: var(--text-muted); font-size: 24px;">&times;</button>
+          </div>
+          <div id="players-full-list" style="flex: 1; overflow-y: auto; display: grid; gap: 12px; padding-right: 8px;">
+            <p style="text-align: center; color: var(--text-muted); padding: 20px;">Chargement...</p>
           </div>
         </div>
       </div>

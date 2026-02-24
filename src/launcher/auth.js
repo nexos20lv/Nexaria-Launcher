@@ -31,6 +31,14 @@ async function authenticate(email, password, twoFactorCode = null) {
         return { status: 'error', reason: data.reason, message: data.message || 'Erreur inconnue' }
     }
 
+    if (!data.email_verified) {
+        return {
+            status: 'error',
+            reason: 'email_not_verified',
+            message: 'Votre adresse email n\'est pas vérifiée. Veuillez vérifier vos emails (et spams) pour valider votre compte avant de vous connecter.'
+        }
+    }
+
     return {
         status: 'success',
         user: {
@@ -70,6 +78,7 @@ async function verify(accessToken) {
             id: data.id,
             username: data.username,
             uuid: data.uuid,
+            email_verified: data.email_verified,
             money: data.money,
             role: data.role,
         },

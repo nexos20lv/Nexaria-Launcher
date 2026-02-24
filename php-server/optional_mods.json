@@ -3,21 +3,84 @@
     "id": "iris",
     "name": "Iris Shaders",
     "description": "Permet d'utiliser des shaders optifine sur Fabric pour des graphismes magnifiques.",
-    "fileName": "iris-1.7.0.jar",
+    "fileName": "iris-1.10.6+fabric-mc1.21.11.jar",
     "url": "https://cdn.modrinth.com/data/YL57xq9U/versions/8UeBsv7j/iris-1.7.0%2Bmc1.21.jar"
+  },
+  {
+    "id": "sodium",
+    "name": "Sodium",
+    "description": "Améliore considérablement les performances (FPS) du jeu grâce à un moteur de rendu moderne.",
+    "fileName": "sodium-fabric-0.6.0.jar",
+    "url": "https://cdn.modrinth.com/data/AANobbMI/versions/j99o5uU9/sodium-fabric-0.6.0%2Bmc1.21.jar"
+  },
+  {
+    "id": "indium",
+    "name": "Indium",
+    "description": "Augmente la compatibilité de Sodium avec d'autres mods (indispensable pour les lumières dynamiques).",
+    "fileName": "indium-1.0.35.jar",
+    "url": "https://cdn.modrinth.com/data/mBa0id9Y/versions/xMhVIO9k/indium-1.0.34%2Bmc1.21.jar"
+  },
+  {
+    "id": "lithium",
+    "name": "Lithium",
+    "description": "Optimise la logique interne du jeu pour réduire les lags et améliorer la fluidité.",
+    "fileName": "lithium-fabric-mc1.21-0.12.1.jar",
+    "url": "https://cdn.modrinth.com/data/gvQqBU9Z/versions/Gv6A3vA6/lithium-fabric-mc1.21-0.12.1.jar"
   },
   {
     "id": "xaeros",
     "name": "Xaero's Minimap",
     "description": "Ajoute une mini-carte pratique avec un radar d'entités et de joueurs.",
-    "fileName": "Xaeros_Minimap_24.3.0_Fabric_1.21.jar",
-    "url": "https://cdn.modrinth.com/data/1bokaNcj/versions/u7r2a0Qk/Xaeros_Minimap_24.3.0_Fabric_1.21.jar"
+    "fileName": "xaerominimap-fabric-1.21.11-25.3.10.jar",
+    "url": "https://cdn.modrinth.com/data/1bokaNcj/versions/avSqR3vF/xaerominimap-fabric-1.21.11-25.3.10.jar"
   },
   {
-    "id": "replaymod",
+    "id": "replay",
     "name": "ReplayMod",
     "description": "Permet d'enregistrer, de rejouer et de partager vos meilleures parties en cinématique.",
-    "fileName": "replaymod-1.21-2.6.17.jar",
-    "url": "https://cdn.modrinth.com/data/AANobbMI/versions/j99o5uU9/replaymod-1.21-2.6.17.jar"
+    "fileName": "replaymod-1.21.11-2.6.25.jar",
+    "url": "https://cdn.modrinth.com/data/Nv2fQJo5/versions/lrnVIO9F/replaymod-1.21.11-2.6.25.jar"
+  },
+  {
+    "id": "appleskin",
+    "name": "AppleSkin",
+    "description": "Affiche des informations utiles sur la nourriture (saturation, points de vie restaurés).",
+    "fileName": "appleskin-fabric-mc1.21.11-3.0.8.jar",
+    "url": "https://cdn.modrinth.com/data/EsUobOIC/versions/0uMvS0P2/appleskin-fabric-mc1.21-3.0.5.jar"
+  },
+  {
+    "id": "dynamiclights",
+    "name": "Dynamic Lights",
+    "description": "Fait que les torches et objets lumineux éclairent votre environnement quand vous les portez.",
+    "fileName": "lambdynamiclights-4.9.1.jar",
+    "url": "https://cdn.modrinth.com/data/9Esh69uY/versions/3P8vS0P1/lambdynamiclights-2.3.2%2B1.21.jar"
+  },
+  {
+    "id": "betterf3",
+    "name": "Better F3",
+    "description": "Remplace le menu F3 classique par une fenêtre plus lisible et personnalisable.",
+    "fileName": "BetterF3-v17.0.0.jar",
+    "url": "https://cdn.modrinth.com/data/998id9L3/versions/vMhVIO9h/BetterF3-11.0.1-Fabric-1.21.jar"
+  },
+  {
+    "id": "modmenu",
+    "name": "ModMenu",
+    "description": "Ajoute un menu pour voir et configurer tous vos mods installés.",
+    "fileName": "modmenu-17.0.0-beta.2.jar",
+    "url": "https://cdn.modrinth.com/data/mOgS889D/versions/Gv6A3vA6/modmenu-11.0.1.jar"
+  },
+  {
+    "id": "clothconfig",
+    "name": "Cloth Config",
+    "description": "Indispensable pour configurer certains mods directement en jeu.",
+    "fileName": "cloth-config-15.0.153.jar",
+    "url": "https://cdn.modrinth.com/data/9s6ou7be/versions/998id9L3/cloth-config-15.0.1+fabric.jar"
+  },
+  {
+    "id": "login",
+    "name": "AutoLogin",
+    "description": "Se connecte automatiquement au serveur Nexaria dès que le jeu est lancé.",
+    "fileName": "autologin-mod-1.1.8.jar",
+    "url": "https://cdn.modrinth.com/data/6OR8Lue2/versions/nGCco91g/autologin-mod-1.1.8.jar"
   }
 ]

@@ -76,6 +76,7 @@ async function launchGame({ account, settings, mainWindow }) {
             height: 720,
             fullscreen: settings.fullscreen || false,
         },
+        jvmArgs: settings.jvmArgs ? settings.jvmArgs.split(' ').filter(arg => arg.trim() !== '') : [],
         overrides: {
             gameDirectory: gameDir,
             // detached: true, // Désactivé car peut causer des soucis de détection sur Mac

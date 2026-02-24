@@ -33,6 +33,8 @@ function showView(viewId) {
 
     if (viewId === 'mods') {
         renderMods()
+    } else if (viewId === 'screenshots') {
+        renderScreenshots()
     }
 }
 
@@ -115,9 +117,23 @@ async function enterMainView() {
         updatePlayerCard(state.currentAccount)
     }
 
+    // Refresh server status every 15s
+    refreshServerStatus()
+    setInterval(refreshServerStatus, 15000) // Plus fréquent (15s) pour plus de réactivité
+
+    // Refresh stats (Money, Role) every 60s
+    setInterval(async () => {
+        if (state.currentAccount) {
+            const result = await window.nexaria.verify(state.currentAccount.accessToken)
+            if (result.status === 'success') {
+                state.currentAccount = { ...state.currentAccount, ...result.user }
+                updatePlayerCard(state.currentAccount)
+            }
+        }
+    }, 60000)
+
     // Run async tasks in background without blocking UI
     Promise.all([
-        refreshServerStatus(),
         loadAccounts(),
         loadNews(),
     ]).catch(console.error)
@@ -195,7 +211,16 @@ function updatePlayerCard(account) {
     const avatarEl = $('#player-avatar')
 
     if (nameEl) nameEl.textContent = account.username
-    if (roleEl) roleEl.textContent = account.role?.name ? `Compte ${account.role.name}` : 'Compte Joueur'
+    if (roleEl) {
+        roleEl.textContent = account.role?.name ? `Compte ${account.role.name}` : 'Compte Joueur'
+        // Reset classes
+        roleEl.classList.remove('role-mvp', 'role-vip')
+
+        // Apply specialized role styling
+        const roleName = account.role?.name?.toUpperCase() || ''
+        if (roleName.includes('MVP')) roleEl.classList.add('role-mvp')
+        else if (roleName.includes('VIP')) roleEl.classList.add('role-vip')
+    }
 
     if (avatarEl) {
         // Ajouter un cache buster basé sur le timestamp global pour forcer le rafraîchissement
@@ -255,6 +280,35 @@ async function refreshServerStatus() {
     } catch {
         if (text) text.textContent = 'Statut inconnu'
         if (playersListEl) playersListEl.innerHTML = `<p style="color:var(--text-muted);font-size:11px;text-align:center;">Erreur</p>`
+    }
+
+    // Refresh the modal if open
+    if ($('#modal-players')?.style.display === 'flex') {
+        updatePlayersModal()
+    }
+}
+
+async function updatePlayersModal() {
+    const listEl = $('#players-full-list')
+    if (!listEl) return
+
+    try {
+        const status = await window.nexaria.getServerStatus()
+        if (!status.online || !status.sample || status.sample.length === 0) {
+            listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 40px;">Aucun joueur en ligne</p>`
+            return
+        }
+
+        listEl.innerHTML = status.sample.map(p => `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="${getAvatarUrl(p.id, p.name, 32, 'face')}" style="width: 32px; height: 32px; border-radius: 4px;" onerror="this.src='https://minotar.net/avatar/${encodeURIComponent(p.name)}/32';"/>
+                    <span style="font-weight: 700; font-size: 14px;">${parseMinecraftColors(p.name)}</span>
+                </div>
+            </div>
+        `).join('')
+    } catch (err) {
+        listEl.innerHTML = `<p style="text-align: center; color: var(--red); padding: 40px;">Erreur de chargement</p>`
     }
 }
 
@@ -526,6 +580,8 @@ function applySettings(s) {
     if (fullscreenToggle) fullscreenToggle.checked = !!s.fullscreen
     if (keepOpenToggle) keepOpenToggle.checked = s.keepLauncherOpen !== false
 
+    if ($('#setting-jvm-args')) $('#setting-jvm-args').value = s.jvmArgs || ''
+
     // Highlight profile
     $$('.btn-profile').forEach(b => b.classList.remove('active'))
     if (s.ram <= 2048) $('#profile-potate')?.classList.add('active')
@@ -557,6 +613,7 @@ async function saveSettings() {
         gameDir: $('#setting-gamedir')?.value || '',
         fullscreen: $('#setting-fullscreen')?.checked || false,
         keepLauncherOpen: $('#setting-keep-open')?.checked !== false,
+        jvmArgs: $('#setting-jvm-args')?.value || '',
     }
     await window.nexaria.saveSettings(settings)
     state.settings = { ...state.settings, ...settings }
@@ -670,12 +727,9 @@ async function init() {
                 return
             }
 
-            // Map integration lazy load
+            // Map integration lazy load with 502 handling
             if (view === 'map') {
-                const mapFrame = $('#map-frame')
-                if (mapFrame && mapFrame.src === 'about:blank') {
-                    mapFrame.src = 'https://map.nexaria.netlib.re'
-                }
+                checkMapAvailability()
             }
 
             showView(view)
@@ -799,8 +853,30 @@ async function init() {
 
     $('#setting-java')?.addEventListener('input', triggerAutoSave)
     $('#setting-gamedir')?.addEventListener('input', triggerAutoSave)
+    $('#setting-jvm-args')?.addEventListener('input', triggerAutoSave)
     $('#setting-fullscreen')?.addEventListener('change', triggerAutoSave)
     $('#setting-keep-open')?.addEventListener('change', triggerAutoSave)
+
+    // Clear Cache
+    $('#btn-clear-cache')?.addEventListener('click', async () => {
+        if (!confirm('Voulez-vous vraiment vider le cache du jeu ? Cela supprimera les assets et bibliothèques (ils seront re-téléchargés au prochain lancement).')) return
+        const res = await window.nexaria.clearCache()
+        if (res.status === 'success') {
+            showToast('Cache vidé avec succès !', 'success')
+        }
+    })
+
+    // Reset settings
+    $('#btn-reset-settings')?.addEventListener('click', async () => {
+        if (!confirm('ATTENTION : Voulez-vous vraiment réinitialiser le launcher ? Tous vos comptes et paramètres seront effacés.')) return
+        await window.nexaria.resetSettings()
+        location.reload()
+    })
+
+    // Screenshot management
+    $('#btn-open-screenshots-folder')?.addEventListener('click', () => {
+        window.nexaria.openScreenshotsFolder()
+    })
 
     // Override original saveSettings to prevent duplicate toasts if called too fast
     const originalSaveSettings = saveSettings
@@ -899,6 +975,15 @@ async function init() {
             }
         })
     }
+
+    // Players Modal
+    $('#btn-show-players')?.addEventListener('click', () => {
+        $('#modal-players').style.display = 'flex'
+        updatePlayersModal()
+    })
+    $('#btn-close-players')?.addEventListener('click', () => {
+        $('#modal-players').style.display = 'none'
+    })
 }
 
 // ── Mods Optionnels ──────────────────────────────────────
@@ -979,6 +1064,130 @@ async function renderMods() {
         list.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 24px;">Erreur lors du chargement des mods.</div>'
     }
 }
+
+
+// ── Screenshots ──────────────────────────────────────────
+async function renderScreenshots() {
+    const grid = $('#screenshots-grid')
+    if (!grid) return
+
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Chargement...</div>'
+
+    try {
+        const list = await window.nexaria.getScreenshots()
+        grid.innerHTML = ''
+
+        if (!list || list.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Aucune capture d\'écran trouvée.</div>'
+            return
+        }
+
+        list.forEach(scr => {
+            const card = document.createElement('div')
+            card.className = 'screenshot-card'
+            card.style.cssText = `
+                background: var(--bg-panel);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-md);
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                transition: transform 0.2s;
+            `
+
+            // Relative date formatting
+            const dateStr = new Date(scr.date).toLocaleDateString()
+
+            card.innerHTML = `
+                <div class="screenshot-img-box" style="aspect-ratio: 16/9; background: #000; cursor: pointer; position: relative; overflow: hidden;">
+                    <img src="${scr.url}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: opacity 0.3s;" />
+                </div>
+                <div style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary);">${scr.name}</div>
+                    <div style="font-size: 10px; color: var(--text-muted);">${dateStr} • ${(scr.size / 1024 / 1024).toFixed(2)} Mo</div>
+                    <div style="display: flex; gap: 8px; margin-top: 4px;">
+                        <button class="settings-btn btn-open-scr" style="flex: 1; padding: 4px; font-size: 10px;">Voir</button>
+                        <button class="settings-btn btn-delete-scr" style="flex: 1; padding: 4px; font-size: 10px; border-color: var(--red); color: var(--red);">Supprimer</button>
+                    </div>
+                </div>
+            `
+
+            const imgBox = card.querySelector('.screenshot-img-box')
+            imgBox.addEventListener('mouseenter', () => imgBox.querySelector('img').style.opacity = '1')
+            imgBox.addEventListener('mouseleave', () => imgBox.querySelector('img').style.opacity = '0.8')
+            imgBox.addEventListener('click', () => window.nexaria.openScreenshot(scr.name))
+
+            card.querySelector('.btn-open-scr').addEventListener('click', () => window.nexaria.openScreenshot(scr.name))
+            card.querySelector('.btn-delete-scr').addEventListener('click', async (e) => {
+                e.stopPropagation()
+                if (confirm(`Supprimer ${scr.name} ?`)) {
+                    const res = await window.nexaria.deleteScreenshot(scr.name)
+                    if (res) {
+                        showToast('Capture supprimée', 'info')
+                        renderScreenshots()
+                    }
+                }
+            })
+
+            grid.appendChild(card)
+        })
+    } catch (e) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--red); padding: 40px;">Erreur lors du chargement.</div>'
+    }
+}
+
+
+// ── Map Availability ─────────────────────────────────────
+async function checkMapAvailability() {
+    const mapFrame = $('#map-frame')
+    const offlinePlaceholder = $('#map-offline')
+    const url = 'https://map.nexaria.netlib.re'
+
+    if (!mapFrame || !offlinePlaceholder) return
+
+    // Show loading or just try
+    try {
+        // Use fetch with a short timeout to check if the server responds
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+        const response = await fetch(url, {
+            method: 'HEAD',
+            mode: 'no-cors', // Map might not have CORS, so we use no-cors to at least see if it's "alive"
+            signal: controller.signal
+        }).catch(() => ({ ok: false })) // Catch abort/network errors
+
+        clearTimeout(timeoutId)
+
+        // With no-cors, we can't see the status code, so we try a "cors" request to specifically catch 502
+        // IF the server is Azuriom/Cloudflare, we might be able to get status or it will just fail.
+        const checkStatus = await fetch(url).catch(() => ({ status: 502 }))
+
+        if (checkStatus.status === 502 || checkStatus.status === 504 || !checkStatus.ok) {
+            mapFrame.style.display = 'none'
+            offlinePlaceholder.style.display = 'flex'
+        } else {
+            mapFrame.style.display = 'block'
+            offlinePlaceholder.style.display = 'none'
+            if (mapFrame.src === 'about:blank' || mapFrame.src !== url) {
+                mapFrame.src = url
+            }
+        }
+    } catch (err) {
+        mapFrame.style.display = 'none'
+        offlinePlaceholder.style.display = 'flex'
+    }
+}
+
+// Map Retry button
+$('#btn-retry-map')?.addEventListener('click', checkMapAvailability)
+
+// Live Listeners
+window.nexaria.onScreenshotsUpdated(() => {
+    if (state.currentView === 'screenshots') {
+        renderScreenshots()
+    }
+})
 
 // Start when DOM is ready
 document.addEventListener('DOMContentLoaded', init)

@@ -55,6 +55,7 @@
     "mac": {
       "category": "public.app-category.games",
       "icon": "assets/icon.icns",
+      "artifactName": "${productName}.${ext}",
       "target": [
         "dmg",
         "zip"
@@ -62,12 +63,14 @@
     },
     "win": {
       "icon": "assets/icon.ico",
+      "artifactName": "${productName}.${ext}",
       "target": [
         "nsis"
       ]
     },
     "linux": {
       "icon": "assets/icon.png",
+      "artifactName": "${productName}.${ext}",
       "target": [
         "AppImage"
       ]

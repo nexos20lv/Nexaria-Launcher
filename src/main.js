@@ -1,7 +1,7 @@
 // ============================================================
 // Nexaria Launcher - Main Process
 // ============================================================
-const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog, protocol } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const log = require('electron-log')
 log.transports.file.level = 'info'
@@ -9,7 +9,7 @@ autoUpdater.logger = log
 const path = require('path')
 const Store = require('electron-store')
 const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./launcher/auth')
-const { launchGame, downloadGame } = require('./launcher/game')
+const { launchGame, downloadGame, getGameDir: getDeafultGameDir } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
 const { initRPC, setActivity, destroyRPC } = require('./launcher/discord')
@@ -21,6 +21,11 @@ const store = new Store({
     name: 'nexaria-launcher',
     encryptionKey: 'nexaria-secure-key-2024',
 })
+
+// Register custom protocol for local assets
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'asset', privileges: { secure: true, standard: true, supportFetchAPI: true, bypassCSP: true } }
+])
 
 // ── Windows ───────────────────────────────────────────────
 let mainWindow
@@ -74,11 +79,43 @@ function createWindow() {
     if (process.argv.includes('--dev')) {
         mainWindow.webContents.openDevTools({ mode: 'detach' })
     }
+
+    // Setup screenshot watcher
+    setupScreenshotWatcher()
+}
+
+let screenshotWatcher = null
+function setupScreenshotWatcher() {
+    const fs = require('fs')
+    const gameDir = store.get('settings.gameDir') || getDeafultGameDir()
+    const screenshotsDir = path.join(gameDir, 'screenshots')
+
+    if (!fs.existsSync(screenshotsDir)) {
+        try { fs.mkdirSync(screenshotsDir, { recursive: true }) } catch (e) { }
+    }
+
+    if (screenshotWatcher) screenshotWatcher.close()
+
+    screenshotWatcher = fs.watch(screenshotsDir, (eventType, filename) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('screenshots:updated')
+        }
+    })
 }
 
 app.whenReady().then(() => {
+    // Register the handler for our custom protocol
+    protocol.registerFileProtocol('asset', (request, callback) => {
+        const url = request.url.replace(/^asset:\/\//, '')
+        try {
+            return callback(decodeURIComponent(url))
+        } catch (error) {
+            console.error('Failed to register protocol', error)
+        }
+    })
+
     createSplashWindow()
-    createWindow()
+    // createWindow() // Déplacé dans finishSplash pour éviter le clignotement pendant l'update
 
     initRPC()
 
@@ -133,24 +170,45 @@ app.whenReady().then(() => {
 
     // Lancement de la vérification
     if (app.isPackaged) {
-        autoUpdater.checkForUpdatesAndNotify()
+        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+            log.error('Erreur lancement update check:', err)
+            finishSplash()
+        })
     } else {
         // En mode développement, on skip l'auto-updater car il ne se lance pas
         log.info("Mode développement détecté : saut de la recherche de mise à jour.")
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.webContents.send('splash:status', 'VÉRIFICATION SYSTÈME (DEV)...')
         }
-        finishSplash()
+        setTimeout(finishSplash, 1000)
     }
 
     function finishSplash() {
+        if (updateInProgress) return
+
         // Afficher la page principale après un léger délai pour la lisibilité
         setTimeout(() => {
-            if (!updateInProgress) {
-                if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close()
-                if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                // On crée le main window AVANT de fermer le splash pour un effet fluide
+                if (!mainWindow || mainWindow.isDestroyed()) {
+                    createWindow()
+
+                    // Une fois que le main window est prêt (dom-ready), on cache le splash
+                    mainWindow.once('ready-to-show', () => {
+                        if (splashWindow && !splashWindow.isDestroyed()) {
+                            splashWindow.close()
+                        }
+                        mainWindow.show()
+                        mainWindow.focus()
+                    })
+                } else {
+                    splashWindow.close()
+                }
+            } else if (!mainWindow || mainWindow.isDestroyed()) {
+                createWindow()
+                mainWindow.show()
             }
-        }, 1500)
+        }, 500)
     }
 
     // Periodic check every 60 minutes
@@ -318,6 +376,7 @@ ipcMain.handle('settings:get', () => {
         fullscreen: false,
         serverVersion: '1.21.11',
         azuriomUrl: 'https://nexaria.netlib.re',
+        jvmArgs: '', // Valeur par défaut vide
     })
 
     // Ajout des versions système pour la section "À propos"
@@ -397,6 +456,56 @@ ipcMain.handle('mods:toggle', async (_, { modId }) => {
     } catch (err) {
         return { status: 'error', message: err.message }
     }
+})
+
+// ── screenshots IPC ──────────────────────────────────────
+ipcMain.handle('screenshots:list', async () => {
+    const ScreenshotManager = require('./launcher/screenshots')
+    const manager = new ScreenshotManager(store.get('settings.gameDir') || require('./launcher/downloader').getGameDir())
+    return manager.list()
+})
+
+ipcMain.handle('screenshots:open', async (_, { fileName }) => {
+    const ScreenshotManager = require('./launcher/screenshots')
+    const manager = new ScreenshotManager(store.get('settings.gameDir') || require('./launcher/downloader').getGameDir())
+    return manager.open(fileName)
+})
+
+ipcMain.handle('screenshots:delete', async (_, { fileName }) => {
+    const ScreenshotManager = require('./launcher/screenshots')
+    const manager = new ScreenshotManager(store.get('settings.gameDir') || require('./launcher/downloader').getGameDir())
+    return manager.delete(fileName)
+})
+
+ipcMain.handle('screenshots:openFolder', async () => {
+    const ScreenshotManager = require('./launcher/screenshots')
+    const manager = new ScreenshotManager(store.get('settings.gameDir') || require('./launcher/downloader').getGameDir())
+    return manager.openFolder()
+})
+
+// ── Troubleshoot IPC ──────────────────────────────────────
+ipcMain.handle('troubleshoot:clearCache', async () => {
+    const gameDir = store.get('settings.gameDir') || require('./launcher/downloader').getGameDir()
+    const cacheDirs = ['assets', 'libraries', 'versions', 'runtime']
+    let deletedCount = 0
+
+    for (const dir of cacheDirs) {
+        const fullPath = path.join(gameDir, dir)
+        if (fs.existsSync(fullPath)) {
+            try {
+                fs.rmSync(fullPath, { recursive: true, force: true })
+                deletedCount++
+            } catch (err) {
+                log.error(`Failed to delete cache dir ${dir}:`, err)
+            }
+        }
+    }
+    return { status: 'success', deletedCount }
+})
+
+ipcMain.handle('troubleshoot:resetSettings', async () => {
+    store.clear()
+    return { status: 'success' }
 })
 
 // ── External links ────────────────────────────────────────

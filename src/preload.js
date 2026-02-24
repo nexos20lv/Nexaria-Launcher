@@ -53,4 +53,15 @@ contextBridge.exposeInMainWorld('nexaria', {
     // Mods Optionnels
     getOptionalMods: () => ipcRenderer.invoke('mods:getOptional'),
     toggleOptionalMod: (data) => ipcRenderer.invoke('mods:toggle', data),
+
+    // Screenshots
+    getScreenshots: () => ipcRenderer.invoke('screenshots:list'),
+    openScreenshot: (fileName) => ipcRenderer.invoke('screenshots:open', { fileName }),
+    deleteScreenshot: (fileName) => ipcRenderer.invoke('screenshots:delete', { fileName }),
+    openScreenshotsFolder: () => ipcRenderer.invoke('screenshots:openFolder'),
+    onScreenshotsUpdated: (cb) => ipcRenderer.on('screenshots:updated', () => cb()),
+
+    // Troubleshooting
+    clearCache: () => ipcRenderer.invoke('troubleshoot:clearCache'),
+    resetSettings: () => ipcRenderer.invoke('troubleshoot:resetSettings'),
 })
