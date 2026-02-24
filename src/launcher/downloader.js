@@ -221,6 +221,10 @@ async function downloadGame(version, onProgress) {
     }
 
     if (toDownload.length === 0) {
+        // ── NOUVEAU : Nettoyage anti-triche (même si pas de téléchargement) ──
+        onProgress({ type: 'info', message: 'Vérification de la sécurité...', percent: 99 })
+        await cleanupGameFiles(gameDir, manifest)
+
         onProgress({ type: 'complete', message: 'Tout est à jour ✓', percent: 100 })
         return
     }
