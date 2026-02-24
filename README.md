@@ -13,28 +13,27 @@ Nexaria Launcher est un launcher Minecraft premium, moderne et sécurisé, conç
 - **Compatibilité Totale** : Support de Fabric, Forge, NeoForge et Vanilla (Minecraft 1.21.1+).
 - **Statut en Direct** : Affichage en temps réel du statut du serveur et du nombre de joueurs connectés.
 
-## 🚀 Installation & Développement
+## 🚀 Installation
 
-### Prérequis
-- [Node.js](https://nodejs.org/) (version 18+)
-- [Java 21](https://www.oracle.com/java/technologies/downloads/) (pour Minecraft 1.21+)
+### Pour les Joueurs
+Vous pouvez télécharger la dernière version pour votre système directement dans les **[Releases GitHub](https://github.com/nexos20lv/Nexaria-Launcher/releases)**.
 
-### Installation
+Pour des instructions détaillées par plateforme (Windows, Mac, Linux), consultez notre **[Guide d'Installation](INSTALL.md)**.
+
+### Pour les Développeurs (Build Local)
 1. Clonez le dépôt :
    ```bash
-   git clone https://github.com/votre-compte/nexaria-launcher.git
+   git clone https://github.com/nexos20lv/Nexaria-Launcher.git
    cd nexaria-launcher
    ```
 2. Installez les dépendances :
    ```bash
    npm install
    ```
-
-### Lancement
-Pour lancer le launcher en mode développement :
-```bash
-npm start
-```
+3. Lancez en mode dev :
+   ```bash
+   npm start
+   ```
 
 ## ⚙️ Configuration
 

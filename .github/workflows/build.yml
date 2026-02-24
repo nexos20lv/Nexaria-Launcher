@@ -6,7 +6,39 @@ on:
       - main
 
 jobs:
+  version-bump:
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_version: ${{ steps.bump.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Bump Version
+        id: bump
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          npm version patch -m "chore(release): v%s"
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          git push
+
   build:
+    needs: version-bump
+    if: |
+      always() && 
+      (needs.version-bump.result == 'success' || startsWith(github.event.head_commit.message, 'chore(release):'))
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -18,6 +50,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.new_version || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -42,8 +76,8 @@ jobs:
             dist/*.dmg
             dist/*.AppImage
             dist/*.zip
-          tag_name: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
+          tag_name: v${{ needs.version-bump.outputs.new_version || github.sha }} 
+          name: Release ${{ needs.version-bump.outputs.new_version || github.sha }}
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
