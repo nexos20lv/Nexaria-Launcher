@@ -2,6 +2,7 @@
 // Nexaria Launcher - Main Process
 // ============================================================
 const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { autoUpdater } = require('electron-updater')
 const path = require('path')
 const Store = require('electron-store')
 const { authenticate, verify, logout } = require('./launcher/auth')
@@ -48,7 +49,10 @@ function createWindow() {
     }
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+    createWindow()
+    autoUpdater.checkForUpdatesAndNotify()
+})
 app.on('window-all-closed', () => app.quit())
 
 // ── Window Controls ───────────────────────────────────────
@@ -188,4 +192,17 @@ ipcMain.handle('news:fetch', async () => {
 // ── External links ────────────────────────────────────────
 ipcMain.on('open:url', (_, url) => {
     shell.openExternal(url)
+})
+
+// ── Auto Update Events ────────────────────────────────────
+autoUpdater.on('update-available', () => {
+    if (mainWindow) {
+        mainWindow.webContents.send('update:available')
+    }
+})
+
+autoUpdater.on('update-downloaded', () => {
+    if (mainWindow) {
+        mainWindow.webContents.send('update:downloaded')
+    }
 })

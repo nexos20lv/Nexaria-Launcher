@@ -15,6 +15,7 @@
   "license": "MIT",
   "dependencies": {
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3",
     "minecraft-launcher-core": "^3.14.0",
     "node-fetch": "2.7.0"
   },
@@ -34,18 +35,32 @@
       "assets/**/*",
       "package.json"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nexos20lv",
+        "repo": "Nexaria-Launcher"
+      }
+    ],
     "mac": {
       "category": "public.app-category.games",
       "icon": "assets/icon.icns",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
       "icon": "assets/icon.ico",
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "linux": {
       "icon": "assets/icon.png",
-      "target": ["AppImage"]
+      "target": [
+        "AppImage"
+      ]
     },
     "nsis": {
       "oneClick": false,
