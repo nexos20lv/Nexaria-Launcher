@@ -119,7 +119,12 @@ app.whenReady().then(() => {
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.webContents.send('splash:status', 'REDÉMARRAGE...')
         }
-        setTimeout(() => autoUpdater.quitAndInstall(), 1000)
+        setTimeout(() => {
+            setImmediate(() => {
+                app.removeAllListeners('window-all-closed')
+                autoUpdater.quitAndInstall(false, true)
+            })
+        }, 1500)
     })
 
     // Lancement de la vérification
@@ -329,44 +334,9 @@ ipcMain.on('open:url', (_, url) => {
     shell.openExternal(url)
 })
 
-// ── Auto Update Events ────────────────────────────────────
-autoUpdater.on('update-available', () => {
-    log.info('Update available.')
-    if (mainWindow) {
-        mainWindow.webContents.send('update:available')
-    }
-})
-
-autoUpdater.on('update-not-available', () => {
-    log.info('Update not available.')
-})
-
-autoUpdater.on('update-downloaded', () => {
-    log.info('Update downloaded. Restarting to install...')
-    if (mainWindow) {
-        mainWindow.webContents.send('update:downloaded')
-    }
-    // Auto-install and restart
-    setTimeout(() => {
-        autoUpdater.quitAndInstall(false, true)
-    }, 3000) // Give 3 seconds for the UI to show a toast
-})
-
-autoUpdater.on('error', (err) => {
-    log.error('Error in auto-updater: ' + err)
-})
-
-autoUpdater.on('checking-for-update', () => {
-    log.info('Checking for update...')
-})
-
-autoUpdater.on('download-progress', (progressObj) => {
-    let log_message = "Download speed: " + progressObj.bytesPerSecond
-    log_message = log_message + ' - Downloaded ' + progressObj.percent + '%'
-    log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')'
-    log.info(log_message)
-})
-
 ipcMain.on('update:quitAndInstall', () => {
-    autoUpdater.quitAndInstall()
+    setImmediate(() => {
+        app.removeAllListeners('window-all-closed')
+        autoUpdater.quitAndInstall(false, true)
+    })
 })
