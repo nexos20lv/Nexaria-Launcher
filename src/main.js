@@ -214,10 +214,14 @@ autoUpdater.on('update-not-available', () => {
 })
 
 autoUpdater.on('update-downloaded', () => {
-    log.info('Update downloaded.')
+    log.info('Update downloaded. Restarting to install...')
     if (mainWindow) {
         mainWindow.webContents.send('update:downloaded')
     }
+    // Auto-install and restart
+    setTimeout(() => {
+        autoUpdater.quitAndInstall(false, true)
+    }, 3000) // Give 3 seconds for the UI to show a toast
 })
 
 autoUpdater.on('error', (err) => {

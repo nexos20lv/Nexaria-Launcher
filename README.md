@@ -8,10 +8,11 @@ Nexaria Launcher est un launcher Minecraft premium, moderne et sécurisé, conç
 
 - **Interface Moderne** : Design sombre avec accents violets Nexaria, coins arrondis (12px), et animations fluides (pulse, glow).
 - **Multi-Comptes** : Gestion simplifiée de plusieurs comptes avec authentification via l'API Azuriom.
-- **Synchronisation Stricte (Anti-Triche)** : Le launcher vérifie et nettoie automatiquement les dossiers `mods`, `config`, etc., pour garantir l'intégrité du jeu.
-- **Téléchargement Intelligent** : Télécharge uniquement les fichiers manquants ou mis à jour depuis un serveur de fichiers PHP dédié.
-- **Compatibilité Totale** : Support de Fabric, Forge, NeoForge et Vanilla (Minecraft 1.21.1+).
+- **Mises à jour Silencieuses** : Le launcher se met à jour, s'installe et redémarre automatiquement de manière transparente.
+- **Java Auto-Installer** : Détecte, télécharge et installe automatiquement le JRE 21 nécessaire au jeu.
 - **Statut en Direct** : Affichage en temps réel du statut du serveur et du nombre de joueurs connectés.
+- **Discord Rich Presence** : Affiche votre activité de jeu sur Discord.
+- **Console de Logs** : Accès direct aux journaux du jeu pour le support technique.
 
 ## 🚀 Installation
 

@@ -501,11 +501,7 @@ async function init() {
     })
 
     window.nexaria.onUpdateDownloaded(() => {
-        showToast('✅ Mise à jour téléchargée. Elle sera installée au prochain redémarrage.', 'success')
-        // Optionnel : Proposer de redémarrer maintenant
-        if (confirm('Une nouvelle version est prête ! Voulez-vous redémarrer pour l\'installer maintenant ?')) {
-            window.nexaria.quitAndInstall()
-        }
+        showToast('✅ Mise à jour prête ! Redémarrage automatique dans 3s...', 'success')
     })
 
     // Expose Azuriom URL for avatar helper (fetched from main via IPC)

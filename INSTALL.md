@@ -40,5 +40,5 @@ Choisissez votre plateforme ci-dessous pour les instructions détaillées.
 
 ---
 
-## ☕ Prérequis (Tous OS)
-- **Java 21** est impératif pour jouer en version 1.21+. Téléchargez-le ici : [Adoptium (Temurin 21)](https://adoptium.net/temurin/releases/?version=21)
+## ☕ Prérequis
+- **Aucun** : Le launcher installe maintenant automatiquement **Java 21** s'il est manquant ou incompatible. Plus besoin de s'en soucier ! 🎉
