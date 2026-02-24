@@ -77,6 +77,8 @@ jobs:
             dist/*.dmg
             dist/*.AppImage
             dist/*.zip
+            dist/*.yml
+            dist/*.blockmap
           tag_name: ${{ needs.version-bump.outputs.new_version || github.ref_name }}
           name: Release ${{ needs.version-bump.outputs.new_version || github.ref_name }}
           draft: false
