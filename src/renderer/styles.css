@@ -7,32 +7,33 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg-primary:   #0B0B0B;
-  --bg-panel:     #111111;
-  --bg-panel-2:   #141414;
-  --bg-hover:     #1a1a1a;
-  --bg-input:     #0e0e0e;
+  --bg-primary:   #080808;
+  --bg-panel:     rgba(17, 17, 17, 0.7);
+  --bg-panel-2:   rgba(22, 22, 22, 0.85);
+  --bg-hover:     rgba(255, 255, 255, 0.05);
+  --bg-input:     rgba(0, 0, 0, 0.3);
 
   --accent:       #8A2BE2;
-  --accent-dim:   rgba(138, 43, 226, 0.35);
-  --accent-glow:  rgba(138, 43, 226, 0.6);
+  --accent-dim:   rgba(138, 43, 226, 0.25);
+  --accent-glow:  rgba(138, 43, 226, 0.5);
   --accent-hover: #9D45FF;
 
   --green:        #22c55e;
   --red:          #ef4444;
-  --text-primary: #f0f0f0;
-  --text-secondary: #888;
-  --text-muted:   #555;
-  --border:       rgba(255,255,255,0.06);
-  --border-hover: rgba(138, 43, 226, 0.4);
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-muted:   #666666;
+  --border:       rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(138, 43, 226, 0.5);
 
-  --radius-sm:    6px;
-  --radius-md:    10px;
-  --radius-lg:    14px;
+  --radius-sm:    8px;
+  --radius-md:    12px;
+  --radius-lg:    18px;
 
-  --sidebar-w:    68px;
-  --titlebar-h:   40px;
-  --transition:   0.2s ease;
+  --sidebar-w:    72px;
+  --titlebar-h:   44px;
+  --transition:   0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --glass:        backdrop-filter: blur(16px) saturate(180%);
 }
 
 /* ── Reset ──────────────────────────────────────────────── */
@@ -129,7 +130,9 @@ img { display: block; }
   display: flex;
   height: 100vh;
   padding-top: var(--titlebar-h);
-  background: var(--bg-primary);
+  background: radial-gradient(circle at top left, rgba(138,43,226,0.1) 0%, transparent 40%),
+              radial-gradient(circle at bottom right, rgba(138,43,226,0.05) 0%, transparent 40%),
+              var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -147,6 +150,7 @@ img { display: block; }
   justify-content: space-between;
   padding: 16px 0;
   z-index: 10;
+  backdrop-filter: blur(12px);
 }
 
 .sidebar-nav, .sidebar-social {
@@ -253,15 +257,16 @@ img { display: block; }
 }
 
 .login-panel {
-  width: 380px;
+  width: 400px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 40px 36px;
+  padding: 48px 40px;
   box-shadow:
     0 32px 80px rgba(0,0,0,0.6),
-    0 0 0 1px rgba(138,43,226,0.1);
-  animation: floatIn 0.4s ease forwards;
+    0 0 0 1px rgba(138,43,226,0.15);
+  animation: floatIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  backdrop-filter: blur(20px);
 }
 
 @keyframes floatIn {
@@ -333,6 +338,10 @@ img { display: block; }
   padding: 13px 12px 13px 0;
   font-size: 13px;
   color: var(--text-primary);
+  transition: padding var(--transition);
+}
+.input-group:focus-within input {
+  padding-left: 4px; /* subtle shift on focus */
 }
 .input-group input::placeholder { color: var(--text-muted); }
 
@@ -434,9 +443,9 @@ img { display: block; }
 
 /* Pulse animation on play button */
 @keyframes pulse-border {
-  0%   { box-shadow: 0 0 0 0 var(--accent-glow), 0 0 20px rgba(138,43,226,0.3); }
-  70%  { box-shadow: 0 0 0 8px transparent, 0 0 30px rgba(138,43,226,0.15); }
-  100% { box-shadow: 0 0 0 0 transparent, 0 0 20px rgba(138,43,226,0.3); }
+  0%   { box-shadow: 0 0 0 0 var(--accent-glow), 0 0 40px rgba(138,43,226,0.3); }
+  70%  { box-shadow: 0 0 0 15px transparent, 0 0 60px rgba(138,43,226,0.15); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 40px rgba(138,43,226,0.3); }
 }
 .btn-play--main { animation: pulse-border 2.5s infinite; }
 .btn-play--main:disabled { animation: none; }
@@ -512,19 +521,22 @@ img { display: block; }
 
 .server-details { text-align: center; }
 .server-name {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 800;
-  letter-spacing: 2px;
-  background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+  letter-spacing: 3px;
+  background: linear-gradient(135deg, #ffffff 20%, var(--accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-transform: uppercase;
 }
 .server-version {
-  font-size: 12px;
-  color: var(--text-secondary);
-  letter-spacing: 0.5px;
-  margin-top: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-top: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 .server-players {
   display: flex;

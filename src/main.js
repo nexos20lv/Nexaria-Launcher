@@ -1,7 +1,7 @@
 // ============================================================
 // Nexaria Launcher - Main Process
 // ============================================================
-const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, safeStorage } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const log = require('electron-log')
 log.transports.file.level = 'info'
@@ -22,8 +22,32 @@ const store = new Store({
     encryptionKey: 'nexaria-secure-key-2024',
 })
 
-// ── Main Window ───────────────────────────────────────────
+// ── Windows ───────────────────────────────────────────────
 let mainWindow
+let splashWindow
+
+function createSplashWindow() {
+    splashWindow = new BrowserWindow({
+        width: 400,
+        height: 500,
+        transparent: true,
+        frame: false,
+        alwaysOnTop: true,
+        resizable: false,
+        show: false,
+        icon: path.join(__dirname, '../assets/icon.png'),
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false // Requis simple script ipc pour splash
+        }
+    })
+
+    splashWindow.loadFile(path.join(__dirname, 'renderer/splash.html'))
+
+    splashWindow.once('ready-to-show', () => {
+        splashWindow.show()
+    })
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -35,7 +59,7 @@ function createWindow() {
         transparent: true,
         backgroundColor: '#00000000',
         resizable: false,
-        show: false,
+        show: false, // Caché initialement le temps du splash
         icon: path.join(__dirname, '../assets/icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -46,19 +70,35 @@ function createWindow() {
 
     mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'))
 
-    mainWindow.once('ready-to-show', () => {
-        mainWindow.show()
-    })
-
+    // On ne montre pas tout de suite, on délègue ça au chargement terminé
     if (process.argv.includes('--dev')) {
         mainWindow.webContents.openDevTools({ mode: 'detach' })
     }
 }
 
 app.whenReady().then(() => {
+    createSplashWindow()
     createWindow()
+
     autoUpdater.checkForUpdatesAndNotify()
     initRPC()
+
+    // Simulation de temps de chargement des ressources/plugins
+    setTimeout(() => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.webContents.send('splash:status', 'VÉRIFICATION SYSTÈME...')
+        }
+    }, 1500)
+
+    // Afficher la page principale après le temps du splash
+    setTimeout(() => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.close()
+        }
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.show()
+        }
+    }, 4500)
 
     // Periodic check every 60 minutes
     setInterval(() => {
@@ -76,6 +116,12 @@ ipcMain.handle('auth:login', async (_, { email, password, twoFactorCode }) => {
     try {
         const result = await authenticate(email, password, twoFactorCode)
         if (result.status === 'success') {
+            // Chiffrement du token avant sauvegarde
+            const isAvail = safeStorage.isEncryptionAvailable()
+            const encryptedToken = isAvail
+                ? safeStorage.encryptString(result.accessToken).toString('base64')
+                : result.accessToken // fallback non sécurisé (rare)
+
             // Save account
             const accounts = store.get('accounts', [])
             const existing = accounts.findIndex(a => a.uuid === result.user.uuid)
@@ -83,7 +129,7 @@ ipcMain.handle('auth:login', async (_, { email, password, twoFactorCode }) => {
                 uuid: result.user.uuid,
                 username: result.user.username,
                 email,
-                accessToken: result.accessToken,
+                accessTokenEncrypted: encryptedToken,
                 role: result.user.role,
                 money: result.user.money,
                 savedAt: new Date().toISOString(),
@@ -123,14 +169,46 @@ ipcMain.handle('auth:logout', async (_, { accessToken, uuid }) => {
 })
 
 ipcMain.handle('auth:getAccounts', () => {
-    return store.get('accounts', [])
+    const isAvail = safeStorage.isEncryptionAvailable()
+    const accounts = store.get('accounts', [])
+    return accounts.map(a => {
+        let act = { ...a }
+        if (a.accessTokenEncrypted) {
+            try {
+                act.accessToken = isAvail
+                    ? safeStorage.decryptString(Buffer.from(a.accessTokenEncrypted, 'base64'))
+                    : a.accessTokenEncrypted
+            } catch (e) {
+                log.warn('Could not decrypt token for user', a.username, e)
+                act.accessToken = ''
+            }
+        }
+        return act
+    })
 })
 
 ipcMain.handle('auth:getLastAccount', () => {
     const uuid = store.get('lastAccount')
     if (!uuid) return null
+
+    // Réutilise la logique de décryptage
+    const isAvail = safeStorage.isEncryptionAvailable()
     const accounts = store.get('accounts', [])
-    return accounts.find(a => a.uuid === uuid) || null
+    const a = accounts.find(acc => acc.uuid === uuid)
+    if (!a) return null
+
+    let act = { ...a }
+    if (a.accessTokenEncrypted) {
+        try {
+            act.accessToken = isAvail
+                ? safeStorage.decryptString(Buffer.from(a.accessTokenEncrypted, 'base64'))
+                : a.accessTokenEncrypted
+        } catch (e) {
+            log.warn('Could not decrypt token for last user', a.username, e)
+            act.accessToken = ''
+        }
+    }
+    return act
 })
 
 // ── Game IPC ──────────────────────────────────────────────

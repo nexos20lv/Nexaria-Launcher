@@ -166,8 +166,20 @@ async function downloadGame(version, onProgress) {
     const toDownload = []
     for (const file of manifest) {
         const dest = path.join(gameDir, file.path)
-        const hash = await sha1File(dest)
-        if (hash !== file.sha1) {
+        let needsDownload = true
+
+        if (fs.existsSync(dest)) {
+            const stats = fs.statSync(dest)
+            // Si la taille est différente, pas besoin de hasher (c'est sûr qu'il a changé)
+            if (stats.size === file.size) {
+                const hash = await sha1File(dest)
+                if (hash === file.sha1) {
+                    needsDownload = false
+                }
+            }
+        }
+
+        if (needsDownload) {
             toDownload.push(file)
         }
     }

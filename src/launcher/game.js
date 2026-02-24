@@ -65,7 +65,7 @@ async function launchGame({ account, settings, mainWindow }) {
             max: `${settings.ram || 2048}M`,
             min: '512M',
         },
-        javaPath: settings.javaPath || await ensureJava(progress => {
+        javaPath: settings.javaPath || await ensureJava(version, progress => {
             mainWindow.webContents.send('game:progress', progress)
             if (progress.message) {
                 logToUI(mainWindow, progress.message, progress.type === 'error' ? 'error' : 'info')
