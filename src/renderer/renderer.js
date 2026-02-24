@@ -528,7 +528,7 @@ async function init() {
     // Social links
     $('#btn-website')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.netlib.re'))
     $('#btn-discord')?.addEventListener('click', () => window.nexaria.openUrl('https://discord.gg/rwRAj5SbRH'))
-    $('#btn-youtube')?.addEventListener('click', () => window.nexaria.openUrl('https://youtube.com/@nexaria'))
+    $('#btn-youtube')?.addEventListener('click', () => window.nexaria.openUrl('https://www.youtube.com/@nexos20'))
 
     // Login
     $('#btn-login')?.addEventListener('click', handleLogin)
