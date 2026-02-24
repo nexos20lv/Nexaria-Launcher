@@ -202,11 +202,6 @@ function updatePlayerCard(account) {
         const v = window._avatarVersion || Date.now()
         let url = getAvatarUrl(account.uuid, account.username, 64, 'face')
         avatarEl.src = url + (url.includes('?') ? '&' : '?') + `v=${v}`
-
-        avatarEl.onerror = () => {
-            avatarEl.src = `https://minotar.net/avatar/${encodeURIComponent(account.username)}/64?v=${v}`
-            avatarEl.onerror = null
-        }
     }
 
     // Mettre à jour la grande preview du skin dans l'onglet Personnalisation
@@ -491,9 +486,26 @@ function clearConsole() {
     if (out) out.innerHTML = '<div class="console-line info">Console effacée.</div>'
 }
 
-// ── Settings ──────────────────────────────────────────────
 async function loadSettings() {
     state.settings = await window.nexaria.getSettings()
+
+    // Configuration par défaut de la RAM si non définie
+    if (!state.settings || !state.settings.ram) {
+        state.settings = state.settings || {}
+        // navigator.deviceMemory donne la RAM en Go (ex: 8, 16, 32). S'il n'est pas dispo, on fallback sur 4 Go.
+        const sysRamGb = navigator.deviceMemory || 8
+        const sysRamMb = sysRamGb * 1024
+
+        // Profil normal : la moitié de la RAM sysérale, max 6 Go, min 2 Go.
+        let defaultRam = Math.floor(sysRamMb / 2)
+        if (defaultRam > 6144) defaultRam = 6144
+        if (defaultRam < 2048) defaultRam = 2048
+
+        state.settings.ram = defaultRam
+        // Sauvegarde immédiate
+        window.nexaria.saveSettings(state.settings)
+    }
+
     applySettings(state.settings)
 }
 
@@ -559,8 +571,17 @@ function selectProfile(profile) {
     $$('.btn-profile').forEach(b => b.classList.remove('active'))
 
     let ram = 4096
-    if (profile === 'potate') ram = 2048
-    if (profile === 'gamer') ram = 8192
+    if (profile === 'potate') {
+        ram = 2048
+    } else if (profile === 'gamer') {
+        ram = 8192
+    } else if (profile === 'easy') {
+        const sysRamGb = navigator.deviceMemory || 8
+        const sysRamMb = sysRamGb * 1024
+        ram = Math.floor(sysRamMb / 2)
+        if (ram > 6144) ram = 6144
+        if (ram < 2048) ram = 2048
+    }
 
     // Update local state and UI
     if (state.settings) state.settings.ram = ram
@@ -568,7 +589,7 @@ function selectProfile(profile) {
     if (ramDisplay) ramDisplay.textContent = `${ram} Mo`
 
     $(`#profile-${profile}`)?.classList.add('active')
-    showToast(`Profil ${profile} activé (${ram} Mo)`, 'info')
+    showToast(`Profil ${profile === 'easy' ? 'Normal' : profile} activé (${ram} Mo)`, 'info')
 }
 
 // ── Utility ───────────────────────────────────────────────
@@ -580,8 +601,45 @@ function escapeHtml(str = '') {
         .replace(/"/g, '&quot;')
 }
 
+// ── Particles Background ──────────────────────────────────
+function initParticles() {
+    const container = $('#particles-bg')
+    if (!container) return
+
+    const particleCount = 30
+    for (let i = 0; i < particleCount; i++) {
+        createParticle(container)
+    }
+}
+
+function createParticle(container) {
+    const p = document.createElement('div')
+    p.classList.add('particle')
+
+    // Taille aléatoire (2px à 5px)
+    const size = Math.random() * 3 + 2
+    p.style.width = `${size}px`
+    p.style.height = `${size}px`
+
+    // Position initiale aléatoire
+    p.style.left = `${Math.random() * 100}%`
+    p.style.top = `${Math.random() * 100}%`
+
+    // Durée d'animation aléatoire
+    const duration = Math.random() * 20 + 10
+    p.style.animationDuration = `${duration}s`
+
+    // Délai aléatoire
+    p.style.animationDelay = `-${Math.random() * 20}s`
+
+    container.appendChild(p)
+}
+
 // ── Init ──────────────────────────────────────────────────
 async function init() {
+    // Start background particles
+    initParticles()
+
     // Load settings
     await loadSettings()
 
@@ -720,22 +778,40 @@ async function init() {
     // Add account
     $('#btn-add-account')?.addEventListener('click', () => showView('login'))
 
-    // Settings save
-    $('#btn-save-settings')?.addEventListener('click', saveSettings)
+    // ── Auto-Save Settings ──────────────────────────────────────
+    let saveTimeout
+    const triggerAutoSave = () => {
+        clearTimeout(saveTimeout)
+        saveTimeout = setTimeout(() => {
+            saveSettings()
+        }, 800) // 800ms debounce
+    }
 
-    // RAM slider live update
+    // RAM slider live update + auto-save
     const ramInput = $('#setting-ram')
     const ramDisplay = $('#ram-display')
     ramInput?.addEventListener('input', () => {
         if (ramDisplay) ramDisplay.textContent = `${ramInput.value} Mo`
         // Deselect profile buttons if manual change
         $$('.btn-profile').forEach(b => b.classList.remove('active'))
+        triggerAutoSave()
     })
 
-    // Profile buttons
-    $('#profile-potate')?.addEventListener('click', () => selectProfile('potate'))
-    $('#profile-easy')?.addEventListener('click', () => selectProfile('easy'))
-    $('#profile-gamer')?.addEventListener('click', () => selectProfile('gamer'))
+    $('#setting-java')?.addEventListener('input', triggerAutoSave)
+    $('#setting-gamedir')?.addEventListener('input', triggerAutoSave)
+    $('#setting-fullscreen')?.addEventListener('change', triggerAutoSave)
+    $('#setting-keep-open')?.addEventListener('change', triggerAutoSave)
+
+    // Override original saveSettings to prevent duplicate toasts if called too fast
+    const originalSaveSettings = saveSettings
+    saveSettings = async () => {
+        await originalSaveSettings()
+    }
+
+    // Profile buttons (direct save on click)
+    $('#profile-potate')?.addEventListener('click', () => { selectProfile('potate'); triggerAutoSave(); })
+    $('#profile-easy')?.addEventListener('click', () => { selectProfile('easy'); triggerAutoSave(); })
+    $('#profile-gamer')?.addEventListener('click', () => { selectProfile('gamer'); triggerAutoSave(); })
 
     // Start at login view by default to render UI immediately
     showView('login')
@@ -867,7 +943,7 @@ async function renderMods() {
             btn.style.width = '140px'
             btn.style.padding = '10px 0'
             btn.style.fontSize = '12px'
-            btn.innerHTML = mod.installed ? 'Désinstaller' : 'Installer'
+            btn.innerHTML = mod.installed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>Désinstaller' : 'Installer'
 
             btn.addEventListener('click', async () => {
                 if (state.isLaunching) {
@@ -885,12 +961,12 @@ async function renderMods() {
                     } else {
                         showToast(`Erreur : ${res.message}`, 'error')
                         btn.disabled = false
-                        btn.innerHTML = mod.installed ? 'Désinstaller' : 'Installer'
+                        btn.innerHTML = mod.installed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>Désinstaller' : 'Installer'
                     }
                 } catch (e) {
                     showToast(`Erreur de connexion`, 'error')
                     btn.disabled = false
-                    btn.innerHTML = mod.installed ? 'Désinstaller' : 'Installer'
+                    btn.innerHTML = mod.installed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>Désinstaller' : 'Installer'
                 }
             })
 

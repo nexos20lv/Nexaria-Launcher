@@ -167,7 +167,10 @@ app.on('window-all-closed', () => app.quit())
 
 // ── Window Controls ───────────────────────────────────────
 ipcMain.on('window:minimize', () => mainWindow.minimize())
-ipcMain.on('window:close', () => mainWindow.close())
+ipcMain.on('window:close', () => {
+    destroyRPC()
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
+})
 
 // ── Auth IPC ──────────────────────────────────────────────
 ipcMain.handle('auth:login', async (_, { email, password, twoFactorCode }) => {
