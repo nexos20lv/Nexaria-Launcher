@@ -59,6 +59,13 @@
           </svg>
           <span class="sidebar-tooltip">Paramètres</span>
         </button>
+        <button class="sidebar-btn" id="nav-console" data-view="console" title="Console">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
+          <span class="sidebar-tooltip">Console</span>
+        </button>
       </div>
       <div class="sidebar-social">
         <button class="sidebar-btn sidebar-social-btn" id="btn-website" title="Site Web">
@@ -294,6 +301,18 @@
 
               <div class="settings-row">
                 <div class="settings-label">
+                  <span>Profils de Performance</span>
+                  <small>Optimisation rapide de la RAM et des paramètres</small>
+                </div>
+                <div class="profile-buttons">
+                  <button class="btn-profile" id="profile-potate" title="2 Go RAM">PC Patate</button>
+                  <button class="btn-profile active" id="profile-easy" title="4 Go RAM">Normal</button>
+                  <button class="btn-profile" id="profile-gamer" title="8 Go RAM">PC Gamer</button>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <div class="settings-label">
                   <span>RAM allouée</span>
                   <small id="ram-display">2048 Mo</small>
                 </div>
@@ -365,6 +384,27 @@
             </svg>
             Sauvegarder les paramètres
           </button>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────── -->
+      <!--         CONSOLE VIEW             -->
+      <!-- ────────────────────────────────── -->
+      <section class="view" id="view-console">
+        <div class="console-container">
+          <div class="console-header">
+            <div class="console-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 17 10 11 4 5" />
+                <line x1="12" y1="19" x2="20" y2="19" />
+              </svg>
+              Logs du Jeu
+            </div>
+            <button class="btn-clear-console" id="btn-clear-console">Effacer</button>
+          </div>
+          <div class="console-output" id="console-output">
+            <div class="console-line info">Initialisation de la console...</div>
+          </div>
         </div>
       </section>
 

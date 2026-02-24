@@ -38,4 +38,8 @@ contextBridge.exposeInMainWorld('nexaria', {
     onUpdateAvailable: (cb) => ipcRenderer.on('update:available', () => cb()),
     onUpdateDownloaded: (cb) => ipcRenderer.on('update:downloaded', () => cb()),
     quitAndInstall: () => ipcRenderer.send('update:quitAndInstall'),
+
+    // Logic Console
+    onGameLog: (cb) => ipcRenderer.on('game:log', (event, data) => cb(data)),
+    removeGameListeners: () => ipcRenderer.removeAllListeners('game:progress'),
 })

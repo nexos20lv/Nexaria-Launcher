@@ -302,6 +302,9 @@ async function handlePlay() {
     btn.disabled = true
     if (playText) playText.textContent = 'LANCEMENT...'
 
+    // UI Console
+    appendToConsole('Lancement du jeu...', 'info')
+
     // Show progress
     const progressContainer = $('#progress-container')
     if (progressContainer) progressContainer.style.display = 'block'
@@ -368,6 +371,36 @@ function resetPlayButton() {
     window.nexaria.removeGameListeners()
 }
 
+// ── Console ──────────────────────────────────────────────
+function appendToConsole(data, type = 'log') {
+    const out = $('#console-output')
+    if (!out) return
+
+    // Allow object data for typed logs
+    let message = data
+    let logType = type
+    if (typeof data === 'object' && data.data) {
+        message = data.data
+        logType = data.type || type
+    }
+
+    const line = document.createElement('div')
+    line.className = `console-line ${logType}`
+    line.textContent = message.trim()
+    out.appendChild(line)
+
+    // Limit to 500 lines for performance
+    if (out.childNodes.length > 500) out.removeChild(out.firstChild)
+
+    // Auto-scroll to bottom
+    out.scrollTop = out.scrollHeight
+}
+
+function clearConsole() {
+    const out = $('#console-output')
+    if (out) out.innerHTML = '<div class="console-line info">Console effacée.</div>'
+}
+
 // ── Settings ──────────────────────────────────────────────
 async function loadSettings() {
     state.settings = await window.nexaria.getSettings()
@@ -390,6 +423,12 @@ function applySettings(s) {
     if (gameDirInput) gameDirInput.value = s.gameDir || ''
     if (fullscreenToggle) fullscreenToggle.checked = !!s.fullscreen
     if (keepOpenToggle) keepOpenToggle.checked = s.keepLauncherOpen !== false
+
+    // Highlight profile
+    $$('.btn-profile').forEach(b => b.classList.remove('active'))
+    if (s.ram <= 2048) $('#profile-potate')?.classList.add('active')
+    else if (s.ram >= 8192) $('#profile-gamer')?.classList.add('active')
+    else $('#profile-easy')?.classList.add('active')
 
     const mcVersionEl = $('#about-mc-version')
     if (mcVersionEl) mcVersionEl.textContent = s.serverVersion || '1.21.1'
@@ -420,6 +459,26 @@ async function saveSettings() {
     await window.nexaria.saveSettings(settings)
     state.settings = { ...state.settings, ...settings }
     showToast('Paramètres sauvegardés', 'success')
+}
+
+function selectProfile(profile) {
+    const ramInput = $('#setting-ram')
+    const ramDisplay = $('#ram-display')
+
+    // Remove active class from all profile buttons
+    $$('.btn-profile').forEach(b => b.classList.remove('active'))
+
+    let ram = 4096
+    if (profile === 'potate') ram = 2048
+    if (profile === 'gamer') ram = 8192
+
+    // Update local state and UI
+    if (state.settings) state.settings.ram = ram
+    if (ramInput) ramInput.value = ram
+    if (ramDisplay) ramDisplay.textContent = `${ram} Mo`
+
+    $(`#profile-${profile}`)?.classList.add('active')
+    showToast(`Profil ${profile} activé (${ram} Mo)`, 'info')
 }
 
 // ── Utility ───────────────────────────────────────────────
@@ -520,7 +579,14 @@ async function init() {
     const ramDisplay = $('#ram-display')
     ramInput?.addEventListener('input', () => {
         if (ramDisplay) ramDisplay.textContent = `${ramInput.value} Mo`
+        // Deselect profile buttons if manual change
+        $$('.btn-profile').forEach(b => b.classList.remove('active'))
     })
+
+    // Profile buttons
+    $('#profile-potate')?.addEventListener('click', () => selectProfile('potate'))
+    $('#profile-easy')?.addEventListener('click', () => selectProfile('easy'))
+    $('#profile-gamer')?.addEventListener('click', () => selectProfile('gamer'))
 
     // Try to auto-login with last account
     const lastAccount = await window.nexaria.getLastAccount()
@@ -535,6 +601,14 @@ async function init() {
 
     // Start at login view
     showView('login')
+
+    // console log events from game
+    window.nexaria.onGameLog((data) => {
+        appendToConsole(data)
+    })
+
+    // clear console button
+    $('#btn-clear-console')?.addEventListener('click', clearConsole)
 
     // Refresh server status every 30s
     setInterval(refreshServerStatus, 30000)

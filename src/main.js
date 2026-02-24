@@ -12,6 +12,8 @@ const { authenticate, verify, logout } = require('./launcher/auth')
 const { launchGame, downloadGame } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
+const { initRPC, setActivity } = require('./launcher/discord')
+log.info('Discord RPC module loaded:', typeof initRPC)
 
 // ── Config & persistent store ─────────────────────────────
 const store = new Store({
@@ -55,6 +57,7 @@ function createWindow() {
 app.whenReady().then(() => {
     createWindow()
     autoUpdater.checkForUpdatesAndNotify()
+    initRPC()
 })
 app.on('window-all-closed', () => app.quit())
 
@@ -128,6 +131,7 @@ ipcMain.handle('auth:getLastAccount', () => {
 ipcMain.handle('game:launch', async (_, { account, version, settings }) => {
     try {
         await launchGame({ account, version, settings, mainWindow })
+        setActivity('En jeu', `Survie Nexaria`)
         return { status: 'success' }
     } catch (err) {
         return { status: 'error', message: err.message }

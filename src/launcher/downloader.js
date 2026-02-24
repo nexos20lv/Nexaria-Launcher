@@ -263,4 +263,4 @@ function getAllFiles(dirPath, arrayOfFiles) {
     return arrayOfFiles
 }
 
-module.exports = { downloadGame, fetchServerInfo, getGameDir, getFileServerUrl }
+module.exports = { downloadGame, fetchServerInfo, getGameDir, getFileServerUrl, downloadFile }

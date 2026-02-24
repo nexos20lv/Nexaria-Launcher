@@ -5,8 +5,15 @@ const path = require('path')
 const fs = require('fs')
 const { Client } = require('minecraft-launcher-core')
 const { downloadGame, fetchServerInfo, getGameDir } = require('./downloader')
+const { ensureJava } = require('./java')
 
 const launcher = new Client()
+
+const logToUI = (mainWindow, data, type = 'log') => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('game:log', { data, type })
+    }
+}
 
 /**
  * Download game files then launch Minecraft
@@ -58,7 +65,12 @@ async function launchGame({ account, settings, mainWindow }) {
             max: `${settings.ram || 2048}M`,
             min: '512M',
         },
-        javaPath: settings.javaPath || 'java',
+        javaPath: settings.javaPath || await ensureJava(progress => {
+            mainWindow.webContents.send('game:progress', progress)
+            if (progress.message) {
+                logToUI(mainWindow, progress.message, progress.type === 'error' ? 'error' : 'info')
+            }
+        }),
         window: {
             width: 1280,
             height: 720,
@@ -126,9 +138,12 @@ async function launchGame({ account, settings, mainWindow }) {
             }
         }
 
+        launcher.on('debug', (data) => logToUI(mainWindow, data, 'debug'))
+        launcher.on('download-status', (data) => logToUI(mainWindow, `Téléchargement: ${data.type} (${data.current}/${data.total})`, 'info'))
+        launcher.on('command-line', (data) => logToUI(mainWindow, `Commande: ${data}`, 'debug'))
+
         launcher.on('data', (data) => {
-            console.log('[MC]', data)
-            // Heuristique : si le jeu produit des logs, il est lancé
+            logToUI(mainWindow, data, 'log')
             signalLaunch()
         })
 
