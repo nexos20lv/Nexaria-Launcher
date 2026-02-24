@@ -436,6 +436,19 @@ async function init() {
     // Load settings
     await loadSettings()
 
+    // Listen for updates
+    window.nexaria.onUpdateAvailable(() => {
+        showToast('🚀 Une mise à jour est disponible !', 'info')
+    })
+
+    window.nexaria.onUpdateDownloaded(() => {
+        showToast('✅ Mise à jour téléchargée. Elle sera installée au prochain redémarrage.', 'success')
+        // Optionnel : Proposer de redémarrer maintenant
+        if (confirm('Une nouvelle version est prête ! Voulez-vous redémarrer pour l\'installer maintenant ?')) {
+            window.nexaria.quitAndInstall()
+        }
+    })
+
     // Expose Azuriom URL for avatar helper (fetched from main via IPC)
     window.nexaria.getSettings().then(s => {
         window._azuriomUrl = s.azuriomUrl || ''

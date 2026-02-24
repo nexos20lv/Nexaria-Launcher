@@ -3,6 +3,9 @@
 // ============================================================
 const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const { autoUpdater } = require('electron-updater')
+const log = require('electron-log')
+log.transports.file.level = 'info'
+autoUpdater.logger = log
 const path = require('path')
 const Store = require('electron-store')
 const { authenticate, verify, logout } = require('./launcher/auth')
@@ -196,13 +199,38 @@ ipcMain.on('open:url', (_, url) => {
 
 // ── Auto Update Events ────────────────────────────────────
 autoUpdater.on('update-available', () => {
+    log.info('Update available.')
     if (mainWindow) {
         mainWindow.webContents.send('update:available')
     }
 })
 
+autoUpdater.on('update-not-available', () => {
+    log.info('Update not available.')
+})
+
 autoUpdater.on('update-downloaded', () => {
+    log.info('Update downloaded.')
     if (mainWindow) {
         mainWindow.webContents.send('update:downloaded')
     }
+})
+
+autoUpdater.on('error', (err) => {
+    log.error('Error in auto-updater: ' + err)
+})
+
+autoUpdater.on('checking-for-update', () => {
+    log.info('Checking for update...')
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+    let log_message = "Download speed: " + progressObj.bytesPerSecond
+    log_message = log_message + ' - Downloaded ' + progressObj.percent + '%'
+    log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')'
+    log.info(log_message)
+})
+
+ipcMain.on('update:quitAndInstall', () => {
+    autoUpdater.quitAndInstall()
 })

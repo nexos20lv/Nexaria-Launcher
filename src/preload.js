@@ -33,4 +33,9 @@ contextBridge.exposeInMainWorld('nexaria', {
     // Server & news
     getServerStatus: () => ipcRenderer.invoke('server:status'),
     fetchNews: () => ipcRenderer.invoke('news:fetch'),
+
+    // Updates
+    onUpdateAvailable: (cb) => ipcRenderer.on('update:available', () => cb()),
+    onUpdateDownloaded: (cb) => ipcRenderer.on('update:downloaded', () => cb()),
+    quitAndInstall: () => ipcRenderer.send('update:quitAndInstall'),
 })
