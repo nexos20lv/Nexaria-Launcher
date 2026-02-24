@@ -106,6 +106,7 @@ app.whenReady().then(() => {
 
     autoUpdater.on('error', (err) => {
         log.error('Erreur de mise à jour:', err)
+        updateInProgress = false
         finishSplash()
     })
 
