@@ -117,32 +117,51 @@ function downloadFile(url, destPath, onProgress) {
 
         const request = proto.get(url, (res) => {
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                file.close()
-                fs.unlinkSync(destPath + '.tmp')
-                return downloadFile(res.headers.location, destPath, onProgress)
-                    .then(resolve).catch(reject)
+                file.close(() => {
+                    if (fs.existsSync(destPath + '.tmp')) {
+                        try { fs.unlinkSync(destPath + '.tmp') } catch (e) { }
+                    }
+                    downloadFile(res.headers.location, destPath, onProgress)
+                        .then(resolve).catch(reject)
+                })
+                return
             }
             if (res.statusCode !== 200) {
-                file.close()
-                return reject(new Error(`HTTP ${res.statusCode} pour ${url}`))
+                file.close(() => {
+                    reject(new Error(`HTTP ${res.statusCode} pour ${url}`))
+                })
+                return
             }
 
             const total = parseInt(res.headers['content-length'] || '0', 10)
             let downloaded = 0
 
+            res.pipe(file)
+
             res.on('data', (chunk) => {
                 downloaded += chunk.length
-                file.write(chunk)
                 if (total > 0 && onProgress) onProgress(downloaded / total)
             })
 
-            res.on('end', () => {
-                file.end()
-                fs.renameSync(destPath + '.tmp', destPath)
-                resolve()
+            file.on('finish', () => {
+                file.close(() => {
+                    try {
+                        if (fs.existsSync(destPath)) {
+                            fs.unlinkSync(destPath)
+                        }
+                        fs.renameSync(destPath + '.tmp', destPath)
+                        resolve()
+                    } catch (err) {
+                        reject(err)
+                    }
+                })
             })
 
-            res.on('error', (err) => { file.destroy(); reject(err) })
+            file.on('error', (err) => {
+                file.close(() => {
+                    reject(err)
+                })
+            })
         })
 
         request.on('error', (err) => { file.destroy(); reject(err) })
