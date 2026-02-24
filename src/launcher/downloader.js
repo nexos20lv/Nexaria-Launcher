@@ -268,12 +268,16 @@ async function downloadGame(version, onProgress) {
  * Supprime les fichiers non autorisés (Anti-Triche)
  */
 async function cleanupGameFiles(gameDir, manifest) {
-    const allowed = new Set(manifest.map(f => path.normalize(f.path)))
+    // Le manifest contient des chemins avec '/' (généré par le serveur web)
+    // On convertit tout au format standard avec des '/' pour la comparaison
+    const toStandardPath = (p) => path.normalize(p).split(path.sep).join('/');
+
+    const allowed = new Set(manifest.map(f => toStandardPath(f.path)))
 
     // On ignore les mods optionnels de la suppression
     const { getOptionalModFileNames } = require('./mods')
     const optionalMods = getOptionalModFileNames()
-    optionalMods.forEach(f => allowed.add(path.normalize(path.join('mods', f))))
+    optionalMods.forEach(f => allowed.add(toStandardPath(path.join('mods', f))))
 
     // Dossiers critiques à surveiller
     const criticalDirs = ['mods', 'config', 'resourcepacks', 'loader']
@@ -285,7 +289,9 @@ async function cleanupGameFiles(gameDir, manifest) {
         const files = getAllFiles(dirPath)
         for (const file of files) {
             const relative = path.relative(gameDir, file)
-            if (!allowed.has(path.normalize(relative))) {
+            // Normalise le chemin relatif au même format que 'allowed' (avec des /)
+            const normalizedRelative = toStandardPath(relative)
+            if (!allowed.has(normalizedRelative)) {
                 console.log(`[Security] Suppression du fichier non autorisé : ${relative}`)
                 try {
                     fs.unlinkSync(file)
