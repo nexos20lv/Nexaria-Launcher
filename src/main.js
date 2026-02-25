@@ -375,7 +375,7 @@ ipcMain.handle('settings:get', () => {
         keepLauncherOpen: true,
         fullscreen: false,
         serverVersion: '1.21.11',
-        azuriomUrl: 'https://nexaria.netlib.re',
+        azuriomUrl: 'https://nexaria.site',
         jvmArgs: '', // Valeur par défaut vide
     })
 

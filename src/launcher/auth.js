@@ -6,7 +6,7 @@ const FormData = require('form-data')
 const fs = require('fs')
 
 // CONFIGURE: Set your Azuriom site URL here
-const AZURIOM_URL = 'https://nexaria.netlib.re'
+const AZURIOM_URL = 'https://nexaria.site'
 
 /**
  * Authenticate a user via Azuriom API

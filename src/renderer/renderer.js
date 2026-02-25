@@ -140,7 +140,7 @@ async function enterMainView() {
 }
 
 function getAvatarUrl(uuid, username, size = 64, type = 'face') {
-    const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.netlib.re'
+    const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.site'
     if (username) {
         return `${azuriomUrl}/api/skin-api/avatars/${type}/${encodeURIComponent(username)}?size=${size}`
     }
@@ -233,7 +233,7 @@ function updatePlayerCard(account) {
     const largePreview = $('#skin-large-preview')
     if (largePreview && account.username) {
         // Utilisation du plugin Skin3D Viewer d'Azuriom
-        const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.netlib.re'
+        const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.site'
         const v = window._avatarVersion || Date.now()
         // On contourne le cache de l'iframe en passant un paramètre bidon à l'URL s'il le faut
         largePreview.src = `${azuriomUrl}/skin3d/3d-api/skin-api/${encodeURIComponent(account.username)}?zoom=false`
@@ -737,12 +737,12 @@ async function init() {
     })
 
     // Social links
-    $('#btn-website')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.netlib.re'))
+    $('#btn-website')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.site'))
     $('#btn-discord')?.addEventListener('click', () => window.nexaria.openUrl('https://discord.gg/rwRAj5SbRH'))
     $('#btn-youtube')?.addEventListener('click', () => window.nexaria.openUrl('https://www.youtube.com/@nexos20'))
 
     // Azuriom Vote link
-    $('#btn-vote')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.netlib.re/vote'))
+    $('#btn-vote')?.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.site/vote'))
 
     // Customization (Skins/Capes)
     $('#btn-change-skin')?.addEventListener('click', async () => {
@@ -1141,7 +1141,7 @@ async function renderScreenshots() {
 async function checkMapAvailability() {
     const mapFrame = $('#map-frame')
     const offlinePlaceholder = $('#map-offline')
-    const url = 'https://map.nexaria.netlib.re'
+    const url = 'https://map.nexaria.site'
 
     if (!mapFrame || !offlinePlaceholder) return
 

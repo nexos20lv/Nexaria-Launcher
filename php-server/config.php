@@ -14,7 +14,7 @@ return [
 
     // ── URL publique de CE serveur ─────────────────────────
     // Doit correspondre à l'URL où ce dossier est hébergé
-    'server_url' => 'https://launcher.nexaria.netlib.re',
+    'server_url' => 'https://launcher.nexaria.site',
 
     // ── Options ───────────────────────────────────────────
     'allow_cors' => true, // Autoriser les requêtes cross-origin

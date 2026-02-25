@@ -10,7 +10,7 @@ const { app } = require('electron')
 
 // CONFIGURE: URL de ton serveur PHP (peut aussi être défini dans les Paramètres de l'app)
 // Laisser vide pour sauter le téléchargement et lancer le jeu directement.
-const DEFAULT_FILE_SERVER_URL = 'https://launcher.nexaria.netlib.re'
+const DEFAULT_FILE_SERVER_URL = 'https://launcher.nexaria.site'
 
 let _storeRef = null
 function getFileServerUrl() {
