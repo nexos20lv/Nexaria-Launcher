@@ -260,4 +260,4 @@ function getLatestCrashLog(gameDir) {
     return 'Le jeu s\'est fermé anormalement, mais aucun rapport de plantage n\'a été trouvé.'
 }
 
-module.exports = { launchGame, downloadGame }
+module.exports = { launchGame, downloadGame, getGameDir }

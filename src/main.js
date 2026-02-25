@@ -9,7 +9,7 @@ autoUpdater.logger = log
 const path = require('path')
 const Store = require('electron-store')
 const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./launcher/auth')
-const { launchGame, downloadGame, getGameDir: getDeafultGameDir } = require('./launcher/game')
+const { launchGame, downloadGame, getGameDir: getDefaultGameDir } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
 const { initRPC, setActivity, destroyRPC } = require('./launcher/discord')
@@ -87,7 +87,7 @@ function createWindow() {
 let screenshotWatcher = null
 function setupScreenshotWatcher() {
     const fs = require('fs')
-    const gameDir = store.get('settings.gameDir') || getDeafultGameDir()
+    const gameDir = store.get('settings.gameDir') || getDefaultGameDir()
     const screenshotsDir = path.join(gameDir, 'screenshots')
 
     if (!fs.existsSync(screenshotsDir)) {
