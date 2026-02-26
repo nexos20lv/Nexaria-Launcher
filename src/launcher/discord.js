@@ -17,19 +17,34 @@ function initRPC() {
     })
 }
 
-function setActivity(details, state = 'Prêt à jouer') {
+let rpcStart = new Date()
+
+function setActivity(details, stateText = 'Prêt à jouer', showTimestamp = true) {
     if (!client) return
 
-    client.setActivity({
+    const activity = {
         details: details,
-        state: state,
-        startTimestamp: new Date(),
+        state: stateText,
         largeImageKey: 'logo',
         largeImageText: 'Nexaria Launcher',
         instance: false,
-    }).catch(err => {
+        buttons: [
+            { label: 'Rejoindre Nexaria', url: 'https://nexaria.site' },
+            { label: 'Discord', url: 'https://discord.gg/nexaria' }
+        ]
+    }
+
+    if (showTimestamp) {
+        activity.startTimestamp = rpcStart
+    }
+
+    client.setActivity(activity).catch(err => {
         log.warn('Error updating Discord presence:', err.message)
     })
+}
+
+function resetTimestamp() {
+    rpcStart = new Date()
 }
 
 function destroyRPC() {
@@ -41,4 +56,4 @@ function destroyRPC() {
     }
 }
 
-module.exports = { initRPC, setActivity, destroyRPC }
+module.exports = { initRPC, setActivity, resetTimestamp, destroyRPC }

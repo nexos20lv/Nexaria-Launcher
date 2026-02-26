@@ -6,6 +6,7 @@ const fs = require('fs')
 const { Client } = require('minecraft-launcher-core')
 const { downloadGame, fetchServerInfo, getGameDir } = require('./downloader')
 const { ensureJava } = require('./java')
+const diagnostics = require('./diagnostics')
 
 const launcher = new Client()
 
@@ -76,11 +77,23 @@ async function launchGame({ account, settings, mainWindow }) {
             height: 720,
             fullscreen: settings.fullscreen || false,
         },
-        jvmArgs: settings.jvmArgs ? settings.jvmArgs.split(' ').filter(arg => arg.trim() !== '') : [],
+        jvmArgs: (() => {
+            if (!settings.jvmArgs) return []
+            // Security: Sanitize JVM args to prevent command injection
+            // We split by space but we also want to avoid anything that looks like shell redirection or pipes
+            const dangerousChars = /[|&;$><`\\]/
+            return settings.jvmArgs.split(' ')
+                .map(arg => arg.trim())
+                .filter(arg => arg !== '' && !dangerousChars.test(arg))
+        })(),
         overrides: {
             gameDirectory: gameDir,
-            // detached: true, // Désactivé car peut causer des soucis de détection sur Mac
         },
+    }
+
+    // Security check for javaPath
+    if (opts.javaPath && !fs.existsSync(opts.javaPath)) {
+        throw new Error(`Le chemin Java spécifié est invalide ou introuvable : ${opts.javaPath}`)
     }
 
     // 4 — Lancer Minecraft
@@ -158,6 +171,28 @@ async function launchGame({ account, settings, mainWindow }) {
         setTimeout(() => {
             if (!launchedSent) signalLaunch()
         }, 15000)
+
+        launcher.on('close', (code) => {
+            console.log(`[Launcher] Le process Minecraft s\'est terminé avec le code : ${code}`)
+            mainWindow.webContents.send('game:launched', { status: 'closed', code })
+
+            // On remet le statut Discord au launcher
+            const { setActivity, resetTimestamp } = require('./discord')
+            resetTimestamp()
+            setActivity('Dans le menu')
+
+            if (code !== 0) {
+                // Plantage détecté
+                const gameDir = opts.overrides?.path || opts.authorization.meta.gameDir || getGameDir()
+                const rawLog = getLatestCrashLog(gameDir)
+                const analysis = diagnostics.analyze(gameDir, rawLog)
+
+                mainWindow.webContents.send('game:crashed', {
+                    log: rawLog,
+                    analysis: analysis // { cause, solution } ou null
+                })
+            }
+        })
 
     } catch (err) {
         console.error('[Launch Error]', err)

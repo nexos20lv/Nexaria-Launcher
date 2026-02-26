@@ -12,7 +12,7 @@ const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./laun
 const { launchGame, downloadGame, getGameDir: getDefaultGameDir } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
-const { initRPC, setActivity, destroyRPC } = require('./launcher/discord')
+const { initRPC, setActivity, resetTimestamp, destroyRPC } = require('./launcher/discord')
 log.info('Discord RPC module loaded:', typeof initRPC)
 autoUpdater.autoDownload = true
 
@@ -106,11 +106,24 @@ function setupScreenshotWatcher() {
 app.whenReady().then(() => {
     // Register the handler for our custom protocol
     protocol.registerFileProtocol('asset', (request, callback) => {
-        const url = request.url.replace(/^asset:\/\//, '')
+        const url = decodeURIComponent(request.url.replace(/^asset:\/\//, ''))
         try {
-            return callback(decodeURIComponent(url))
+            // Security: Only allow files within the app directory or the game directory
+            const normalizedPath = path.normalize(url)
+            const gameDir = store.get('settings.gameDir') || getDefaultGameDir()
+            const allowedDirs = [__dirname, path.join(__dirname, '..'), gameDir]
+
+            const isAllowed = allowedDirs.some(dir => normalizedPath.startsWith(path.normalize(dir)))
+
+            if (!isAllowed) {
+                log.warn('[Security] Blocked asset protocol access to:', normalizedPath)
+                return callback({ error: -10 /* net::ERR_ACCESS_DENIED */ })
+            }
+
+            return callback(normalizedPath)
         } catch (error) {
-            console.error('Failed to register protocol', error)
+            log.error('Failed to handle asset protocol:', error)
+            return callback({ error: -2 /* net::ERR_FAILED */ })
         }
     })
 
@@ -334,6 +347,7 @@ ipcMain.handle('auth:getLastAccount', () => {
 ipcMain.handle('game:launch', async (_, { account, version, settings }) => {
     try {
         await launchGame({ account, version, settings, mainWindow })
+        resetTimestamp()
         setActivity('En jeu', `Survie Nexaria`)
         return { status: 'success' }
     } catch (err) {
@@ -343,11 +357,14 @@ ipcMain.handle('game:launch', async (_, { account, version, settings }) => {
 
 ipcMain.handle('game:download', async (_, { version }) => {
     try {
+        setActivity('Mise à jour en cours...', 'Téléchargement des fichiers')
         await downloadGame(version, (progress) => {
             mainWindow.webContents.send('game:progress', progress)
         })
+        setActivity('Dans le menu')
         return { status: 'success' }
     } catch (err) {
+        setActivity('Dans le menu')
         return { status: 'error', message: err.message }
     }
 })
@@ -510,7 +527,16 @@ ipcMain.handle('troubleshoot:resetSettings', async () => {
 
 // ── External links ────────────────────────────────────────
 ipcMain.on('open:url', (_, url) => {
-    shell.openExternal(url)
+    try {
+        const parsedUrl = new URL(url)
+        if (['http:', 'https:'].includes(parsedUrl.protocol)) {
+            shell.openExternal(url)
+        } else {
+            log.warn('[Security] Blocked attempt to open non-http(s) URL:', url)
+        }
+    } catch (e) {
+        log.error('[Security] Invalid URL provided to open:url:', url)
+    }
 })
 
 ipcMain.on('update:quitAndInstall', () => {

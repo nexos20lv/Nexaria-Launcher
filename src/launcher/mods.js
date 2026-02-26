@@ -1,11 +1,12 @@
 const path = require('path')
 const fs = require('fs')
-const { getGameDir, downloadFile, fetchOptionalMods } = require('./downloader')
+// Removed top-level downloader require to avoid circular dependency
 
 // Cache the mods list so we don't have to fetch it every time we toggle
 let cachedMods = []
 
 async function loadOptionalMods() {
+    const { fetchOptionalMods } = require('./downloader')
     const mods = await fetchOptionalMods()
     if (mods && Array.isArray(mods)) {
         cachedMods = mods
@@ -13,12 +14,14 @@ async function loadOptionalMods() {
     return cachedMods
 }
 
-function getOptionalModFileNames() {
+async function getOptionalModFileNames() {
+    if (cachedMods.length === 0) await loadOptionalMods()
     return cachedMods.map(m => m.fileName)
 }
 
 async function getModsStatus() {
     const mods = await loadOptionalMods()
+    const { getGameDir } = require('./downloader')
     const gameDir = getGameDir()
     const modsDir = path.join(gameDir, 'mods')
 
@@ -38,6 +41,7 @@ async function toggleMod(modId) {
     const mod = mods.find(m => m.id === modId)
     if (!mod) throw new Error("Mod introuvable sur le serveur")
 
+    const { getGameDir, downloadFile } = require('./downloader')
     const gameDir = getGameDir()
     const modsDir = path.join(gameDir, 'mods')
     const filePath = path.join(modsDir, mod.fileName)

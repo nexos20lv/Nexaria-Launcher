@@ -12,6 +12,9 @@ const state = {
     settings: null,
     isLaunching: false,
     requires2fa: false,
+    skinViewer: null,
+    currentNewsSlide: 0,
+    newsInterval: null,
 }
 
 // ── DOM helpers ──────────────────────────────────────────
@@ -134,8 +137,8 @@ async function enterMainView() {
 
     // Run async tasks in background without blocking UI
     Promise.all([
-        loadAccounts(),
-        loadNews(),
+        loadAccounts().catch(e => console.error('loadAccounts fail:', e)),
+        loadNews().catch(e => console.error('loadNews fail:', e)),
     ]).catch(console.error)
 }
 
@@ -230,13 +233,35 @@ function updatePlayerCard(account) {
     }
 
     // Mettre à jour la grande preview du skin dans l'onglet Personnalisation
-    const largePreview = $('#skin-large-preview')
-    if (largePreview && account.username) {
-        // Utilisation du plugin Skin3D Viewer d'Azuriom
-        const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.site'
-        const v = window._avatarVersion || Date.now()
-        // On contourne le cache de l'iframe en passant un paramètre bidon à l'URL s'il le faut
-        largePreview.src = `${azuriomUrl}/skin3d/3d-api/skin-api/${encodeURIComponent(account.username)}?zoom=false`
+    const skinContainer = $('#skin-container')
+    if (skinContainer && account.username) {
+        try {
+            const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.site'
+            const skinUrl = `${azuriomUrl}/api/skin-api/skins/${encodeURIComponent(account.username)}`
+
+            // Check if skinview3d is available (might be on window or global)
+            const sv = window.skinview3d || (typeof skinview3d !== 'undefined' ? skinview3d : null)
+
+            if (sv) {
+                if (!state.skinViewer) {
+                    state.skinViewer = new sv.SkinViewer({
+                        canvas: skinContainer,
+                        width: 300,
+                        height: 300,
+                        skin: skinUrl
+                    })
+                    state.skinViewer.animations.add(sv.WalkingAnimation)
+                    state.skinViewer.autoRotate = true
+                    state.skinViewer.autoRotateSpeed = 0.5
+                } else {
+                    state.skinViewer.loadSkin(skinUrl)
+                }
+            } else {
+                console.warn('skinview3d library not found')
+            }
+        } catch (err) {
+            console.error('Failed to initialize or update skin viewer:', err)
+        }
     }
 }
 
@@ -314,34 +339,88 @@ async function updatePlayersModal() {
 
 // ── News ─────────────────────────────────────────────────
 async function loadNews() {
-    const newsList = $('#news-list')
-    if (!newsList) return
+    const track = $('#news-track')
+    const dots = $('#news-dots')
+    if (!track) return
 
     try {
         const news = await window.nexaria.fetchNews()
 
         if (!news || news.length === 0) {
-            newsList.innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:12px 0;text-align:center">Aucune actualité</p>'
+            track.innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:40px;text-align:center;width:100%">Aucune actualité</p>'
             return
         }
 
-        newsList.innerHTML = news.map(post => `
-      <div class="news-item" data-url="${post.url || ''}">
-        <div class="news-date">${post.date}</div>
-        <div class="news-title">${escapeHtml(post.title)}</div>
-        <div class="news-excerpt">${escapeHtml(post.excerpt || '')}</div>
-      </div>
-    `).join('')
+        // Render slides
+        track.innerHTML = news.map(post => `
+            <div class="news-slide" data-url="${post.url || ''}">
+                <img class="news-slide-img" src="${post.image || '../../assets/news-placeholder.jpg'}" onerror="this.src='../../assets/news-placeholder.jpg'">
+                <div class="news-slide-content">
+                    <div class="news-slide-date">${post.date}</div>
+                    <div class="news-slide-title">${escapeHtml(post.title)}</div>
+                </div>
+            </div>
+        `).join('')
 
-        $$('.news-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const url = item.dataset.url
+        // Render dots
+        if (dots) {
+            dots.innerHTML = news.map((_, i) => `<div class="dot ${i === 0 ? 'active' : ''}" data-index="${i}"></div>`).join('')
+        }
+
+        // Setup events
+        $$('.news-slide').forEach(slide => {
+            slide.addEventListener('click', () => {
+                const url = slide.dataset.url
                 if (url) window.nexaria.openUrl(url)
             })
         })
-    } catch {
-        newsList.innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:12px 0;text-align:center">Impossible de charger les actualités</p>'
+
+        $$('.dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                goToSlide(parseInt(dot.dataset.index))
+                resetNewsTimer()
+            })
+        })
+
+        $('#news-prev')?.addEventListener('click', () => {
+            goToSlide(state.currentNewsSlide - 1)
+            resetNewsTimer()
+        })
+
+        $('#news-next')?.addEventListener('click', () => {
+            goToSlide(state.currentNewsSlide + 1)
+            resetNewsTimer()
+        })
+
+        // Auto-rotate
+        resetNewsTimer()
+
+    } catch (err) {
+        console.error('Failed to load news:', err)
+        track.innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:40px;text-align:center;width:100%">Erreur de chargement des actualités</p>'
     }
+}
+
+function goToSlide(index) {
+    const track = $('#news-track')
+    const slides = $$('.news-slide')
+    const dots = $$('.dot')
+    if (!track || slides.length === 0) return
+
+    state.currentNewsSlide = (index + slides.length) % slides.length
+
+    track.style.transform = `translateX(-${state.currentNewsSlide * 100}%)`
+
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === state.currentNewsSlide)
+    })
+}
+
+function resetNewsTimer() {
+    clearInterval(state.newsInterval)
+    state.newsInterval = setInterval(() => {
+        goToSlide(state.currentNewsSlide + 1)
+    }, 5000)
 }
 
 // ── Accounts ─────────────────────────────────────────────
@@ -951,13 +1030,30 @@ async function init() {
 
     // Crash Log handler
     if (window.nexaria.onGameCrashed) {
-        window.nexaria.onGameCrashed(async (crashLog) => {
+        window.nexaria.onGameCrashed(async (data) => {
             const modal = $('#modal-crash')
             const textArea = $('#crash-log-text')
+            const diagnosisBox = $('#crash-diagnosis-box')
+            const causeEl = $('#crash-diagnosis-cause')
+            const solutionEl = $('#crash-diagnosis-solution')
+
             if (modal && textArea) {
+                // data might be a string (old format) or object { log, analysis }
+                const crashLog = typeof data === 'string' ? data : data.log
+                const analysis = typeof data === 'object' ? data.analysis : null
+
                 textArea.value = crashLog
+
+                if (diagnosisBox && analysis) {
+                    causeEl.innerText = analysis.cause
+                    solutionEl.innerText = analysis.solution
+                    diagnosisBox.style.display = 'block'
+                } else if (diagnosisBox) {
+                    diagnosisBox.style.display = 'none'
+                }
+
                 modal.style.display = 'flex'
-                showView('console') // Show console behind the modal to make it clear the game stopped
+                showView('console')
             }
         })
     }
@@ -989,8 +1085,10 @@ async function init() {
 // ── Mods Optionnels ──────────────────────────────────────
 async function renderMods() {
     const list = $('#mods-list')
-    if (!list) return
+    const scrollContainer = $('#view-mods')
+    if (!list || !scrollContainer) return
 
+    const scrollPos = scrollContainer.scrollTop
     list.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 24px;">Chargement des mods...</div>'
 
     try {
@@ -1060,6 +1158,9 @@ async function renderMods() {
             card.appendChild(actionContainer)
             list.appendChild(card)
         })
+
+        // Restore scroll position after DOM update
+        scrollContainer.scrollTop = scrollPos
     } catch (e) {
         list.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 24px;">Erreur lors du chargement des mods.</div>'
     }
@@ -1141,7 +1242,7 @@ async function renderScreenshots() {
 async function checkMapAvailability() {
     const mapFrame = $('#map-frame')
     const offlinePlaceholder = $('#map-offline')
-    const url = 'https://map.nexaria.site'
+    const url = 'https://map.nexaria.netlib.re'
 
     if (!mapFrame || !offlinePlaceholder) return
 

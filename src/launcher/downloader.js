@@ -27,6 +27,15 @@ function getGameDir() {
 }
 
 /**
+ * Security helper to ensure a path is within a base directory
+ */
+function isPathSafe(baseDir, targetPath) {
+    const normalizedBase = path.normalize(baseDir)
+    const normalizedTarget = path.normalize(targetPath)
+    return normalizedTarget.startsWith(normalizedBase)
+}
+
+/**
  * Récupère les infos du serveur (version MC, loader, etc.)
  * GET /info.json
  */
@@ -83,10 +92,10 @@ async function fetchOptionalMods() {
     if (!url) return []
     try {
         const res = await fetch(`${url}/optional_mods.json`, { timeout: 5000 })
-        if (!res.ok) return []
+        if (!res.ok) return null
         return await res.json()
     } catch {
-        return []
+        return null
     }
 }
 
@@ -202,6 +211,13 @@ async function downloadGame(version, onProgress) {
     const toDownload = []
     for (const file of manifest) {
         const dest = path.join(gameDir, file.path)
+
+        // Security: Ensure path is within gameDir
+        if (!isPathSafe(gameDir, dest)) {
+            console.warn(`[Security] Ignored unsafe path in manifest: ${file.path}`)
+            continue
+        }
+
         let needsDownload = true
 
         if (fs.existsSync(dest)) {
@@ -244,6 +260,9 @@ async function downloadGame(version, onProgress) {
         await Promise.all(batch.map(async (file) => {
             const dest = path.join(gameDir, file.path)
 
+            // Security: Re-verify before download
+            if (!isPathSafe(gameDir, dest)) return
+
             await downloadFile(file.url, dest, null) // On ignore le pct par fichier pour éviter de spammer l'UI en parallèle
 
             completed++
@@ -279,18 +298,33 @@ async function cleanupGameFiles(gameDir, manifest) {
 
     // On ignore les mods optionnels de la suppression
     const { getOptionalModFileNames } = require('./mods')
-    const optionalMods = getOptionalModFileNames()
-    optionalMods.forEach(f => allowed.add(toStandardPath(path.join('mods', f))))
+    const optionalMods = await getOptionalModFileNames()
+
+    // Si on n'a pas pu récupérer la liste des mods (serveur HS), 
+    // on ne purge SURTOUT PAS le dossier mods pour éviter de tout supprimer indûment.
+    const isModsListAvailable = optionalMods !== null
+
+    if (isModsListAvailable) {
+        optionalMods.forEach(f => allowed.add(toStandardPath(path.join('mods', f))))
+    } else {
+        console.warn('[Security] Impossible de vérifier les mods optionnels (Serveur HS?). Purge du dossier /mods ignorée.')
+    }
 
     // Dossiers critiques à surveiller
     const criticalDirs = ['mods', 'config', 'resourcepacks', 'loader']
 
     for (const subDir of criticalDirs) {
+        // Sécurité supplémentaire : si c'est le dossier mods et qu'on n'a pas pu fetch la liste, on skip
+        if (subDir === 'mods' && !isModsListAvailable) continue
+
         const dirPath = path.join(gameDir, subDir)
         if (!fs.existsSync(dirPath)) continue
 
         const files = getAllFiles(dirPath)
         for (const file of files) {
+            // Security: Extra check before suppression
+            if (!isPathSafe(gameDir, file)) continue
+
             const relative = path.relative(gameDir, file)
             // Normalise le chemin relatif au même format que 'allowed' (avec des /)
             const normalizedRelative = toStandardPath(relative)
