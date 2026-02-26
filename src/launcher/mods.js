@@ -91,4 +91,83 @@ async function toggleMod(modId) {
     }
 }
 
-module.exports = { getModsStatus, toggleMod, getOptionalModFileNames }
+async function verifyOptionalModsIntegrity() {
+    const mods = await loadOptionalMods()
+    const { getGameDir } = require('./downloader')
+    const gameDir = getGameDir()
+    const modsDir = path.join(gameDir, 'mods')
+
+    const results = []
+
+    for (const mod of mods) {
+        const filePath = path.join(modsDir, mod.fileName)
+
+        if (!isPathSafe(modsDir, filePath)) {
+            results.push({
+                id: mod.id,
+                name: mod.name,
+                fileName: mod.fileName,
+                status: 'invalid-path',
+            })
+            continue
+        }
+
+        if (!fs.existsSync(filePath)) {
+            results.push({
+                id: mod.id,
+                name: mod.name,
+                fileName: mod.fileName,
+                status: 'not-installed',
+            })
+            continue
+        }
+
+        if (!mod.sha1) {
+            results.push({
+                id: mod.id,
+                name: mod.name,
+                fileName: mod.fileName,
+                status: 'missing-reference-sha1',
+            })
+            continue
+        }
+
+        try {
+            const localSha1 = await sha1File(filePath)
+            const expectedSha1 = String(mod.sha1).toLowerCase()
+            const status = localSha1.toLowerCase() === expectedSha1 ? 'ok' : 'mismatch'
+
+            results.push({
+                id: mod.id,
+                name: mod.name,
+                fileName: mod.fileName,
+                status,
+                expectedSha1,
+                localSha1,
+            })
+        } catch (err) {
+            results.push({
+                id: mod.id,
+                name: mod.name,
+                fileName: mod.fileName,
+                status: 'read-error',
+                message: err.message,
+            })
+        }
+    }
+
+    const summary = {
+        total: results.length,
+        installed: results.filter(r => r.status !== 'not-installed').length,
+        ok: results.filter(r => r.status === 'ok').length,
+        mismatch: results.filter(r => r.status === 'mismatch').length,
+        missingReferenceSha1: results.filter(r => r.status === 'missing-reference-sha1').length,
+        invalidPath: results.filter(r => r.status === 'invalid-path').length,
+        readError: results.filter(r => r.status === 'read-error').length,
+        notInstalled: results.filter(r => r.status === 'not-installed').length,
+    }
+
+    return { summary, results }
+}
+
+module.exports = { getModsStatus, toggleMod, getOptionalModFileNames, verifyOptionalModsIntegrity }

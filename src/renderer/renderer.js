@@ -956,6 +956,64 @@ async function init() {
         location.reload()
     })
 
+    // Verify installed mods integrity
+    $('#btn-verify-mods')?.addEventListener('click', async () => {
+        const btn = $('#btn-verify-mods')
+        if (!btn || btn.disabled) return
+
+        btn.disabled = true
+        btn.textContent = 'Analyse...'
+
+        try {
+            const report = await window.nexaria.verifyModsIntegrity()
+
+            if (report?.error) {
+                showToast(`Erreur vérification : ${report.error}`, 'error')
+                return
+            }
+
+            const summary = report?.summary || {}
+            const failures = (report?.results || []).filter(r => ['mismatch', 'invalid-path', 'read-error'].includes(r.status))
+
+            if (failures.length > 0) {
+                const details = failures.slice(0, 8).map(f => `• ${f.name} (${f.status})`).join('\n')
+                showToast(`Vérification terminée : ${failures.length} problème(s) détecté(s).`, 'error')
+                alert(`Mods en erreur :\n\n${details}${failures.length > 8 ? '\n…' : ''}`)
+            } else {
+                showToast(`Intégrité OK (${summary.ok || 0} mod(s) vérifié(s)).`, 'success')
+            }
+        } catch (e) {
+            showToast(`Erreur: ${e.message}`, 'error')
+        } finally {
+            btn.disabled = false
+            btn.textContent = 'Vérifier'
+        }
+    })
+
+    // Export health report
+    $('#btn-export-health')?.addEventListener('click', async () => {
+        const btn = $('#btn-export-health')
+        if (!btn || btn.disabled) return
+
+        btn.disabled = true
+        btn.textContent = 'Export...'
+
+        try {
+            const res = await window.nexaria.exportHealthReport()
+            if (res?.status === 'success') {
+                const fileName = (res.filePath || '').split(/[/\\]/).pop()
+                showToast(`Rapport exporté : ${fileName || 'health-report.json'}`, 'success')
+            } else if (res?.status !== 'cancelled') {
+                showToast(`Erreur export : ${res?.message || 'inconnue'}`, 'error')
+            }
+        } catch (e) {
+            showToast(`Erreur export : ${e.message}`, 'error')
+        } finally {
+            btn.disabled = false
+            btn.textContent = 'Exporter'
+        }
+    })
+
     // Screenshot management
     $('#btn-open-screenshots-folder')?.addEventListener('click', () => {
         window.nexaria.openScreenshotsFolder()

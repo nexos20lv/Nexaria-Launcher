@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('nexaria', {
     // Mods Optionnels
     getOptionalMods: () => ipcRenderer.invoke('mods:getOptional'),
     toggleOptionalMod: (data) => ipcRenderer.invoke('mods:toggle', data),
+    verifyModsIntegrity: () => ipcRenderer.invoke('mods:verifyIntegrity'),
 
     // Screenshots
     getScreenshots: () => ipcRenderer.invoke('screenshots:list'),
@@ -64,4 +65,5 @@ contextBridge.exposeInMainWorld('nexaria', {
     // Troubleshooting
     clearCache: () => ipcRenderer.invoke('troubleshoot:clearCache'),
     resetSettings: () => ipcRenderer.invoke('troubleshoot:resetSettings'),
+    exportHealthReport: () => ipcRenderer.invoke('troubleshoot:exportHealthReport'),
 })

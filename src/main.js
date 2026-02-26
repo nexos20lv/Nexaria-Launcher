@@ -7,6 +7,7 @@ const log = require('electron-log')
 log.transports.file.level = 'info'
 autoUpdater.logger = log
 const path = require('path')
+const fs = require('fs')
 const { getStore } = require('./store')
 const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./launcher/auth')
 const { launchGame, downloadGame, getGameDir: getDefaultGameDir } = require('./launcher/game')
@@ -486,6 +487,28 @@ ipcMain.handle('mods:toggle', async (_, { modId }) => {
     }
 })
 
+ipcMain.handle('mods:verifyIntegrity', async () => {
+    try {
+        const { verifyOptionalModsIntegrity } = require('./launcher/mods')
+        return await verifyOptionalModsIntegrity()
+    } catch (err) {
+        return {
+            summary: {
+                total: 0,
+                installed: 0,
+                ok: 0,
+                mismatch: 0,
+                missingReferenceSha1: 0,
+                invalidPath: 0,
+                readError: 1,
+                notInstalled: 0,
+            },
+            results: [],
+            error: err.message,
+        }
+    }
+})
+
 // ── screenshots IPC ──────────────────────────────────────
 ipcMain.handle('screenshots:list', async () => {
     const ScreenshotManager = require('./launcher/screenshots')
@@ -534,6 +557,69 @@ ipcMain.handle('troubleshoot:clearCache', async () => {
 ipcMain.handle('troubleshoot:resetSettings', async () => {
     store.clear()
     return { status: 'success' }
+})
+
+ipcMain.handle('troubleshoot:exportHealthReport', async () => {
+    try {
+        const settings = store.get('settings', {})
+        const { verifyOptionalModsIntegrity } = require('./launcher/mods')
+        const modIntegrity = await verifyOptionalModsIntegrity()
+        const serverStatus = await getServerStatus().catch(() => ({ online: false, players: 0, max: 0 }))
+
+        let launcherLogPath = null
+        let launcherLogTail = null
+
+        try {
+            launcherLogPath = log.transports.file.getFile().path
+            if (launcherLogPath && fs.existsSync(launcherLogPath)) {
+                const content = fs.readFileSync(launcherLogPath, 'utf8')
+                launcherLogTail = content.split('\n').slice(-250)
+            }
+        } catch (e) {
+            launcherLogTail = [`[log-read-error] ${e.message}`]
+        }
+
+        const report = {
+            generatedAt: new Date().toISOString(),
+            app: {
+                version: app.getVersion(),
+                electron: process.versions.electron,
+                chrome: process.versions.chrome,
+                node: process.versions.node,
+                platform: process.platform,
+                arch: process.arch,
+            },
+            settings: {
+                ram: settings.ram,
+                gameDir: settings.gameDir || getDefaultGameDir(),
+                keepLauncherOpen: settings.keepLauncherOpen,
+                fullscreen: settings.fullscreen,
+                serverVersion: settings.serverVersion,
+                hasCustomJavaPath: !!settings.javaPath,
+                hasJvmArgs: !!settings.jvmArgs,
+            },
+            serverStatus,
+            modIntegrity,
+            logs: {
+                launcherLogPath,
+                launcherTail: launcherLogTail,
+            },
+        }
+
+        const defaultName = `nexaria-health-report-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+        const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+            title: 'Exporter le rapport santé',
+            defaultPath: path.join(app.getPath('documents'), defaultName),
+            filters: [{ name: 'JSON', extensions: ['json'] }],
+        })
+
+        if (canceled || !filePath) return { status: 'cancelled' }
+
+        fs.writeFileSync(filePath, JSON.stringify(report, null, 2), 'utf8')
+        return { status: 'success', filePath }
+    } catch (err) {
+        return { status: 'error', message: err.message }
+    }
 })
 
 // ── External links ────────────────────────────────────────
