@@ -1,18 +1,17 @@
 // ============================================================
 // Nexaria Launcher - News Fetcher (Azuriom API)
 // ============================================================
-const fetch = require('node-fetch')
 const { AZURIOM_URL } = require('./auth')
+const { fetchWithRetry } = require('./net')
 
 /**
  * Fetch latest posts from the Azuriom site API
  * GET /api/posts
  */
 async function fetchNews() {
-    const res = await fetch(`${AZURIOM_URL}/api/posts?limit=5`, {
+    const res = await fetchWithRetry(`${AZURIOM_URL}/api/posts?limit=5`, {
         headers: { Accept: 'application/json' },
-        timeout: 5000,
-    })
+    }, { retries: 2, timeoutMs: 7000 })
 
     if (!res.ok) return getFallbackNews()
 

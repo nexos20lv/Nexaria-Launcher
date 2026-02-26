@@ -53,6 +53,7 @@ Le dossier `php-server/` doit être déployé sur un hébergement web.
 2. Configurez `config.php` avec vos versions de Minecraft et de loader.
 3. Placez vos fichiers (mods, config) dans le dossier `files/`.
 4. Configurez vos **mods optionnels** dans `optional_mods.json` (Iris, Minimap, etc.) avec leurs liens de téléchargement.
+   - Option recommandé : ajoutez `sha1` par mod pour activer la vérification d'intégrité côté launcher.
 Le manifest se génère automatiquement !
 
 ## 🏗️ Structure du Projet

@@ -7,6 +7,7 @@ const { Client } = require('minecraft-launcher-core')
 const { downloadGame, fetchServerInfo, getGameDir } = require('./downloader')
 const { ensureJava } = require('./java')
 const diagnostics = require('./diagnostics')
+const { fetchWithRetry } = require('./net')
 
 const launcher = new Client()
 
@@ -97,6 +98,23 @@ async function launchGame({ account, settings, mainWindow }) {
     }
 
     // 4 — Lancer Minecraft
+    // Nettoyage défensif des listeners entre deux lancements
+    ;['progress', 'download-status', 'download-progress', 'debug', 'data', 'command-line', 'close']
+        .forEach((eventName) => launcher.removeAllListeners(eventName))
+
+    let launchedSent = false
+    const signalLaunch = () => {
+        if (launchedSent) return
+        launchedSent = true
+        mainWindow.webContents.send('game:launched', { status: 'launched' })
+        mainWindow.webContents.send('game:progress', { type: 'complete', message: 'Minecraft lancé !', percent: 100 })
+        console.log('[Launcher] Minecraft a démarré avec succès.')
+
+        if (!settings.keepLauncherOpen) {
+            setTimeout(() => mainWindow.minimize(), 3000)
+        }
+    }
+
     // On écoute les événements de progression de MCLC (assets, libraries, etc.)
     launcher.on('progress', (e) => {
         const percent = (e.total > 0) ? Math.round((e.task / e.total) * 100) : 0
@@ -124,75 +142,51 @@ async function launchGame({ account, settings, mainWindow }) {
         })
     })
 
-    launcher.on('debug', (e) => console.log('[MC Debug]', e))
-    launcher.on('data', (e) => console.log('[MC]', e))
+    launcher.on('debug', (data) => {
+        console.log('[MC Debug]', data)
+        logToUI(mainWindow, data, 'debug')
+    })
+    launcher.on('data', (data) => {
+        console.log('[MC]', data)
+        logToUI(mainWindow, data, 'log')
+        signalLaunch()
+    })
+    launcher.on('command-line', (data) => {
+        logToUI(mainWindow, `Commande: ${data}`, 'debug')
+    })
 
     launcher.on('close', (code) => {
+        console.log(`[Launcher] Le process Minecraft s'est terminé avec le code : ${code}`)
         mainWindow.webContents.send('game:launched', { status: 'closed', code })
+
+        const { setActivity, resetTimestamp } = require('./discord')
+        resetTimestamp()
+        setActivity('Dans le menu')
+
         if (code !== 0) {
-            const crashLog = getLatestCrashLog(gameDir)
-            if (crashLog) {
-                mainWindow.webContents.send('game:crashed', crashLog)
-            }
+            const crashDir = opts.overrides?.gameDirectory || getGameDir()
+            const rawLog = getLatestCrashLog(crashDir)
+            const analysis = diagnostics.analyze(crashDir, rawLog)
+
+            mainWindow.webContents.send('game:crashed', {
+                log: rawLog,
+                analysis: analysis
+            })
         }
     })
 
     // Lancement effectif
     try {
         console.log('[Launcher] Appel de launcher.launch()...')
-        const child = await launcher.launch(opts)
+        await launcher.launch(opts)
 
         // On n'envoie pas tout de suite "launched" car MCLC peut encore travailler
         console.log('[Launcher] Le process est créé, on attend les premières données du jeu...')
-
-        let launchedSent = false
-        const signalLaunch = () => {
-            if (launchedSent) return
-            launchedSent = true
-            mainWindow.webContents.send('game:launched', { status: 'launched' })
-            mainWindow.webContents.send('game:progress', { type: 'complete', message: 'Minecraft lancé !', percent: 100 })
-            console.log('[Launcher] Minecraft a démarré avec succès.')
-
-            if (!settings.keepLauncherOpen) {
-                setTimeout(() => mainWindow.minimize(), 3000)
-            }
-        }
-
-        launcher.on('debug', (data) => logToUI(mainWindow, data, 'debug'))
-        launcher.on('download-status', (data) => logToUI(mainWindow, `Téléchargement: ${data.type} (${data.current}/${data.total})`, 'info'))
-        launcher.on('command-line', (data) => logToUI(mainWindow, `Commande: ${data}`, 'debug'))
-
-        launcher.on('data', (data) => {
-            logToUI(mainWindow, data, 'log')
-            signalLaunch()
-        })
 
         // Sécurité : si après 15 secondes on n'a pas de data mais que le child tourne encore
         setTimeout(() => {
             if (!launchedSent) signalLaunch()
         }, 15000)
-
-        launcher.on('close', (code) => {
-            console.log(`[Launcher] Le process Minecraft s\'est terminé avec le code : ${code}`)
-            mainWindow.webContents.send('game:launched', { status: 'closed', code })
-
-            // On remet le statut Discord au launcher
-            const { setActivity, resetTimestamp } = require('./discord')
-            resetTimestamp()
-            setActivity('Dans le menu')
-
-            if (code !== 0) {
-                // Plantage détecté
-                const gameDir = opts.overrides?.path || opts.authorization.meta.gameDir || getGameDir()
-                const rawLog = getLatestCrashLog(gameDir)
-                const analysis = diagnostics.analyze(gameDir, rawLog)
-
-                mainWindow.webContents.send('game:crashed', {
-                    log: rawLog,
-                    analysis: analysis // { cause, solution } ou null
-                })
-            }
-        })
 
     } catch (err) {
         console.error('[Launch Error]', err)
@@ -243,7 +237,6 @@ function buildVersionData(mcVersion, loader, loaderVersion) {
  * Récupère automatiquement le JSON de Fabric s'il est manquant
  */
 async function ensureFabricJson(gameDir, mcVersion, loaderVersion) {
-    const fetch = require('node-fetch')
     const versionId = `fabric-loader-${loaderVersion}-${mcVersion}`
     const versionDir = path.join(gameDir, 'versions', versionId)
     const jsonPath = path.join(versionDir, `${versionId}.json`)
@@ -254,7 +247,7 @@ async function ensureFabricJson(gameDir, mcVersion, loaderVersion) {
 
     const url = `https://meta.fabricmc.net/v2/versions/loader/${mcVersion}/${loaderVersion}/profile/json`
     try {
-        const res = await fetch(url)
+        const res = await fetchWithRetry(url, {}, { retries: 2, timeoutMs: 10000 })
         if (!res.ok) throw new Error(`Fabric Meta API a répondu HTTP ${res.status}`)
         const json = await res.json()
         fs.writeFileSync(jsonPath, JSON.stringify(json, null, 2))

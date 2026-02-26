@@ -6,6 +6,10 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "check:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/splash-preload.js && node --check src/store.js && node --check src/launcher/net.js && node --check src/launcher/auth.js && node --check src/launcher/downloader.js && node --check src/launcher/game.js && node --check src/launcher/mods.js && node --check src/launcher/news.js && node --check src/renderer/renderer.js",
+    "mods:fill-sha1": "node scripts/fill-optional-mods-sha1.js",
+    "lint": "npm run check:syntax",
+    "test": "npm run check:syntax",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",

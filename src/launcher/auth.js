@@ -1,9 +1,9 @@
 // ============================================================
 // Nexaria Launcher - Azuriom Auth Wrapper
 // ============================================================
-const fetch = require('node-fetch')
 const FormData = require('form-data')
 const fs = require('fs')
+const { fetchWithRetry } = require('./net')
 
 // CONFIGURE: Set your Azuriom site URL here
 const AZURIOM_URL = 'https://nexaria.site'
@@ -16,11 +16,11 @@ async function authenticate(email, password, twoFactorCode = null) {
     const body = { email, password }
     if (twoFactorCode) body.code = twoFactorCode
 
-    const res = await fetch(`${AZURIOM_URL}/api/auth/authenticate`, {
+    const res = await fetchWithRetry(`${AZURIOM_URL}/api/auth/authenticate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(body),
-    })
+    }, { retries: 2, timeoutMs: 8000 })
 
     const data = await res.json()
 
@@ -60,11 +60,11 @@ async function authenticate(email, password, twoFactorCode = null) {
  * POST /api/auth/verify
  */
 async function verify(accessToken) {
-    const res = await fetch(`${AZURIOM_URL}/api/auth/verify`, {
+    const res = await fetchWithRetry(`${AZURIOM_URL}/api/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ access_token: accessToken }),
-    })
+    }, { retries: 2, timeoutMs: 8000 })
 
     const data = await res.json()
 
@@ -91,11 +91,11 @@ async function verify(accessToken) {
  * POST /api/auth/logout
  */
 async function logout(accessToken) {
-    await fetch(`${AZURIOM_URL}/api/auth/logout`, {
+    await fetchWithRetry(`${AZURIOM_URL}/api/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ access_token: accessToken }),
-    })
+    }, { retries: 1, timeoutMs: 7000 })
 }
 
 /**
@@ -107,11 +107,11 @@ async function uploadSkin(accessToken, filePath) {
     form.append('access_token', accessToken)
     form.append('skin', fs.createReadStream(filePath))
 
-    const res = await fetch(`${AZURIOM_URL}/api/skin-api/skins`, {
+    const res = await fetchWithRetry(`${AZURIOM_URL}/api/skin-api/skins`, {
         method: 'POST',
         headers: form.getHeaders(),
         body: form,
-    })
+    }, { retries: 1, timeoutMs: 15000 })
 
     const data = await res.json().catch(() => ({}))
 
@@ -131,11 +131,11 @@ async function uploadCape(accessToken, filePath) {
     form.append('access_token', accessToken)
     form.append('cape', fs.createReadStream(filePath))
 
-    const res = await fetch(`${AZURIOM_URL}/api/skin-api/capes`, {
+    const res = await fetchWithRetry(`${AZURIOM_URL}/api/skin-api/capes`, {
         method: 'POST',
         headers: form.getHeaders(),
         body: form,
-    })
+    }, { retries: 1, timeoutMs: 15000 })
 
     const data = await res.json().catch(() => ({}))
 

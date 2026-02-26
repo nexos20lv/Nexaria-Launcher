@@ -7,7 +7,7 @@ const log = require('electron-log')
 log.transports.file.level = 'info'
 autoUpdater.logger = log
 const path = require('path')
-const Store = require('electron-store')
+const { getStore } = require('./store')
 const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./launcher/auth')
 const { launchGame, downloadGame, getGameDir: getDefaultGameDir } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
@@ -17,15 +17,19 @@ log.info('Discord RPC module loaded:', typeof initRPC)
 autoUpdater.autoDownload = true
 
 // ── Config & persistent store ─────────────────────────────
-const store = new Store({
-    name: 'nexaria-launcher',
-    encryptionKey: 'nexaria-secure-key-2024',
-})
+const store = getStore()
 
 // Register custom protocol for local assets
 protocol.registerSchemesAsPrivileged([
-    { scheme: 'asset', privileges: { secure: true, standard: true, supportFetchAPI: true, bypassCSP: true } }
+    { scheme: 'asset', privileges: { secure: true, standard: true, supportFetchAPI: true } }
 ])
+
+function isPathInside(baseDir, targetPath) {
+    const base = path.resolve(baseDir)
+    const target = path.resolve(targetPath)
+    const relative = path.relative(base, target)
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+}
 
 // ── Windows ───────────────────────────────────────────────
 let mainWindow
@@ -42,8 +46,10 @@ function createSplashWindow() {
         show: false,
         icon: path.join(__dirname, '../assets/icon.png'),
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false // Requis simple script ipc pour splash
+            preload: path.join(__dirname, 'splash-preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true,
         }
     })
 
@@ -106,21 +112,26 @@ function setupScreenshotWatcher() {
 app.whenReady().then(() => {
     // Register the handler for our custom protocol
     protocol.registerFileProtocol('asset', (request, callback) => {
-        const url = decodeURIComponent(request.url.replace(/^asset:\/\//, ''))
         try {
             // Security: Only allow files within the app directory or the game directory
-            const normalizedPath = path.normalize(url)
-            const gameDir = store.get('settings.gameDir') || getDefaultGameDir()
-            const allowedDirs = [__dirname, path.join(__dirname, '..'), gameDir]
+            const parsed = new URL(request.url)
+            let assetPath = decodeURIComponent(parsed.pathname || '')
+            if (process.platform === 'win32' && assetPath.startsWith('/')) {
+                assetPath = assetPath.slice(1)
+            }
 
-            const isAllowed = allowedDirs.some(dir => normalizedPath.startsWith(path.normalize(dir)))
+            const absolutePath = path.resolve(assetPath)
+            const gameDir = store.get('settings.gameDir') || getDefaultGameDir()
+            const allowedDirs = [__dirname, path.join(__dirname, '..'), gameDir].map(dir => path.resolve(dir))
+
+            const isAllowed = allowedDirs.some(dir => isPathInside(dir, absolutePath))
 
             if (!isAllowed) {
-                log.warn('[Security] Blocked asset protocol access to:', normalizedPath)
+                log.warn('[Security] Blocked asset protocol access to:', absolutePath)
                 return callback({ error: -10 /* net::ERR_ACCESS_DENIED */ })
             }
 
-            return callback(normalizedPath)
+            return callback(absolutePath)
         } catch (error) {
             log.error('Failed to handle asset protocol:', error)
             return callback({ error: -2 /* net::ERR_FAILED */ })
@@ -312,7 +323,7 @@ ipcMain.handle('auth:getAccounts', () => {
                     : a.accessTokenEncrypted
             } catch (e) {
                 log.warn('Could not decrypt token for user', a.username, e)
-                act.accessToken = ''
+                act.accessToken = a.accessTokenEncrypted
             }
         }
         return act
@@ -337,7 +348,7 @@ ipcMain.handle('auth:getLastAccount', () => {
                 : a.accessTokenEncrypted
         } catch (e) {
             log.warn('Could not decrypt token for last user', a.username, e)
-            act.accessToken = ''
+            act.accessToken = a.accessTokenEncrypted
         }
     }
     return act

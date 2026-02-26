@@ -15,6 +15,8 @@ const state = {
     skinViewer: null,
     currentNewsSlide: 0,
     newsInterval: null,
+    serverStatusInterval: null,
+    accountRefreshInterval: null,
 }
 
 // ── DOM helpers ──────────────────────────────────────────
@@ -122,12 +124,14 @@ async function enterMainView() {
 
     // Refresh server status every 15s
     refreshServerStatus()
-    setInterval(refreshServerStatus, 15000) // Plus fréquent (15s) pour plus de réactivité
+    if (state.serverStatusInterval) clearInterval(state.serverStatusInterval)
+    state.serverStatusInterval = setInterval(refreshServerStatus, 15000) // Plus fréquent (15s) pour plus de réactivité
 
     // Refresh stats (Money, Role) every 60s
-    setInterval(async () => {
+    if (state.accountRefreshInterval) clearInterval(state.accountRefreshInterval)
+    state.accountRefreshInterval = setInterval(async () => {
         if (state.currentAccount) {
-            const result = await window.nexaria.verify(state.currentAccount.accessToken)
+            const result = await window.nexaria.verify({ accessToken: state.currentAccount.accessToken })
             if (result.status === 'success') {
                 state.currentAccount = { ...state.currentAccount, ...result.user }
                 updatePlayerCard(state.currentAccount)
@@ -995,9 +999,6 @@ async function init() {
 
     // clear console button
     $('#btn-clear-console')?.addEventListener('click', clearConsole)
-
-    // Refresh server status every 30s
-    setInterval(refreshServerStatus, 30000)
 
     // Repair game
     $('#btn-repair')?.addEventListener('click', async () => {

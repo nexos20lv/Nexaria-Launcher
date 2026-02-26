@@ -160,12 +160,9 @@
     </div>
 
     <script>
-        // Écouter les messages du processus principal
-        const { ipcRenderer } = require('electron')
-
-        ipcRenderer.on('splash:status', (event, message) => {
+        window.nexariaSplash?.onStatus((message) => {
             document.getElementById('status-text').textContent = message;
-        });
+        })
     </script>
 </body>
 

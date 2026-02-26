@@ -7,16 +7,17 @@ const https = require('https')
 const http = require('http')
 const crypto = require('crypto')
 const { app } = require('electron')
+const { fetchWithRetry } = require('./net')
+const { getStore } = require('../store')
 
 // CONFIGURE: URL de ton serveur PHP (peut aussi être défini dans les Paramètres de l'app)
 // Laisser vide pour sauter le téléchargement et lancer le jeu directement.
 const DEFAULT_FILE_SERVER_URL = 'https://launcher.nexaria.site'
 
-let _storeRef = null
 function getFileServerUrl() {
     try {
-        if (!_storeRef) _storeRef = new (require('electron-store'))({ name: 'nexaria-launcher', encryptionKey: 'nexaria-secure-key-2024' })
-        return (_storeRef.get('settings.fileServerUrl') || DEFAULT_FILE_SERVER_URL).trim()
+        const store = getStore()
+        return (store.get('settings.fileServerUrl') || DEFAULT_FILE_SERVER_URL).trim()
     } catch {
         return DEFAULT_FILE_SERVER_URL
     }
@@ -30,9 +31,10 @@ function getGameDir() {
  * Security helper to ensure a path is within a base directory
  */
 function isPathSafe(baseDir, targetPath) {
-    const normalizedBase = path.normalize(baseDir)
-    const normalizedTarget = path.normalize(targetPath)
-    return normalizedTarget.startsWith(normalizedBase)
+    const base = path.resolve(baseDir)
+    const target = path.resolve(targetPath)
+    const relative = path.relative(base, target)
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
 /**
@@ -40,11 +42,10 @@ function isPathSafe(baseDir, targetPath) {
  * GET /info.json
  */
 async function fetchServerInfo() {
-    const fetch = require('node-fetch')
     const url = getFileServerUrl()
     if (!url) return null
     try {
-        const res = await fetch(`${url}/?action=info`, { timeout: 5000 })
+        const res = await fetchWithRetry(`${url}/?action=info`, {}, { retries: 2, timeoutMs: 7000 })
         if (!res.ok) return null
         return res.json()
     } catch {
@@ -57,13 +58,12 @@ async function fetchServerInfo() {
  * GET /manifest.json
  */
 async function fetchManifest() {
-    const fetch = require('node-fetch')
     const url = getFileServerUrl()
     if (!url) return []
 
     let res
     try {
-        res = await fetch(`${url}/?action=manifest`, { timeout: 15000 })
+        res = await fetchWithRetry(`${url}/?action=manifest`, {}, { retries: 2, timeoutMs: 15000 })
     } catch (err) {
         throw new Error(`Impossible de joindre ${url} — vérifie ta connexion internet.`)
     }
@@ -87,11 +87,10 @@ async function fetchManifest() {
  * GET /optional_mods.json
  */
 async function fetchOptionalMods() {
-    const fetch = require('node-fetch')
     const url = getFileServerUrl()
     if (!url) return []
     try {
-        const res = await fetch(`${url}/optional_mods.json`, { timeout: 5000 })
+        const res = await fetchWithRetry(`${url}/optional_mods.json`, {}, { retries: 2, timeoutMs: 7000 })
         if (!res.ok) return null
         return await res.json()
     } catch {
