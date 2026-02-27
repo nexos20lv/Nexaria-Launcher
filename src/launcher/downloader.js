@@ -310,7 +310,9 @@ async function cleanupGameFiles(gameDir, manifest) {
     }
 
     // Dossiers critiques à surveiller
-    const criticalDirs = ['mods', 'config', 'resourcepacks', 'loader']
+    // Note : 'shaderpacks', 'shaders' et 'resourcepacks' sont volontairement exclus —
+    // les joueurs sont libres d'utiliser leurs propres shaders et resource packs.
+    const criticalDirs = ['mods', 'config', 'loader']
 
     for (const subDir of criticalDirs) {
         // Sécurité supplémentaire : si c'est le dossier mods et qu'on n'a pas pu fetch la liste, on skip
