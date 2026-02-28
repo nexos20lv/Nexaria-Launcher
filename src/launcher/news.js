@@ -9,16 +9,17 @@ const { fetchWithRetry } = require('./net')
  * GET /api/posts
  */
 async function fetchNews() {
-    const res = await fetchWithRetry(`${AZURIOM_URL}/api/posts?limit=5`, {
+    const res = await fetchWithRetry(`${AZURIOM_URL}/api/posts?limit=10`, {
         headers: { Accept: 'application/json' },
     }, { retries: 2, timeoutMs: 7000 })
+
 
     if (!res.ok) return getFallbackNews()
 
     const data = await res.json()
     const posts = data.data || data || []
 
-    return posts.slice(0, 5).map(post => ({
+    return posts.slice(0, 10).map(post => ({
         id: post.id,
         title: post.title,
         excerpt: post.excerpt || stripHtml(post.content || '').substring(0, 120) + '...',

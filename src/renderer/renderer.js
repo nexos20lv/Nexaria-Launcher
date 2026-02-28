@@ -13,10 +13,13 @@ const state = {
     isLaunching: false,
     requires2fa: false,
     skinViewer: null,
+    skinPopupViewer: null,
     currentNewsSlide: 0,
     newsInterval: null,
     serverStatusInterval: null,
     accountRefreshInterval: null,
+    changelogs: [],
+    changelogFilter: 'all'
 }
 
 // ── DOM helpers ──────────────────────────────────────────
@@ -40,6 +43,8 @@ function showView(viewId) {
         renderMods()
     } else if (viewId === 'screenshots') {
         renderScreenshots()
+    } else if (viewId === 'changelog') {
+        renderChangelog()
     }
 }
 
@@ -53,7 +58,15 @@ function showToast(msg, type = 'info') {
         toast.className = 'toast'
         document.body.appendChild(toast)
     }
-    toast.textContent = msg
+
+    const icons = {
+        success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+        error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+        info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#8A2BE2" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+    }
+
+    toast.innerHTML = `${icons[type] || icons.info}<span>${msg}</span>`
     toast.className = `toast toast--${type} show`
     clearTimeout(toastTimer)
     toastTimer = setTimeout(() => toast.classList.remove('show'), 3500)
@@ -238,34 +251,50 @@ function updatePlayerCard(account) {
 
     // Mettre à jour la grande preview du skin dans l'onglet Personnalisation
     const skinContainer = $('#skin-container')
-    if (skinContainer && account.username) {
+    const popupContainer = $('#avatar-popup-canvas')
+    const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.site'
+    const skinUrl = `${azuriomUrl}/api/skin-api/skins/${encodeURIComponent(account.username)}`
+    const sv = window.skinview3d || (typeof skinview3d !== 'undefined' ? skinview3d : null)
+
+    if (skinContainer && account.username && sv) {
         try {
-            const azuriomUrl = window._azuriomUrl || state.settings?.azuriomUrl || 'https://nexaria.site'
-            const skinUrl = `${azuriomUrl}/api/skin-api/skins/${encodeURIComponent(account.username)}`
-
-            // Check if skinview3d is available (might be on window or global)
-            const sv = window.skinview3d || (typeof skinview3d !== 'undefined' ? skinview3d : null)
-
-            if (sv) {
-                if (!state.skinViewer) {
-                    state.skinViewer = new sv.SkinViewer({
-                        canvas: skinContainer,
-                        width: 300,
-                        height: 300,
-                        skin: skinUrl
-                    })
-                    state.skinViewer.animations.add(sv.WalkingAnimation)
-                    state.skinViewer.autoRotate = true
-                    state.skinViewer.autoRotateSpeed = 0.5
-                } else {
-                    state.skinViewer.loadSkin(skinUrl)
-                }
+            if (!state.skinViewer) {
+                state.skinViewer = new sv.SkinViewer({
+                    canvas: skinContainer,
+                    width: 300,
+                    height: 300,
+                    skin: skinUrl
+                })
+                state.skinViewer.animations.add(sv.WalkingAnimation)
+                state.skinViewer.autoRotate = true
+                state.skinViewer.autoRotateSpeed = 0.5
             } else {
-                console.warn('skinview3d library not found')
+                state.skinViewer.loadSkin(skinUrl)
             }
         } catch (err) {
-            console.error('Failed to initialize or update skin viewer:', err)
+            console.error('Failed to update skin viewer:', err)
         }
+    }
+
+    // New: Init miniature 3D viewer in popup on first hover
+    const avatarWrapper = $('.player-avatar-container')
+    if (avatarWrapper && account.username && sv && popupContainer) {
+        const initPopup = () => {
+            if (!state.skinPopupViewer) {
+                state.skinPopupViewer = new sv.SkinViewer({
+                    canvas: popupContainer,
+                    width: 80,
+                    height: 100,
+                    skin: skinUrl
+                })
+                state.skinPopupViewer.animations.add(sv.IdleAnimation)
+                state.skinPopupViewer.autoRotate = true
+            } else {
+                state.skinPopupViewer.loadSkin(skinUrl)
+            }
+            avatarWrapper.removeEventListener('mouseenter', initPopup)
+        }
+        avatarWrapper.addEventListener('mouseenter', initPopup)
     }
 }
 
@@ -275,6 +304,7 @@ async function refreshServerStatus() {
     const text = $('#status-text')
     const playersEl = $('#players-count')
     const playersListEl = $('#players-list')
+    const dotWrapper = $('.server-status')
 
     try {
         const status = await window.nexaria.getServerStatus()
@@ -282,8 +312,17 @@ async function refreshServerStatus() {
         if (status.online) {
             dot?.classList.add('online')
             dot?.classList.remove('offline')
-            if (text) text.textContent = 'Serveur en ligne'
-            if (playersEl) playersEl.textContent = `${status.players} Joueur${status.players !== 1 ? 's' : ''}`
+            dotWrapper?.classList.add('status-online')
+            if (text) text.textContent = 'En ligne'
+
+            const sep = $('#status-sep')
+            if (sep) sep.style.display = 'inline'
+
+            if (playersEl) {
+                playersEl.style.display = 'inline'
+                const currentCount = parseInt(playersEl.textContent) || 0
+                animateCounter(playersEl, currentCount, status.players, status.players !== 1 ? 'Joueurs' : 'Joueur')
+            }
 
             if (playersListEl) {
                 if (status.sample && status.sample.length > 0) {
@@ -302,8 +341,11 @@ async function refreshServerStatus() {
         } else {
             dot?.classList.add('offline')
             dot?.classList.remove('online')
-            if (text) text.textContent = 'Serveur hors ligne'
-            if (playersEl) playersEl.textContent = '0 Joueur'
+            dotWrapper?.classList.remove('status-online')
+            if (text) text.textContent = 'Hors ligne'
+            const sep = $('#status-sep')
+            if (sep) sep.style.display = 'none'
+            if (playersEl) playersEl.style.display = 'none'
             if (playersListEl) playersListEl.innerHTML = `<p style="color:var(--text-muted);font-size:11px;text-align:center;">Hors ligne</p>`
         }
     } catch {
@@ -575,10 +617,34 @@ function updateProgress(progress) {
     if (fill) fill.style.width = `${progress.percent || 0}%`
 
     if (progress.type === 'complete') {
+        const stepInstall = $('#step-install')
+        if (stepInstall) {
+            stepInstall.classList.add('completed')
+            stepInstall.classList.remove('active')
+        }
         setTimeout(() => {
             const progressContainer = $('#progress-container')
             if (progressContainer) progressContainer.style.display = 'none'
-        }, 2000)
+        }, 3000)
+    } else {
+        // Update steps based on message contents
+        const lowerMsg = progress.message?.toLowerCase() || ''
+        const stepVerify = $('#step-verify')
+        const stepDownload = $('#step-download')
+        const stepInstall = $('#step-install')
+
+        if (lowerMsg.includes('vérification') || lowerMsg.includes('checksum')) {
+            stepVerify?.classList.add('active')
+            stepVerify?.classList.remove('completed')
+        } else if (lowerMsg.includes('téléchargement') || lowerMsg.includes('download')) {
+            stepVerify?.classList.add('completed')
+            stepVerify?.classList.remove('active')
+            stepDownload?.classList.add('active')
+        } else if (lowerMsg.includes('installation') || lowerMsg.includes('unpacking') || lowerMsg.includes('préparation')) {
+            stepDownload?.classList.add('completed')
+            stepDownload?.classList.remove('active')
+            stepInstall?.classList.add('active')
+        }
     }
 }
 
@@ -588,8 +654,12 @@ function resetPlayButton() {
     const playText = $('#play-text')
     if (btn) btn.disabled = false
     if (playText) playText.textContent = 'JOUER'
+
+    // Reset progress UI
     const progressContainer = $('#progress-container')
     if (progressContainer) progressContainer.style.display = 'none'
+    $$('.progress-step').forEach(s => s.classList.remove('active', 'completed'))
+
     window.nexaria.removeGameListeners()
 }
 
@@ -652,6 +722,7 @@ function applySettings(s) {
     const gameDirInput = $('#setting-gamedir')
     const fullscreenToggle = $('#setting-fullscreen')
     const keepOpenToggle = $('#setting-keep-open')
+    const animationsToggle = $('#setting-animations')
     const ramDisplay = $('#ram-display')
 
     if (ramInput) {
@@ -662,6 +733,11 @@ function applySettings(s) {
     if (gameDirInput) gameDirInput.value = s.gameDir || ''
     if (fullscreenToggle) fullscreenToggle.checked = !!s.fullscreen
     if (keepOpenToggle) keepOpenToggle.checked = s.keepLauncherOpen !== false
+
+    if (animationsToggle) {
+        animationsToggle.checked = s.animations !== false
+        document.body.classList.toggle('no-animations', s.animations === false)
+    }
 
     if ($('#setting-jvm-args')) $('#setting-jvm-args').value = s.jvmArgs || ''
 
@@ -680,10 +756,12 @@ function applySettings(s) {
     // ── NOUVEAU : Versions dynamiques ──
     if (s.versions) {
         const appVersionEl = $('#about-app-version')
+        const sidebarVersionEl = $('#sidebar-version')
         const electronVersionEl = $('#about-electron-version')
         const osVersionEl = $('#about-os-version')
 
         if (appVersionEl) appVersionEl.textContent = s.versions.app
+        if ($('#settings-app-version')) $('#settings-app-version').textContent = `v${s.versions.app}`
         if (electronVersionEl) electronVersionEl.textContent = s.versions.electron
         if (osVersionEl) osVersionEl.textContent = s.versions.os === 'darwin' ? 'macOS' : s.versions.os
     }
@@ -696,6 +774,7 @@ async function saveSettings() {
         gameDir: $('#setting-gamedir')?.value || '',
         fullscreen: $('#setting-fullscreen')?.checked || false,
         keepLauncherOpen: $('#setting-keep-open')?.checked !== false,
+        animations: $('#setting-animations')?.checked !== false,
         jvmArgs: $('#setting-jvm-args')?.value || '',
     }
     await window.nexaria.saveSettings(settings)
@@ -741,6 +820,26 @@ function escapeHtml(str = '') {
         .replace(/"/g, '&quot;')
 }
 
+function animateCounter(element, start, end, suffix = '') {
+    const duration = 800 // ms
+    const range = end - start
+    if (range === 0) {
+        element.textContent = `${end} ${suffix}`
+        return
+    }
+    const startTime = performance.now()
+    const step = (now) => {
+        const elapsed = now - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const current = Math.floor(start + range * progress)
+        element.textContent = `${current} ${suffix}`
+        if (progress < 1) {
+            requestAnimationFrame(step)
+        }
+    }
+    requestAnimationFrame(step)
+}
+
 // ── Particles Background ──────────────────────────────────
 function initParticles() {
     const container = $('#particles-bg')
@@ -775,6 +874,17 @@ function createParticle(container) {
     container.appendChild(p)
 }
 
+// ── Changelog ────────────────────────────────────────────
+// Primary entry point for changelog view
+function renderChangelog() {
+    // Logic handled in separate section below
+    _renderChangelogUI()
+}
+
+function applyChangelogFilter() {
+    _applyChangelogFilter()
+}
+
 // ── Init ──────────────────────────────────────────────────
 async function init() {
     // Start background particles
@@ -797,6 +907,15 @@ async function init() {
         window._azuriomUrl = s.azuriomUrl || ''
     })
 
+    // Init changelog filters
+    $$('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            $$('.filter-btn').forEach(b => b.classList.remove('active'))
+            btn.classList.add('active')
+            state.changelogFilter = btn.dataset.filter
+            _applyChangelogFilter()
+        })
+    })
     // Window controls
     $('#btn-minimize')?.addEventListener('click', () => window.nexaria.minimize())
     $('#btn-close')?.addEventListener('click', () => window.nexaria.close())
@@ -939,6 +1058,10 @@ async function init() {
     $('#setting-jvm-args')?.addEventListener('input', triggerAutoSave)
     $('#setting-fullscreen')?.addEventListener('change', triggerAutoSave)
     $('#setting-keep-open')?.addEventListener('change', triggerAutoSave)
+    $('#setting-animations')?.addEventListener('change', () => {
+        document.body.classList.toggle('no-animations', !$('#setting-animations').checked)
+        triggerAutoSave()
+    })
 
     // Clear Cache
     $('#btn-clear-cache')?.addEventListener('click', async () => {
@@ -1297,7 +1420,78 @@ async function renderScreenshots() {
 }
 
 
-// ── Map Availability ─────────────────────────────────────
+// ── Changelog ─────────────────────────────────────────────
+let _changelogLoaded = false
+async function _renderChangelogUI() {
+    const list = $('#changelog-list')
+    if (!list) return
+
+    // Avoid re-fetching if already loaded but filter changed
+    if (_changelogLoaded) {
+        _applyChangelogFilter()
+        return
+    }
+
+    list.innerHTML = `
+        <div class="changelog-skeleton">
+            <div class="skeleton-line" style="width: 30%; height: 12px; margin-bottom: 8px;"></div>
+            <div class="skeleton-line" style="width: 70%; height: 18px; margin-bottom: 8px;"></div>
+            <div class="skeleton-line" style="width: 90%; height: 12px;"></div>
+        </div>
+    `
+
+    try {
+        state.changelogs = await window.nexaria.fetchChangelog()
+        _changelogLoaded = true
+        _applyChangelogFilter()
+    } catch (err) {
+        console.error('Changelog fetch error:', err)
+        list.innerHTML = `<p style="color: var(--red); text-align: center; padding: 40px;">Impossible de charger le changelog.</p>`
+    }
+}
+
+function _applyChangelogFilter() {
+    const list = $('#changelog-list')
+    if (!list || !state.changelogs) return
+
+    const filtered = state.changelogs.filter(post => {
+        if (state.changelogFilter === 'all') return true
+        return (post.category || '').toLowerCase() === state.changelogFilter.toLowerCase()
+    })
+
+    if (filtered.length === 0) {
+        list.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 40px;">Aucune mise à jour dans cette catégorie.</p>`
+        return
+    }
+
+    list.innerHTML = filtered.map(post => {
+        const catClass = (post.category || 'Serveur').toLowerCase().replace(/\s+/g, '-');
+        return `
+        <div class="changelog-card card-${catClass}">
+            <div class="changelog-card-header">
+                ${post.categoryIcon ? `<span class="changelog-icon">${post.categoryIcon}</span>` : ''}
+                ${post.category ? `<span class="changelog-category">${escapeHtml(post.category)}</span>` : ''}
+                ${post.date ? `<span class="changelog-date">${escapeHtml(post.date)}</span>` : ''}
+            </div>
+            <div class="changelog-title">${escapeHtml(post.title)}</div>
+            <div class="changelog-excerpt">${escapeHtml(post.excerpt || '')}</div>
+            <div class="changelog-card-link">
+                Voir le détail
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </div>
+        </div>
+    `}).join('')
+
+    list.querySelectorAll('.changelog-card').forEach(card => {
+        card.style.cursor = 'pointer'
+        card.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.site/changelog'))
+    })
+}
+
+
+
 async function checkMapAvailability() {
     const mapFrame = $('#map-frame')
     const offlinePlaceholder = $('#map-offline')

@@ -13,6 +13,7 @@ const { authenticate, verify, logout, uploadSkin, uploadCape } = require('./laun
 const { launchGame, downloadGame, getGameDir: getDefaultGameDir } = require('./launcher/game')
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
+const { fetchChangelog } = require('./launcher/changelog')
 const { initRPC, setActivity, resetTimestamp, destroyRPC } = require('./launcher/discord')
 log.info('Discord RPC module loaded:', typeof initRPC)
 autoUpdater.autoDownload = true
@@ -467,6 +468,15 @@ ipcMain.handle('server:status', async () => {
 ipcMain.handle('news:fetch', async () => {
     try {
         return await fetchNews()
+    } catch (err) {
+        return []
+    }
+})
+
+// ── Changelog IPC ─────────────────────────────────────────
+ipcMain.handle('changelog:fetch', async () => {
+    try {
+        return await fetchChangelog()
     } catch (err) {
         return []
     }
