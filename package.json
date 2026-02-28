@@ -1,6 +1,6 @@
 {
   "name": "nexaria-launcher",
-  "version": "1.0.31",
+  "version": "1.0.32",
   "description": "Nexaria Minecraft Launcher",
   "main": "src/main.js",
   "scripts": {
