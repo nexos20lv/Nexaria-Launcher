@@ -1837,7 +1837,9 @@ img {
   background: linear-gradient(135deg, rgba(20, 20, 20, 0.7), rgba(10, 10, 10, 0.4));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 24px;
+  padding: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
   position: relative;
   overflow: hidden;
   transition: all var(--transition);

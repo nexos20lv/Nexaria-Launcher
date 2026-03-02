@@ -25,3 +25,6 @@ config.json
 # Temp files
 *.tmp
 *.bak
+
+#GUI-Codespaces
+start-gui.sh
