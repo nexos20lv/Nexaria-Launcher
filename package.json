@@ -41,6 +41,7 @@
   "overrides": {
     "qs": "^6.14.1",
     "tough-cookie": "^4.1.3",
+    "request": "npm:@cypress/request@^3.0.5",
     "minecraft-launcher-core": {
       "form-data": "^2.5.4"
     }
