@@ -1,39 +1,39 @@
 /* ============================================================
    Nexaria Launcher — UI Styles
-   Dark cyberpunk theme | Purple accent #8A2BE2
+   Dark cyberpunk theme | Pink accent #8A2BE2
    ============================================================ */
 
 /* ── Google Fonts fallback & variables ──────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg-primary: #080808;
-  --bg-panel: rgba(17, 17, 17, 0.7);
-  --bg-panel-2: rgba(22, 22, 22, 0.85);
-  --bg-hover: rgba(255, 255, 255, 0.05);
-  --bg-input: rgba(0, 0, 0, 0.3);
+  --bg-primary: #1B1135; /* Deep Theme Background */
+  --bg-panel: #261649; /* Solid Lighter Theme Panel */
+  --bg-panel-2: #301b5e; /* Even lighter theme color for hover/secondary */
+  --bg-hover: rgba(255, 255, 255, 0.08); /* Slightly more visible hover */
+  --bg-input: rgba(0, 0, 0, 0.25);
 
-  --accent: #8A2BE2;
-  --accent-dim: rgba(138, 43, 226, 0.25);
-  --accent-glow: rgba(138, 43, 226, 0.5);
-  --accent-hover: #9D45FF;
+  --accent: #D926A9; /* Pink Focus Accent from new DA */
+  --accent-dim: rgba(217, 38, 169, 0.25);
+  --accent-glow: rgba(217, 38, 169, 0.5);
+  --accent-hover: #F042C3; /* Lighter pink for hover state */
 
   --green: #22c55e;
   --red: #ef4444;
   --text-primary: #ffffff;
   --text-secondary: #b0b0b0;
-  --text-muted: #666666;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(138, 43, 226, 0.5);
+  --text-muted: #807b8a; /* Slightly pink-tinted gray */
+  --border: rgba(255, 255, 255, 0.06); /* Softer white border */
+  --border-hover: rgba(217, 38, 169, 0.5);
 
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-md: 16px; 
+  --radius-lg: 24px;
 
   --sidebar-w: 72px;
   --titlebar-h: 44px;
   --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --glass: backdrop-filter: blur(16px) saturate(180%);
+  --glass: backdrop-filter: blur(12px) saturate(160%); /* Reduced blur as per deep design think */
 }
 
 /* ── Animation Controls ─────────────────────────────────── */
@@ -73,18 +73,15 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at top left, rgba(138, 43, 226, 0.15) 0%, transparent 45%),
-    radial-gradient(circle at bottom right, rgba(138, 43, 226, 0.08) 0%, transparent 45%),
-    var(--bg-primary);
+  background: var(--bg-primary);
+  /* Optional subtle glow removed to keep it cleaner like DA */
   color: var(--text-primary);
   font-family: 'Montserrat', system-ui, sans-serif;
   font-size: 14px;
   user-select: none;
   border-radius: 12px;
   background-clip: padding-box;
-  /* Ensures background doesn't bleed behind the border curve */
   border: 1px solid rgba(255, 255, 255, 0.08);
-  /* App-level border to blend frameless edges */
 }
 
 button {
@@ -132,9 +129,9 @@ img {
 
 .particle {
   position: absolute;
-  background: rgba(138, 43, 226, 0.4);
+  background: rgba(217, 38, 169, 0.4);
   border-radius: 50%;
-  border: 1px solid rgba(138, 43, 226, 0.1);
+  border: 1px solid rgba(217, 38, 169, 0.1);
   animation: floatUp linear infinite;
   filter: blur(1px);
 }
@@ -168,7 +165,7 @@ img {
   left: 0;
   right: 0;
   height: var(--titlebar-h);
-  background: rgba(11, 11, 11, 0.95);
+  background: rgba(27, 17, 53, 0.95); /* Deep Theme Titlebar */
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -176,7 +173,7 @@ img {
   padding: 0 16px;
   -webkit-app-region: drag;
   z-index: 1000;
-  backdrop-filter: blur(8px);
+  var(--glass);
   border-radius: 11px 11px 0 0;
 }
 
@@ -244,8 +241,7 @@ img {
    ============================================================ */
 .app-shell {
   display: flex;
-  height: calc(100% - var(--titlebar-h));
-  margin-top: var(--titlebar-h);
+  height: 100%;
   background: transparent;
 }
 
@@ -258,14 +254,15 @@ img {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  margin: 16px 0 16px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 16px 0;
+  padding: 24px 0;
   z-index: 10;
-  backdrop-filter: blur(12px);
+  /* Soft shadow for depth */
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   animation: slideInLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 16px;
 }
 
 @keyframes slideInLeft {
@@ -393,7 +390,7 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse 60% 80% at 50% 100%, rgba(138, 43, 226, 0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse 60% 80% at 50% 100%, rgba(217, 38, 169, 0.12) 0%, transparent 70%);
 }
 
 .login-panel {
@@ -403,10 +400,10 @@ img {
   border-radius: var(--radius-lg);
   padding: 48px 40px;
   box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(138, 43, 226, 0.15);
+    0 32px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(217, 38, 169, 0.15);
   animation: floatIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  backdrop-filter: blur(20px);
+  var(--glass);
 }
 
 @keyframes floatIn {
@@ -584,11 +581,8 @@ img {
 }
 
 .btn-play:hover {
-  background: rgba(138, 43, 226, 0.15);
-  box-shadow:
-    0 0 20px var(--accent-dim),
-    0 0 40px rgba(138, 43, 226, 0.2),
-    inset 0 0 20px rgba(138, 43, 226, 0.05);
+  background: rgba(217, 38, 169, 0.15);
+  box-shadow: 0 0 20px rgba(217, 38, 169, 0.2);
   transform: translateY(-1px);
 }
 
@@ -605,7 +599,7 @@ img {
 .btn-play-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(138, 43, 226, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(217, 38, 169, 0.3) 0%, transparent 70%);
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
@@ -621,21 +615,21 @@ img {
   padding: 16px 48px;
   font-size: 18px;
   letter-spacing: 5px;
-  box-shadow: 0 0 30px rgba(138, 43, 226, 0.25);
+  box-shadow: 0 0 30px rgba(217, 38, 169, 0.25);
 }
 
 /* Pulse animation on play button */
 @keyframes pulse-border {
   0% {
-    box-shadow: 0 0 0 0 var(--accent-glow), 0 0 40px rgba(138, 43, 226, 0.3);
+    box-shadow: 0 0 0 0 var(--accent-glow), 0 0 40px rgba(217, 38, 169, 0.3);
   }
 
   70% {
-    box-shadow: 0 0 0 15px transparent, 0 0 60px rgba(138, 43, 226, 0.15);
+    box-shadow: 0 0 0 15px transparent, 0 0 60px rgba(217, 38, 169, 0.15);
   }
 
   100% {
-    box-shadow: 0 0 0 0 transparent, 0 0 40px rgba(138, 43, 226, 0.3);
+    box-shadow: 0 0 0 0 transparent, 0 0 40px rgba(217, 38, 169, 0.3);
   }
 }
 
@@ -701,9 +695,7 @@ img {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background:
-    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(138, 43, 226, 0.15) 0%, transparent 70%);
-  /* Seamless blend with body background */
+  background: transparent;
   position: relative;
   overflow: hidden;
 }
@@ -821,13 +813,10 @@ img {
 }
 
 .server-name {
-  font-size: 32px;
+  font-size: 56px;
   font-weight: 800;
-  letter-spacing: 3px;
-  background: linear-gradient(135deg, #ffffff 20%, var(--accent) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  letter-spacing: 5px;
+  color: #ffffff;
   text-transform: uppercase;
 }
 
@@ -861,7 +850,7 @@ img {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: linear-gradient(135deg, rgba(30, 30, 30, 0.6), rgba(15, 15, 15, 0.8));
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 14px 24px;
@@ -874,8 +863,8 @@ img {
 
 .player-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(138, 43, 226, 0.15);
-  border-color: rgba(138, 43, 226, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(217, 38, 169, 0.15);
+  border-color: rgba(217, 38, 169, 0.4);
 }
 
 /* Spotlight subtil au survol */
@@ -1004,9 +993,9 @@ img {
 .progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #8A2BE2, #B066FF);
+  background: linear-gradient(90deg, #D926A9, #F042C3);
   border-radius: 10px;
-  box-shadow: 0 0 15px rgba(138, 43, 226, 0.6);
+  box-shadow: 0 0 15px rgba(217, 38, 169, 0.6);
   transition: width 0.4s cubic-bezier(0.1, 0.7, 0.1, 1);
 }
 
@@ -1041,12 +1030,16 @@ img {
   gap: 8px;
   padding: 14px 18px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text-primary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.panel-header svg {
+  color: var(--accent); /* Make the icon pink instead of the text */
 }
 
 .panel-header svg {
@@ -1171,7 +1164,7 @@ img {
 
 .account-item.active {
   background: var(--accent-dim);
-  border: 1px solid rgba(138, 43, 226, 0.3);
+  border: 1px solid rgba(217, 38, 169, 0.3);
 }
 
 .player-avatar-container {
@@ -1568,7 +1561,7 @@ img {
 }
 
 .btn-save-settings:hover {
-  background: rgba(138, 43, 226, 0.3);
+  background: rgba(217, 38, 169, 0.3);
   box-shadow: 0 0 20px var(--accent-dim);
   transform: translateY(-1px);
 }
@@ -1834,33 +1827,24 @@ img {
    CHANGELOG VIEW
    ============================================================ */
 .changelog-card {
-  background: linear-gradient(135deg, rgba(20, 20, 20, 0.7), rgba(10, 10, 10, 0.4));
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 5px;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding: 24px;
   position: relative;
   overflow: hidden;
   transition: all var(--transition);
   cursor: pointer;
-  backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
-.changelog-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--accent);
-  transition: all var(--transition);
-  opacity: 0.8;
-  box-shadow: 2px 0 10px var(--accent-glow);
+.changelog-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(217, 38, 169, 0.2);
+  transform: translateY(-2px);
 }
 
 .changelog-card:hover {
@@ -1909,10 +1893,10 @@ img {
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  padding: 4px 12px;
+  padding: 6px 16px;
   border-radius: 50px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
   color: var(--text-primary);
 }
 
@@ -1944,9 +1928,9 @@ img {
 }
 
 .changelog-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #ffffff;
   line-height: 1.3;
   letter-spacing: -0.2px;
 }

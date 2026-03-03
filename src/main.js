@@ -78,6 +78,7 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
+            sandbox: true,
         },
     })
 
@@ -87,6 +88,16 @@ function createWindow() {
     if (process.argv.includes('--dev')) {
         mainWindow.webContents.openDevTools({ mode: 'detach' })
     }
+
+    // Security: Prevent navigation inside the window (e.g., dropping a file/URL)
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        event.preventDefault()
+    })
+
+    // Security: Prevent new windows from being opened via target="_blank"
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        return { action: 'deny' }
+    })
 
     // Setup screenshot watcher
     setupScreenshotWatcher()
