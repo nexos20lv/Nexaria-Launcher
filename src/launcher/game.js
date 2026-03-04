@@ -79,13 +79,49 @@ async function launchGame({ account, settings, mainWindow }) {
             fullscreen: settings.fullscreen || false,
         },
         jvmArgs: (() => {
-            if (!settings.jvmArgs) return []
-            // Security: Sanitize JVM args to prevent command injection
-            // We split by space but we also want to avoid anything that looks like shell redirection or pipes
-            const dangerousChars = /[|&;$><`\\]/
-            return settings.jvmArgs.split(' ')
-                .map(arg => arg.trim())
-                .filter(arg => arg !== '' && !dangerousChars.test(arg))
+            const os = require('os');
+            const userArgs = settings.jvmArgs ? settings.jvmArgs.split(' ').map(arg => arg.trim()).filter(arg => arg !== '' && !/[|&;$><`\\]/.test(arg)) : [];
+
+            // Nexaria Smart Optimization (Aikar's Flags adaptation)
+            // Memory to allocate in MB
+            const memAllocated = settings.ram || 2048;
+            const gcFlags = [];
+
+            // Only apply advanced GC flags if memory is large enough and user didn't override GC
+            const hasCustomGC = userArgs.some(arg => arg.includes('UseG1GC') || arg.includes('UseZGC') || arg.includes('UseParallelGC'));
+
+            if (!hasCustomGC && memAllocated >= 2000) {
+                gcFlags.push('-XX:+UseG1GC');
+                gcFlags.push('-XX:+ParallelRefProcEnabled');
+                gcFlags.push('-XX:MaxGCPauseMillis=200');
+                gcFlags.push('-XX:+UnlockExperimentalVMOptions');
+                gcFlags.push('-XX:+DisableExplicitGC');
+                gcFlags.push('-XX:G1NewSizePercent=30');
+                gcFlags.push('-XX:G1MaxNewSizePercent=40');
+                gcFlags.push('-XX:G1HeapRegionSize=8M');
+                gcFlags.push('-XX:G1ReservePercent=20');
+                gcFlags.push('-XX:G1HeapWastePercent=5');
+                gcFlags.push('-XX:G1MixedGCCountTarget=4');
+                gcFlags.push('-XX:InitiatingHeapOccupancyPercent=15');
+                gcFlags.push('-XX:G1MixedGCLiveThresholdPercent=90');
+                gcFlags.push('-XX:G1RSetUpdatingPauseTimePercent=5');
+                gcFlags.push('-XX:SurvivorRatio=32');
+                gcFlags.push('-XX:+PerfDisableSharedMem');
+                gcFlags.push('-XX:MaxTenuringThreshold=1');
+
+                // Adaptive GC threads based on OS cores
+                const cpus = os.cpus().length;
+                if (cpus > 1) {
+                    const parallelCpus = Math.max(2, Math.min(cpus, 8)); // Prevent excessive GC threads
+                    gcFlags.push(`-XX:ParallelGCThreads=${parallelCpus}`);
+                }
+            } else if (!hasCustomGC && memAllocated < 2000) {
+                // Low memory optimized flags
+                gcFlags.push('-XX:+UseZGC');
+                gcFlags.push('-ZCompiler');
+            }
+
+            return [...gcFlags, ...userArgs];
         })(),
         overrides: {
             gameDirectory: gameDir,
@@ -177,6 +213,19 @@ async function launchGame({ account, settings, mainWindow }) {
 
     // Lancement effectif
     try {
+        console.log('[Launcher] Vérification de sécurité avec le serveur (NexariaAuth)...')
+        mainWindow.webContents.send('game:progress', { type: 'info', message: 'Autorisation sur le serveur Minecraft...' })
+
+        const authRes = await fetchWithRetry('http://mc.nemesius.com:25566/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: account.accessToken })
+        }, { retries: 2, timeoutMs: 5000 });
+
+        if (!authRes.ok) {
+            throw new Error(`Le serveur a refusé l'accès. (Erreur HTTP ${authRes.status})`);
+        }
+
         console.log('[Launcher] Appel de launcher.launch()...')
         await launcher.launch(opts)
 

@@ -6,30 +6,21 @@ const https = require('https')
 
 const manifestPath = path.join(__dirname, '..', 'php-server', 'optional_mods.json')
 
-function fetchSha1(url) {
+function fetchSha1(fileName) {
     return new Promise((resolve, reject) => {
-        const client = url.startsWith('https') ? https : http
-        const hash = crypto.createHash('sha1')
+        const filePath = path.join(__dirname, '..', 'php-server', 'files', 'mods', fileName);
+        if (!fs.existsSync(filePath)) {
+            reject(new Error(`File not found: ${filePath}`));
+            return;
+        }
 
-        const req = client.get(url, (res) => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                fetchSha1(res.headers.location).then(resolve).catch(reject)
-                return
-            }
+        const hash = crypto.createHash('sha1');
+        const stream = fs.createReadStream(filePath);
 
-            if (res.statusCode !== 200) {
-                reject(new Error(`HTTP ${res.statusCode} for ${url}`))
-                return
-            }
-
-            res.on('data', chunk => hash.update(chunk))
-            res.on('end', () => resolve(hash.digest('hex')))
-            res.on('error', reject)
-        })
-
-        req.setTimeout(30000, () => req.destroy(new Error(`Timeout for ${url}`)))
-        req.on('error', reject)
-    })
+        stream.on('data', chunk => hash.update(chunk));
+        stream.on('end', () => resolve(hash.digest('hex')));
+        stream.on('error', reject);
+    });
 }
 
 async function run() {
@@ -37,10 +28,13 @@ async function run() {
     const mods = JSON.parse(raw)
 
     for (const mod of mods) {
-        if (!mod.url) continue
-        process.stdout.write(`Hashing ${mod.id}... `)
+        if (!mod.fileName) {
+            console.log(`Skipping ${mod.id} (no fileName)`)
+            continue
+        }
+        process.stdout.write(`Hashing ${mod.id} (${mod.fileName})... `)
         try {
-            const sha1 = await fetchSha1(mod.url)
+            const sha1 = await fetchSha1(mod.fileName)
             mod.sha1 = sha1
             process.stdout.write('ok\n')
         } catch (err) {

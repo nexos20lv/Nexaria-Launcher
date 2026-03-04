@@ -7,23 +7,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg-primary: #1B1135; /* Deep Theme Background */
-  --bg-panel: #261649; /* Solid Lighter Theme Panel */
-  --bg-panel-2: #301b5e; /* Even lighter theme color for hover/secondary */
-  --bg-hover: rgba(255, 255, 255, 0.08); /* Slightly more visible hover */
-  --bg-input: rgba(0, 0, 0, 0.25);
+  --bg-primary: #1e1136; /* Dark purple background from site */
+  --bg-panel: #2d1959; /* Lighter purple panel */
+  --bg-panel-2: #3a2272; /* Even lighter panel */
+  --bg-hover: rgba(255, 255, 255, 0.08); /* Hover effect */
+  --bg-input: rgba(0, 0, 0, 0.4);
 
-  --accent: #D926A9; /* Pink Focus Accent from new DA */
-  --accent-dim: rgba(217, 38, 169, 0.25);
+  --accent: #D926A9; /* Vibrant Pink Accent */
+  --accent-dim: rgba(217, 38, 169, 0.2);
   --accent-glow: rgba(217, 38, 169, 0.5);
-  --accent-hover: #F042C3; /* Lighter pink for hover state */
+  --accent-hover: #F042C3; /* Lighter Pink */
 
   --green: #22c55e;
   --red: #ef4444;
   --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --text-muted: #807b8a; /* Slightly pink-tinted gray */
-  --border: rgba(255, 255, 255, 0.06); /* Softer white border */
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border: rgba(255, 255, 255, 0.08); /* White border */
   --border-hover: rgba(217, 38, 169, 0.5);
 
   --radius-sm: 8px;
@@ -173,7 +173,7 @@ img {
   padding: 0 16px;
   -webkit-app-region: drag;
   z-index: 1000;
-  var(--glass);
+  backdrop-filter: var(--glass);
   border-radius: 11px 11px 0 0;
 }
 
@@ -403,7 +403,7 @@ img {
     0 32px 80px rgba(0, 0, 0, 0.5),
     0 0 0 1px rgba(217, 38, 169, 0.15);
   animation: floatIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  var(--glass);
+  backdrop-filter: var(--glass);
 }
 
 @keyframes floatIn {
@@ -1003,7 +1003,7 @@ img {
    RIGHT PANELS
    ============================================================ */
 .right-panels {
-  width: 300px;
+  width: clamp(220px, 25vw, 340px);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;

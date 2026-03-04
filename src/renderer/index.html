@@ -40,6 +40,13 @@
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
         </button>
+        <button class="titlebar-btn" id="btn-maximize" title="Agrandir"
+          style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; color: var(--text-secondary);">
+          <svg viewBox="0 0 24 24"
+            style="width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; stroke-linecap: round;">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          </svg>
+        </button>
         <button class="titlebar-btn titlebar-btn--close" id="btn-close" title="Fermer"
           style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; color: var(--text-secondary);">
           <svg viewBox="0 0 24 24"
@@ -64,14 +71,6 @@
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
           <span class="sidebar-tooltip">Accueil</span>
-        </button>
-        <!-- 2. Carte du Monde (Communauté) -->
-        <button class="sidebar-btn" id="nav-map" data-view="map" title="Carte du Monde (Dynmap)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
-          <span class="sidebar-tooltip">Carte du Monde</span>
         </button>
         <!-- 3. Mods Optionnels (Jeu local) -->
         <button class="sidebar-btn" id="nav-mods" data-view="mods" title="Mods Optionnels">
@@ -547,10 +546,11 @@
 
               <div class="settings-row">
                 <div class="settings-label">
-                  <span>Exporter un rapport santé</span>
-                  <small>Génère un fichier JSON pour le support technique</small>
+                  <span>Envoyer les logs au support</span>
+                  <small>Upload les logs sur mclo.gs et génère un lien court à partager sur Discord</small>
                 </div>
-                <button class="settings-btn" id="btn-export-health">Exporter</button>
+                <button class="settings-btn" id="btn-upload-support-log" style="border-color: var(--accent);">Générer un
+                  lien</button>
               </div>
             </div>
 
@@ -652,42 +652,6 @@
       </section>
 
       <!-- ────────────────────────────────── -->
-      <!--            MAP VIEW                 -->
-      <!-- ────────────────────────────────── -->
-      <section class="view" id="view-map">
-        <div class="console-container">
-          <div class="console-header">
-            <div class="console-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              Carte du Monde
-            </div>
-          </div>
-          <div style="flex: 1; overflow: hidden; position: relative; background: var(--bg-primary);">
-            <div id="map-offline"
-              style="display: none; position: absolute; inset: 0; background: var(--bg-primary); z-index: 5; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px;">
-              <div
-                style="width: 80px; height: 80px; background: var(--bg-panel); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; border: 2px solid var(--border);">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"
-                  style="width: 40px; height: 40px;">
-                  <path d="M1 1l22 22M2 6h20M5 11h14M8 16h8M11 21h2" />
-                </svg>
-              </div>
-              <h2 style="font-size: 24px; color: var(--text-primary); margin-bottom: 8px;">Carte Hors-Ligne</h2>
-              <p style="color: var(--text-muted); font-size: 14px; max-width: 400px; line-height: 1.6;">La carte
-                interactive rencontre un problème de connexion (502 Bad Gateway) ou le serveur est en maintenance.</p>
-              <button class="settings-btn" id="btn-retry-map"
-                style="margin-top: 24px; border-color: var(--accent);">Réessayer la connexion</button>
-            </div>
-            <iframe id="map-frame" src="about:blank"
-              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; outline: none;"></iframe>
-          </div>
-        </div>
-      </section>
-
-      <!-- ────────────────────────────────── -->
       <!--          CHANGELOG VIEW           -->
       <!-- ────────────────────────────────── -->
       <section class="view" id="view-changelog" style="background: transparent;">
@@ -770,6 +734,11 @@
           <div style="display: flex; gap: 12px; justify-content: flex-end;">
             <button class="settings-btn" onclick="document.getElementById('modal-crash').style.display='none'"
               style="padding: 10px 24px; background: transparent; border: 1px solid var(--border);">Fermer</button>
+            <button class="btn-play" id="btn-upload-crash"
+              style="width: auto; padding: 0 24px; background: rgba(34, 197, 94, 0.1); border: 1px solid var(--green);">
+              <span class="btn-play-text" style="font-size: 13px; color: var(--green);">UPLOADER (MCLO.GS)</span>
+              <div class="btn-play-glow" style="background: var(--green);"></div>
+            </button>
             <button class="btn-play" id="btn-copy-crash" style="width: auto; padding: 0 24px;">
               <span class="btn-play-text" style="font-size: 13px;">COPIER LE RAPPORT</span>
               <div class="btn-play-glow"></div>
