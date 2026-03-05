@@ -42,12 +42,19 @@ async function launchGame({ account, settings, mainWindow }) {
         }
     })
 
-    // 2.5 — Installation automatique de Fabric si nécessaire
+    // 2.5 — Installation automatique du mod loader si nécessaire
     if (loader === 'fabric') {
         mainWindow.webContents.send('game:progress', {
             type: 'info', message: 'Installation de Fabric...', percent: 0,
         })
         await ensureFabricJson(gameDir, version, loaderVersion)
+    }
+
+    if (loader === 'forge') {
+        mainWindow.webContents.send('game:progress', {
+            type: 'info', message: 'Installation de Forge...', percent: 0,
+        })
+        await ensureForgeJson(gameDir, version, loaderVersion)
     }
 
     // 3 — Préparer les options de lancement
@@ -280,6 +287,155 @@ function buildVersionData(mcVersion, loader, loaderVersion) {
 
     // Vanilla
     return { number: mcVersion, type: 'release' }
+}
+
+/**
+ * Récupère automatiquement le JSON de Forge et installe le JAR universel s'ils sont manquants.
+ * MCLC attend le fichier : <gameDir>/versions/<mcVersion>-forge-<loaderVersion>/<mcVersion>-forge-<loaderVersion>.json
+ * Le JAR universel Forge (library) est extrait de l'installeur et placé dans le dossier libraries.
+ */
+async function ensureForgeJson(gameDir, mcVersion, loaderVersion) {
+    if (!loaderVersion) return // Vanilla fallback, rien à faire
+
+    const versionId = `${mcVersion}-forge-${loaderVersion}`
+    const versionDir = path.join(gameDir, 'versions', versionId)
+    const jsonPath = path.join(versionDir, `${versionId}.json`)
+
+    // On vérifie aussi le JAR universel : MCLC peut laisser un fichier corrompu
+    // (très petit) en cas d'échec de téléchargement. On reconsidère comme absent
+    // si le JAR pèse moins de 1 Mo.
+    const MIN_FORGE_JAR_SIZE = 1 * 1024 * 1024 // 1 Mo
+    // On calcule à l'avance les deux variantes possibles du chemin library
+    const legacyLibPath = path.join(
+        gameDir, 'libraries', 'net', 'minecraftforge', 'forge',
+        `${mcVersion}-${loaderVersion}-${mcVersion}`,
+        `forge-${mcVersion}-${loaderVersion}-${mcVersion}.jar`
+    )
+    const modernLibPath = path.join(
+        gameDir, 'libraries', 'net', 'minecraftforge', 'forge',
+        `${mcVersion}-${loaderVersion}`,
+        `forge-${mcVersion}-${loaderVersion}.jar`
+    )
+    const forgeLibOk = [legacyLibPath, modernLibPath].some(
+        p => fs.existsSync(p) && fs.statSync(p).size >= MIN_FORGE_JAR_SIZE
+    )
+
+    if (fs.existsSync(jsonPath) && forgeLibOk) return
+
+    if (!fs.existsSync(versionDir)) fs.mkdirSync(versionDir, { recursive: true })
+
+    // Forge Maven utilise deux formats d'URL selon la version :
+    //   - Moderne (>=1.13) : forge-{mc}-{forge}-installer.jar
+    //   - Ancienne (<1.13)  : forge-{mc}-{forge}-{mc}-installer.jar  (suffixe mc en plus)
+    const mavenRoot = `https://maven.minecraftforge.net/net/minecraftforge/forge`
+    const candidateUrls = [
+        // Format moderne
+        `${mavenRoot}/${mcVersion}-${loaderVersion}/forge-${mcVersion}-${loaderVersion}-installer.jar`,
+        // Format legacy (ex: 1.8.9 / 1.7.10)
+        `${mavenRoot}/${mcVersion}-${loaderVersion}-${mcVersion}/forge-${mcVersion}-${loaderVersion}-${mcVersion}-installer.jar`,
+    ]
+
+    let installerBuf = null
+    for (const url of candidateUrls) {
+        try {
+            const res = await fetchWithRetry(url, {}, { retries: 1, timeoutMs: 20000 })
+            if (!res.ok) continue
+            installerBuf = Buffer.from(await res.arrayBuffer())
+            console.log(`[Forge] Installeur téléchargé depuis : ${url}`)
+            break
+        } catch (_) { /* essayer l'URL suivante */ }
+    }
+
+    if (!installerBuf) {
+        throw new Error(`Impossible de télécharger l'installeur Forge pour ${mcVersion}-${loaderVersion} (toutes les URLs ont échoué)`)
+    }
+
+    const AdmZip = require('adm-zip')
+    const zip = new AdmZip(installerBuf)
+
+    // 1. Extraire install_profile.json → version JSON pour MCLC
+    const profileEntry = zip.getEntry('install_profile.json')
+    if (!profileEntry) throw new Error('install_profile.json introuvable dans l\'installeur Forge')
+
+    const profile = JSON.parse(profileEntry.getData().toString('utf8'))
+    // Anciens Forge : versionInfo contient le launcher JSON
+    // Nouveaux Forge (>=1.13) : le profil lui-même est le launcher JSON
+    const versionJson = profile.versionInfo || profile
+    fs.writeFileSync(jsonPath, JSON.stringify(versionJson, null, 2))
+    console.log(`[Forge] JSON installé pour ${versionId}`)
+
+    // 2. Extraire le JAR universel Forge embarqué dans l'installeur
+    //    et le placer dans le dossier libraries au bon chemin Maven.
+    //    Sans cela, MCLC tente de le télécharger depuis Maven où il n'existe pas (404).
+    const installInfo = profile.install || {}
+    const mavenPath = installInfo.path // ex: "net.minecraftforge:forge:1.8.9-11.15.1.2318-1.8.9"
+    const embeddedJarName = installInfo.filePath // ex: "forge-1.8.9-11.15.1.2318-1.8.9-universal.jar"
+
+    if (mavenPath && embeddedJarName) {
+        // Convertir le chemin Maven en chemin filesystem
+        // "group:artifact:version" → "group/artifact/version/artifact-version.jar"
+        const [group, artifact, ver] = mavenPath.split(':')
+        const libRelPath = path.join(
+            group.replace(/\./g, '/'),
+            artifact,
+            ver,
+            `${artifact}-${ver}.jar`
+        )
+        const libAbsPath = path.join(gameDir, 'libraries', libRelPath)
+
+        if (!fs.existsSync(libAbsPath) || fs.statSync(libAbsPath).size < MIN_FORGE_JAR_SIZE) {
+            const universalEntry = zip.getEntry(embeddedJarName)
+            if (universalEntry) {
+                fs.mkdirSync(path.dirname(libAbsPath), { recursive: true })
+                fs.writeFileSync(libAbsPath, universalEntry.getData())
+                console.log(`[Forge] JAR universel extrait vers : ${libAbsPath}`)
+            } else {
+                console.warn(`[Forge] JAR universel "${embeddedJarName}" non trouvé dans l'installeur.`)
+            }
+        }
+    }
+
+    // 3. Télécharger toutes les bibliothèques Forge manquantes AVANT le lancement.
+    //    MCLC ne gère pas correctement certaines libs (Mojang CDN pour "url: default",
+    //    Forge Maven ancienne convention, etc.) et lance le jeu même si elles manquent.
+    const MOJANG_LIB_CDN = 'https://libraries.minecraft.net'
+    const libs = versionJson.libraries || []
+
+    await Promise.all(libs.map(async (lib) => {
+        try {
+            const name = lib.name
+            const parts = name.split(':')
+            if (parts.length < 3) return
+            const [grp, art, libVer, classifier] = parts
+            const jarFile = classifier ? `${art}-${libVer}-${classifier}.jar` : `${art}-${libVer}.jar`
+            const relPath = path.join(grp.replace(/\./g, '/'), art, libVer, jarFile)
+            const destPath = path.join(gameDir, 'libraries', relPath)
+
+            if (fs.existsSync(destPath) && fs.statSync(destPath).size > 0) return
+
+            let baseUrl
+            if (!lib.url || lib.url === 'default') {
+                baseUrl = MOJANG_LIB_CDN
+            } else {
+                baseUrl = lib.url.replace(/\/$/, '')
+            }
+            const downloadUrl = `${baseUrl}/${relPath.replace(/\\/g, '/')}`
+
+            const res = await fetchWithRetry(downloadUrl, {}, { retries: 2, timeoutMs: 15000 })
+            if (!res.ok) {
+                console.warn(`[Forge] Lib ${name} : HTTP ${res.status} — ${downloadUrl}`)
+                return
+            }
+            const buf = Buffer.from(await res.arrayBuffer())
+            fs.mkdirSync(path.dirname(destPath), { recursive: true })
+            fs.writeFileSync(destPath, buf)
+            console.log(`[Forge] Lib téléchargée : ${name}`)
+        } catch (e) {
+            console.warn(`[Forge] Échec lib ${lib.name} : ${e.message}`)
+        }
+    }))
+
+    console.log(`[Forge] Installation terminée pour ${versionId}`)
 }
 
 /**
