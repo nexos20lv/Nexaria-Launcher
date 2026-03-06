@@ -6,6 +6,8 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('nexaria', {
     // Window controls
     minimize: () => ipcRenderer.send('window:minimize'),
+    maximize: () => ipcRenderer.send('window:maximize'),
+    fullscreen: () => ipcRenderer.send('window:fullscreen'),
     close: () => ipcRenderer.send('window:close'),
     openUrl: (url) => ipcRenderer.send('open:url', url),
 
@@ -68,4 +70,8 @@ contextBridge.exposeInMainWorld('nexaria', {
     clearCache: () => ipcRenderer.invoke('troubleshoot:clearCache'),
     resetSettings: () => ipcRenderer.invoke('troubleshoot:resetSettings'),
     exportHealthReport: () => ipcRenderer.invoke('troubleshoot:exportHealthReport'),
+    uploadCrashReport: (data) => ipcRenderer.invoke('troubleshoot:uploadCrashReport', data),
+
+    // Leaderboard
+    fetchLeaderboard: () => ipcRenderer.invoke('leaderboard:fetch'),
 })

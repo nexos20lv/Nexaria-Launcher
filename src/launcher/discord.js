@@ -56,4 +56,15 @@ function destroyRPC() {
     }
 }
 
-module.exports = { initRPC, setActivity, resetTimestamp, destroyRPC }
+// Clears the rich presence first (removes it from Discord UI) THEN destroys.
+// Returns a promise so the caller can await it before quitting.
+function clearAndDestroy() {
+    if (!client) return Promise.resolve()
+    const _client = client
+    client = null
+    return _client.clearActivity()
+        .catch(() => { })
+        .finally(() => _client.destroy().catch(() => { }))
+}
+
+module.exports = { initRPC, setActivity, resetTimestamp, destroyRPC, clearAndDestroy }

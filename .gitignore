@@ -28,3 +28,4 @@ config.json
 
 #GUI-Codespaces
 start-gui.sh
+.*

@@ -14,7 +14,7 @@ const { launchGame, downloadGame, getGameDir: getDefaultGameDir } = require('./l
 const { getServerStatus } = require('./launcher/server')
 const { fetchNews } = require('./launcher/news')
 const { fetchChangelog } = require('./launcher/changelog')
-const { initRPC, setActivity, resetTimestamp, destroyRPC } = require('./launcher/discord')
+const { initRPC, setActivity, resetTimestamp, destroyRPC, clearAndDestroy } = require('./launcher/discord')
 log.info('Discord RPC module loaded:', typeof initRPC)
 autoUpdater.autoDownload = true
 
@@ -66,12 +66,14 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 750,
-        minWidth: 1200,
-        minHeight: 750,
+        minWidth: 900,
+        minHeight: 600,
         frame: false,
         transparent: true,
         backgroundColor: '#00000000',
-        resizable: false,
+        resizable: true,
+        maximizable: true,
+        fullscreenable: true,
         show: false, // Caché initialement le temps du splash
         icon: path.join(__dirname, '../assets/icon.png'),
         webPreferences: {
@@ -254,14 +256,27 @@ app.whenReady().then(() => {
     }, 60 * 60 * 1000)
 })
 
-app.on('before-quit', () => {
-    destroyRPC()
+let _rpcCleaned = false
+app.on('before-quit', (event) => {
+    if (_rpcCleaned) return   // Second call after our own app.quit() — let it pass
+    event.preventDefault()
+    _rpcCleaned = true
+    clearAndDestroy().finally(() => {
+        app.quit()
+    })
 })
 
 app.on('window-all-closed', () => app.quit())
 
 // ── Window Controls ───────────────────────────────────────
 ipcMain.on('window:minimize', () => mainWindow.minimize())
+ipcMain.on('window:maximize', () => {
+    if (mainWindow.isMaximized()) mainWindow.unmaximize()
+    else mainWindow.maximize()
+})
+ipcMain.on('window:fullscreen', () => {
+    mainWindow.setFullScreen(!mainWindow.isFullScreen())
+})
 ipcMain.on('window:close', () => {
     destroyRPC()
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
@@ -640,6 +655,166 @@ ipcMain.handle('troubleshoot:exportHealthReport', async () => {
         return { status: 'success', filePath }
     } catch (err) {
         return { status: 'error', message: err.message }
+    }
+})
+
+ipcMain.handle('troubleshoot:uploadCrashReport', async (_, { crashLog }) => {
+    try {
+        const { net } = require('electron');
+        const os = require('os');
+
+        // ── Security: redact sensitive patterns ─────────────
+        const REDACT_PATTERNS = [
+            /accessToken["'\s:]+[A-Za-z0-9\-_.+/=]{16,}/gi,
+            /password["'\s:]+\S+/gi,
+            /Bearer\s+[A-Za-z0-9\-_.+/=]{16,}/gi,
+        ];
+        const redact = (text) => {
+            if (!text) return text;
+            let out = text;
+            for (const pat of REDACT_PATTERNS) out = out.replace(pat, '[REDACTED]');
+            return out;
+        };
+
+        // ── 1. System info ───────────────────────────────────
+        const cpus = os.cpus();
+        const systemInfo = [
+            `OS          : ${os.type()} ${os.release()} (${os.arch()})`,
+            `CPU         : ${cpus[0]?.model || 'Unknown'} x${cpus.length}`,
+            `RAM total   : ${Math.round(os.totalmem() / 1024 / 1024)} Mo`,
+            `RAM libre   : ${Math.round(os.freemem() / 1024 / 1024)} Mo`,
+            `Node        : ${process.versions.node}`,
+            `Electron    : ${process.versions.electron}`,
+            `Launcher    : v${app.getVersion()}`,
+            `Platform    : ${process.platform}`,
+        ].join('\n');
+
+        // ── 2. Launcher settings ─────────────────────────────
+        const settings = store.get('settings', {});
+        const gameDir = settings.gameDir || getDefaultGameDir();
+        const settingsInfo = [
+            `RAM allouée : ${settings.ram || 2048} Mo`,
+            `Game dir    : ${gameDir}`,
+            `Java perso  : ${settings.javaPath ? 'Oui' : 'Non'}`,
+            `JVM args    : ${settings.jvmArgs || '(aucun)'}`,
+            `Fullscreen  : ${settings.fullscreen ? 'Oui' : 'Non'}`,
+            `Version     : ${settings.serverVersion || 'auto'}`,
+        ].join('\n');
+
+        // ── 3. Minecraft latest.log ──────────────────────────
+        let minecraftLog = 'Aucun log Minecraft trouvé.';
+        try {
+            const latestLogPath = path.join(gameDir, 'logs', 'latest.log');
+            if (fs.existsSync(latestLogPath)) {
+                const raw = fs.readFileSync(latestLogPath, 'utf8');
+                minecraftLog = redact(raw.split('\n').slice(-300).join('\n'));
+            }
+        } catch (e) {
+            minecraftLog = `[Erreur lecture log: ${e.message}]`;
+        }
+
+        // ── 4. Launcher log ──────────────────────────────────
+        let launcherLogTail = 'Aucun log launcher disponible.';
+        try {
+            const launcherLogPath = log.transports.file.getFile().path;
+            if (launcherLogPath && fs.existsSync(launcherLogPath)) {
+                const raw = fs.readFileSync(launcherLogPath, 'utf8');
+                launcherLogTail = redact(raw.split('\n').slice(-150).join('\n'));
+            }
+        } catch (e) { }
+
+        // ── Assemble final report ─────────────────────────────
+        const combinedLog = [
+            `=== NEXARIA SUPPORT REPORT — ${new Date().toISOString()} ===`,
+            '',
+            '=== SYSTÈME ===',
+            systemInfo,
+            '',
+            '=== CONFIGURATION LAUNCHER ===',
+            settingsInfo,
+            '',
+            '=== MINECRAFT LATEST.LOG (300 dernières lignes) ===',
+            minecraftLog,
+            '',
+            '=== LAUNCHER LOG (150 dernières lignes) ===',
+            launcherLogTail,
+            ...(crashLog ? ['', '=== CRASH LOG ===', redact(crashLog)] : []),
+        ].join('\n');
+
+        // Limit payload to 10MB to avoid server rejection
+        const MAX_BYTES = 10 * 1024 * 1024;
+        const payload = combinedLog.length > MAX_BYTES
+            ? combinedLog.slice(-MAX_BYTES)
+            : combinedLog;
+
+        return new Promise((resolve) => {
+            const request = net.request({ method: 'POST', url: 'https://api.mclo.gs/1/log' });
+            request.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+            let body = '';
+            request.on('response', (response) => {
+                response.on('data', (chunk) => { body += chunk.toString(); });
+                response.on('end', () => {
+                    try {
+                        const json = JSON.parse(body);
+                        if (json.success) {
+                            resolve({ status: 'success', url: json.url });
+                        } else {
+                            resolve({ status: 'error', message: json.error || 'Erreur API mclo.gs' });
+                        }
+                    } catch (e) {
+                        resolve({ status: 'error', message: 'Réponse invalide de mclo.gs' });
+                    }
+                });
+            });
+            request.on('error', (error) => {
+                resolve({ status: 'error', message: error.message });
+            });
+
+            request.write('content=' + encodeURIComponent(payload));
+            request.end();
+        });
+    } catch (err) {
+        return { status: 'error', message: err.message };
+    }
+})
+
+// ── Leaderboard ───────────────────────────────────────────
+ipcMain.handle('leaderboard:fetch', async () => {
+    try {
+        const { net } = require('electron');
+
+        return new Promise((resolve) => {
+            const request = net.request({
+                method: 'GET',
+                url: 'https://nexaria.site/api/ranking/votes',
+            });
+
+            let body = '';
+            request.on('response', (response) => {
+                response.on('data', (chunk) => { body += chunk.toString(); });
+                response.on('end', () => {
+                    try {
+                        const json = JSON.parse(body);
+                        // Azuriom's vote API returns an array of { user: {name}, votes }
+                        const players = (json.data || json || []).slice(0, 3).map((entry, index) => ({
+                            rank: index + 1,
+                            name: entry.user?.name || entry.name || entry.username || '???',
+                            score: entry.votes || entry.score || entry.count || 0,
+                        }));
+                        resolve({ status: 'success', players });
+                    } catch (e) {
+                        resolve({ status: 'error', message: 'Données invalides', players: [] });
+                    }
+                });
+            });
+            request.on('error', (err) => {
+                resolve({ status: 'error', message: err.message, players: [] });
+            });
+            request.end();
+        });
+    } catch (err) {
+        return { status: 'error', message: err.message, players: [] };
     }
 })
 

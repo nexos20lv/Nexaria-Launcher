@@ -1,90 +1,42 @@
 [
   {
-    "id": "iris",
-    "name": "Iris Shaders",
-    "description": "Permet d'utiliser des shaders optifine sur Fabric pour des graphismes magnifiques.",
-    "fileName": "iris-fabric-1.10.6+mc1.21.11.jar",
-    "url": "https://cdn.modrinth.com/data/YL57xq9U/versions/TSXvi2yD/iris-fabric-1.10.6%2Bmc1.21.11.jar",
-    "sha1": "9a4dd8518bbad9e6be9edd443cfc6da74b1bb26b"
+    "id": "optifine",
+    "name": "OptiFine 1.8.9",
+    "description": "Améliore considérablement les performances (FPS) et permet d'utiliser des shaders et des textures HD.",
+    "fileName": "OptiFine.jar",
+    "url": "https://launcher.nexaria.site/files/mods/OptiFine.jar",
+    "sha1": "9aacdb072f3194207f0450e94a9d206800779fec"
   },
   {
-    "id": "sodium",
-    "name": "Sodium",
-    "description": "Améliore considérablement les performances (FPS) du jeu grâce à un moteur de rendu moderne.",
-    "fileName": "sodium-fabric-0.8.6+mc1.21.11.jar",
-    "url": "https://cdn.modrinth.com/data/AANobbMI/versions/ZPWbiWXz/sodium-fabric-0.8.6%2Bmc1.21.11.jar",
-    "sha1": "fa686304c63efea0456af91a0b6352f032e61e66"
+    "id": "memoryfix",
+    "name": "MemoryFix",
+    "description": "Corrige les fuites de mémoire sur l'écran des serveurs.",
+    "fileName": "MemoryFix-0.3.jar",
+    "url": "https://launcher.nexaria.site/files/mods/MemoryFix-0.3.jar",
+    "sha1": "8f363b35fd4df1389f3cd9408c5be2b23b61e9a0"
   },
   {
-    "id": "lithium",
-    "name": "Lithium",
-    "description": "Optimise la logique interne du jeu pour réduire les lags et améliorer la fluidité.",
-    "fileName": "lithium-fabric-0.21.3+mc1.21.11.jar",
-    "url": "https://cdn.modrinth.com/data/gvQqBUqZ/versions/qvNsoO3l/lithium-fabric-0.21.3%2Bmc1.21.11.jar",
-    "sha1": "7733e091bebe5f68aaa4e13cfb6f1eaf3a192379"
+    "id": "mousedelayfix",
+    "name": "MouseDelayFix",
+    "description": "Retire la très légère latence de la souris par rapport à la vue du joueur.",
+    "fileName": "MouseDelayFix-1.0.jar",
+    "url": "https://launcher.nexaria.site/files/mods/MouseDelayFix-1.0.jar",
+    "sha1": "4c72f2e9ead3f73f63a0d574f13daf3f4b0338b8"
   },
   {
-    "id": "xaeros",
-    "name": "Xaero's Minimap",
-    "description": "Ajoute une mini-carte pratique avec un radar d'entités et de joueurs.",
-    "fileName": "xaerominimap-fabric-1.21.11-25.3.10.jar",
-    "url": "https://cdn.modrinth.com/data/1bokaNcj/versions/avSqR3vF/xaerominimap-fabric-1.21.11-25.3.10.jar",
-    "sha1": "4cb5a1d9121f7b1cd03fd17e901c002ba9cac62b"
+    "id": "nexariaclient",
+    "name": "Nexaria Client Mod",
+    "description": "Ajoute des fonctionnalités inédites pour le serveur Nexaria.",
+    "fileName": "NexariaClientMod-1.0.0.jar",
+    "url": "https://launcher.nexaria.site/files/mods/NexariaClientMod-1.0.0.jar",
+    "sha1": "ce367fc3d250b54b8757a3268b2a4cb38495bfb0"
   },
   {
-    "id": "replay",
-    "name": "ReplayMod",
-    "description": "Permet d'enregistrer, de rejouer et de partager vos meilleures parties en cinématique.",
-    "fileName": "replaymod-1.21.11-2.6.25.jar",
-    "url": "https://cdn.modrinth.com/data/Nv2fQJo5/versions/lrnVIO9F/replaymod-1.21.11-2.6.25.jar",
-    "sha1": "84b694c231319c930a8ecd0af4fd19c1e2b63279"
-  },
-  {
-    "id": "appleskin",
-    "name": "AppleSkin",
-    "description": "Affiche des informations utiles sur la nourriture (saturation, points de vie restaurés).",
-    "fileName": "appleskin-fabric-mc1.21.11-3.0.8.jar",
-    "url": "https://cdn.modrinth.com/data/EsAfCjCV/versions/59ti1rvg/appleskin-fabric-mc1.21.11-3.0.8.jar",
-    "sha1": "441fdbf4e9c34fb61517ceb8e15618950dc4d314"
-  },
-  {
-    "id": "betterf3",
-    "name": "Better F3",
-    "description": "Remplace le menu F3 classique par une fenêtre plus lisible et personnalisable.",
-    "fileName": "BetterF3-17.0.0-Fabric-1.21.11.jar",
-    "url": "https://cdn.modrinth.com/data/8shC1gFX/versions/Qw1nhj7u/BetterF3-17.0.0-Fabric-1.21.11.jar",
-    "sha1": "e1c57a6377d12d6d26c039d317eec00ae7f08e2b"
-  },
-  {
-    "id": "modmenu",
-    "name": "ModMenu",
-    "description": "Ajoute un menu pour voir et configurer tous vos mods installés.",
-    "fileName": "modmenu-17.0.0-beta.2.jar",
-    "url": "https://cdn.modrinth.com/data/mOgUt4GM/versions/JWQVh32x/modmenu-17.0.0-beta.2.jar",
-    "sha1": "632c7565ba0fbc033aa4574e1ae6919f277fe03b"
-  },
-  {
-    "id": "clothconfig",
-    "name": "Cloth Config",
-    "description": "Indispensable pour configurer certains mods directement en jeu.",
-    "fileName": "cloth-config-21.11.153-fabric.jar",
-    "url": "https://cdn.modrinth.com/data/9s6osm5g/versions/xuX40TN5/cloth-config-21.11.153-fabric.jar",
-    "sha1": "4c224606a963bce223db5b27edb4959ecf40d4ee"
-  },
-  {
-    "id": "login",
-    "name": "AutoLogin",
-    "description": "Se connecte automatiquement au serveur Nexaria dès que le jeu est lancé.",
-    "fileName": "autologin-mod-1.1.8.jar",
-    "url": "https://cdn.modrinth.com/data/6OR8Lue2/versions/nGCco91g/autologin-mod-1.1.8.jar",
-    "sha1": "c5e4da1ebad283cbdb0ee8da3ce691a9325c2851"
-  },
-  {
-    "id": "vulkan",
-    "name": "VulkanMod",
-    "description": "Remplace le moteur de rendu OpenGL par l'API Vulkan, offrant un gain massif de performances (FPS) et de fluidité.",
-    "fileName": "VulkanMod_1.21.11-0.5.10.jar",
-    "url": "https://cdn.modrinth.com/data/JYQhtZtO/versions/pKxsFWrK/VulkanMod_1.21.11-0.5.10.jar",
-    "sha1": "b5f8ce46a1108b1a4ffdf8e6a3c1c8f9a37f464b"
+    "id": "tcpnodelay",
+    "name": "TcpNoDelay",
+    "description": "Désactive l'algorithme de Nagle sur les requêtes TCP (réduit le ping apparent).",
+    "fileName": "TcpNoDelayMod-2.0.jar",
+    "url": "https://launcher.nexaria.site/files/mods/TcpNoDelayMod-2.0.jar",
+    "sha1": "e2b97b52351495f06e5a04f205f812112cf1402c"
   }
 ]

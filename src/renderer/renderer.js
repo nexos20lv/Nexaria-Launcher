@@ -156,6 +156,7 @@ async function enterMainView() {
     Promise.all([
         loadAccounts().catch(e => console.error('loadAccounts fail:', e)),
         loadNews().catch(e => console.error('loadNews fail:', e)),
+        loadLeaderboard().catch(e => console.error('loadLeaderboard fail:', e)),
     ]).catch(console.error)
 }
 
@@ -380,6 +381,40 @@ async function updatePlayersModal() {
         `).join('')
     } catch (err) {
         listEl.innerHTML = `<p style="text-align: center; color: var(--red); padding: 40px;">Erreur de chargement</p>`
+    }
+}
+
+// ── Leaderboard ──────────────────────────────────────────
+async function loadLeaderboard() {
+    const list = $('#leaderboard-list')
+    if (!list) return
+
+    const medals = ['🥇', '🥈', '🥉']
+    const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32']
+
+    try {
+        const res = await window.nexaria.fetchLeaderboard()
+
+        if (!res || res.status !== 'success' || !res.players || res.players.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-muted);font-size:11px;text-align:center;padding:8px;">Aucune donnée</p>'
+            return
+        }
+
+        list.innerHTML = res.players.map((p, i) => {
+            const avatarUrl = `https://nexaria.site/api/skin-api/avatars/face/${encodeURIComponent(p.name)}?size=32`
+            return `
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border);">
+                    <span style="font-size:18px;flex-shrink:0;">${medals[i] || (i + 1)}</span>
+                    <img src="${avatarUrl}" onerror="this.src='https://minotar.net/avatar/steve/32'" style="width:28px;height:28px;border-radius:4px;flex-shrink:0;image-rendering:pixelated;">
+                    <div style="flex:1;overflow:hidden;">
+                        <div style="font-size:12px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
+                        <div style="font-size:10px;color:${medalColors[i] || 'var(--text-muted)'};">${p.score} vote${p.score > 1 ? 's' : ''}</div>
+                    </div>
+                </div>
+            `
+        }).join('')
+    } catch (e) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:11px;text-align:center;">Erreur de chargement</p>'
     }
 }
 
@@ -920,6 +955,26 @@ async function init() {
     $('#btn-minimize')?.addEventListener('click', () => window.nexaria.minimize())
     $('#btn-close')?.addEventListener('click', () => window.nexaria.close())
 
+    // Maximize / restore - button + double-click on titlebar
+    const btnMax = $('#btn-maximize')
+    if (btnMax) {
+        const ICON_MAXIMIZE = `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>`
+        const ICON_RESTORE = `<rect x="3" y="3" width="14" height="14" rx="1" ry="1"/><polyline points="7 3 21 3 21 17"/>`
+        let _maximized = false
+        btnMax.addEventListener('click', () => {
+            window.nexaria.maximize()
+            _maximized = !_maximized
+            btnMax.querySelector('svg').innerHTML = _maximized ? ICON_RESTORE : ICON_MAXIMIZE
+            btnMax.title = _maximized ? 'Restaurer' : 'Agrandir'
+        })
+    }
+    // Double-click on titlebar brand area to maximize/restore
+    $('#titlebar')?.addEventListener('dblclick', (e) => {
+        // Only on the drag area, not the buttons
+        if (e.target.closest('.titlebar-controls')) return
+        window.nexaria.maximize()
+    })
+
     // Sidebar nav
     $$('.sidebar-btn[data-view]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -927,11 +982,6 @@ async function init() {
             if (view === 'main' && !state.currentAccount) {
                 showView('login')
                 return
-            }
-
-            // Map integration lazy load with 502 handling
-            if (view === 'map') {
-                checkMapAvailability()
             }
 
             showView(view)
@@ -1113,27 +1163,27 @@ async function init() {
         }
     })
 
-    // Export health report
-    $('#btn-export-health')?.addEventListener('click', async () => {
-        const btn = $('#btn-export-health')
+    // One-Click support: upload launcher logs to mclo.gs
+    $('#btn-upload-support-log')?.addEventListener('click', async () => {
+        const btn = $('#btn-upload-support-log')
         if (!btn || btn.disabled) return
 
         btn.disabled = true
-        btn.textContent = 'Export...'
+        btn.textContent = 'Envoi...'
 
         try {
-            const res = await window.nexaria.exportHealthReport()
-            if (res?.status === 'success') {
-                const fileName = (res.filePath || '').split(/[/\\]/).pop()
-                showToast(`Rapport exporté : ${fileName || 'health-report.json'}`, 'success')
-            } else if (res?.status !== 'cancelled') {
-                showToast(`Erreur export : ${res?.message || 'inconnue'}`, 'error')
+            const res = await window.nexaria.uploadCrashReport({ crashLog: '' })
+            if (res?.status === 'success' && res.url) {
+                showToast('Logs envoyés ! Lien ouvert dans le navigateur.', 'success')
+                window.nexaria.openUrl(res.url)
+            } else {
+                showToast(`Erreur : ${res?.message || 'inconnue'}`, 'error')
             }
         } catch (e) {
-            showToast(`Erreur export : ${e.message}`, 'error')
+            showToast(`Erreur : ${e.message}`, 'error')
         } finally {
             btn.disabled = false
-            btn.textContent = 'Exporter'
+            btn.textContent = 'Générer un lien'
         }
     })
 
@@ -1250,6 +1300,33 @@ async function init() {
                 }).catch(err => {
                     showToast("Erreur lors de la copie", "error")
                 })
+            }
+        })
+    }
+
+    const btnUploadCrash = $('#btn-upload-crash')
+    if (btnUploadCrash) {
+        btnUploadCrash.addEventListener('click', async () => {
+            const textArea = $('#crash-log-text')
+            if (!textArea) return;
+
+            const originalText = btnUploadCrash.querySelector('.btn-play-text').innerText;
+            btnUploadCrash.querySelector('.btn-play-text').innerText = "ENVOI...";
+            btnUploadCrash.disabled = true;
+
+            try {
+                const res = await window.nexaria.uploadCrashReport({ crashLog: textArea.value });
+                if (res.status === 'success' && res.url) {
+                    showToast("Rapport envoyé avec succès !", "success");
+                    window.nexaria.openUrl(res.url);
+                } else {
+                    showToast(`Erreur d'envoi API : ${res.message}`, "error");
+                }
+            } catch (err) {
+                showToast("Impossible de contacter le serveur", "error");
+            } finally {
+                btnUploadCrash.querySelector('.btn-play-text').innerText = originalText;
+                btnUploadCrash.disabled = false;
             }
         })
     }
@@ -1489,52 +1566,6 @@ function _applyChangelogFilter() {
         card.addEventListener('click', () => window.nexaria.openUrl('https://nexaria.site/changelog'))
     })
 }
-
-
-
-async function checkMapAvailability() {
-    const mapFrame = $('#map-frame')
-    const offlinePlaceholder = $('#map-offline')
-    const url = 'https://map.nexaria.netlib.re'
-
-    if (!mapFrame || !offlinePlaceholder) return
-
-    // Show loading or just try
-    try {
-        // Use fetch with a short timeout to check if the server responds
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-        const response = await fetch(url, {
-            method: 'HEAD',
-            mode: 'no-cors', // Map might not have CORS, so we use no-cors to at least see if it's "alive"
-            signal: controller.signal
-        }).catch(() => ({ ok: false })) // Catch abort/network errors
-
-        clearTimeout(timeoutId)
-
-        // With no-cors, we can't see the status code, so we try a "cors" request to specifically catch 502
-        // IF the server is Azuriom/Cloudflare, we might be able to get status or it will just fail.
-        const checkStatus = await fetch(url).catch(() => ({ status: 502 }))
-
-        if (checkStatus.status === 502 || checkStatus.status === 504 || !checkStatus.ok) {
-            mapFrame.style.display = 'none'
-            offlinePlaceholder.style.display = 'flex'
-        } else {
-            mapFrame.style.display = 'block'
-            offlinePlaceholder.style.display = 'none'
-            if (mapFrame.src === 'about:blank' || mapFrame.src !== url) {
-                mapFrame.src = url
-            }
-        }
-    } catch (err) {
-        mapFrame.style.display = 'none'
-        offlinePlaceholder.style.display = 'flex'
-    }
-}
-
-// Map Retry button
-$('#btn-retry-map')?.addEventListener('click', checkMapAvailability)
 
 // Live Listeners
 window.nexaria.onScreenshotsUpdated(() => {
