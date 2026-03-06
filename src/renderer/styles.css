@@ -7,24 +7,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg-primary: #1B1135; /* Deep Theme Background */
-  --bg-panel: #261649; /* Solid Lighter Theme Panel */
-  --bg-panel-2: #301b5e; /* Even lighter theme color for hover/secondary */
+  --bg-primary: #100C08; /* Deep Theme Background */
+  --bg-panel: #1A1410; /* Solid Lighter Theme Panel */
+  --bg-panel-2: #261D17; /* Even lighter theme color for hover/secondary */
   --bg-hover: rgba(255, 255, 255, 0.08); /* Slightly more visible hover */
   --bg-input: rgba(0, 0, 0, 0.25);
 
-  --accent: #D926A9; /* Pink Focus Accent from new DA */
-  --accent-dim: rgba(217, 38, 169, 0.25);
-  --accent-glow: rgba(217, 38, 169, 0.5);
-  --accent-hover: #F042C3; /* Lighter pink for hover state */
+  --accent: #FF7A00; /* Pink Focus Accent from new DA */
+  --accent-dim: rgba(255, 122, 0, 0.25);
+  --accent-glow: rgba(255, 122, 0, 0.5);
+  --accent-hover: #FFA040; /* Lighter pink for hover state */
 
   --green: #22c55e;
   --red: #ef4444;
   --text-primary: #ffffff;
   --text-secondary: #b0b0b0;
-  --text-muted: #807b8a; /* Slightly pink-tinted gray */
+  --text-muted: #807a75; /* Slightly pink-tinted gray */
   --border: rgba(255, 255, 255, 0.06); /* Softer white border */
-  --border-hover: rgba(217, 38, 169, 0.5);
+  --border-hover: rgba(255, 122, 0, 0.5);
 
   --radius-sm: 8px;
   --radius-md: 16px; 
@@ -129,9 +129,9 @@ img {
 
 .particle {
   position: absolute;
-  background: rgba(217, 38, 169, 0.4);
+  background: rgba(255, 122, 0, 0.4);
   border-radius: 50%;
-  border: 1px solid rgba(217, 38, 169, 0.1);
+  border: 1px solid rgba(255, 122, 0, 0.1);
   animation: floatUp linear infinite;
   filter: blur(1px);
 }
@@ -390,7 +390,7 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse 60% 80% at 50% 100%, rgba(217, 38, 169, 0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse 60% 80% at 50% 100%, rgba(255, 122, 0, 0.12) 0%, transparent 70%);
 }
 
 .login-panel {
@@ -401,7 +401,7 @@ img {
   padding: 48px 40px;
   box-shadow:
     0 32px 80px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(217, 38, 169, 0.15);
+    0 0 0 1px rgba(255, 122, 0, 0.15);
   animation: floatIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   var(--glass);
 }
@@ -581,8 +581,8 @@ img {
 }
 
 .btn-play:hover {
-  background: rgba(217, 38, 169, 0.15);
-  box-shadow: 0 0 20px rgba(217, 38, 169, 0.2);
+  background: rgba(255, 122, 0, 0.15);
+  box-shadow: 0 0 20px rgba(255, 122, 0, 0.2);
   transform: translateY(-1px);
 }
 
@@ -599,7 +599,7 @@ img {
 .btn-play-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(217, 38, 169, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 122, 0, 0.3) 0%, transparent 70%);
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
@@ -615,21 +615,21 @@ img {
   padding: 16px 48px;
   font-size: 18px;
   letter-spacing: 5px;
-  box-shadow: 0 0 30px rgba(217, 38, 169, 0.25);
+  box-shadow: 0 0 30px rgba(255, 122, 0, 0.25);
 }
 
 /* Pulse animation on play button */
 @keyframes pulse-border {
   0% {
-    box-shadow: 0 0 0 0 var(--accent-glow), 0 0 40px rgba(217, 38, 169, 0.3);
+    box-shadow: 0 0 0 0 var(--accent-glow), 0 0 40px rgba(255, 122, 0, 0.3);
   }
 
   70% {
-    box-shadow: 0 0 0 15px transparent, 0 0 60px rgba(217, 38, 169, 0.15);
+    box-shadow: 0 0 0 15px transparent, 0 0 60px rgba(255, 122, 0, 0.15);
   }
 
   100% {
-    box-shadow: 0 0 0 0 transparent, 0 0 40px rgba(217, 38, 169, 0.3);
+    box-shadow: 0 0 0 0 transparent, 0 0 40px rgba(255, 122, 0, 0.3);
   }
 }
 
@@ -863,8 +863,8 @@ img {
 
 .player-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(217, 38, 169, 0.15);
-  border-color: rgba(217, 38, 169, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 122, 0, 0.15);
+  border-color: rgba(255, 122, 0, 0.4);
 }
 
 /* Spotlight subtil au survol */
@@ -993,9 +993,9 @@ img {
 .progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #D926A9, #F042C3);
+  background: linear-gradient(90deg, #FF7A00, #FFA040);
   border-radius: 10px;
-  box-shadow: 0 0 15px rgba(217, 38, 169, 0.6);
+  box-shadow: 0 0 15px rgba(255, 122, 0, 0.6);
   transition: width 0.4s cubic-bezier(0.1, 0.7, 0.1, 1);
 }
 
@@ -1164,7 +1164,7 @@ img {
 
 .account-item.active {
   background: var(--accent-dim);
-  border: 1px solid rgba(217, 38, 169, 0.3);
+  border: 1px solid rgba(255, 122, 0, 0.3);
 }
 
 .player-avatar-container {
@@ -1561,7 +1561,7 @@ img {
 }
 
 .btn-save-settings:hover {
-  background: rgba(217, 38, 169, 0.3);
+  background: rgba(255, 122, 0, 0.3);
   box-shadow: 0 0 20px var(--accent-dim);
   transform: translateY(-1px);
 }
@@ -1843,7 +1843,7 @@ img {
 
 .changelog-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 0 20px rgba(217, 38, 169, 0.2);
+  box-shadow: 0 0 20px rgba(255, 122, 0, 0.2);
   transform: translateY(-2px);
 }
 
